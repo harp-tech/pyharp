@@ -1,0 +1,6 @@
+.idea/
+pyharp.egg-info/
+.python-version
+__pycache__
+tests/.pytest_cache
+**/*.bin

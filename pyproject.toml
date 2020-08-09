@@ -1,0 +1,23 @@
+[tool.poetry]
+name = "pyharp"
+version = "0.1.0"
+description = "Library for data acquisition and control of devices implementing the Harp protocol."
+authors = ["filcarv <filipe@open-ephys.org>"]
+license = "MIT"
+readme = 'README.md'
+
+[tool.poetry.dependencies]
+python = "^3.4"
+pyserial = "^3.4"
+
+[tool.poetry.dev-dependencies]
+pytest = "^5.2"
+mypy = "^0.782"
+black = "^19.10b0"
+
+[build-system]
+requires = ["poetry>=0.12"]
+build-backend = "poetry.masonry.api"
+
+[tool.poetry.scripts]
+pyharp = "pyharp.main:main"
