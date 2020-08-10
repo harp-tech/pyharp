@@ -1,7 +1,5 @@
 def get(value: int) -> str:
-    if value >= 2048 and value < 2064:
-        return "MindReach"
-    elif value == 1024:
+    if value == 1024:
         return "Poke"
     elif value == 1040:
         return "MultiPwm"
@@ -29,5 +27,15 @@ def get(value: int) -> str:
         return "Behavior"
     elif value == 1232:
         return "LoadCells"
+    elif value == 1248:
+        return "AudioSwitch"
+    elif value == 1264:
+        return "Rgb"
+    elif value == 1200:
+        return "FlyPad"
+    elif value == 2064:
+        return "FP3002"
+    elif value == 2080:
+        return "IblBehavior"
     else:
         return "NotSpecified"
