@@ -29,13 +29,17 @@ It's suggested to reboot your computer at this point
 ### 3. Install Poetry
 
 Open the **Command Prompt** and execute the next command:
-> curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py | python
+```
+curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py | python
+```
 
 ### 4. Install pyharp
 
 Open **Anaconda**, navigate to the repository folder and execute the next commands:
-> poetry install
-> poetry env info
+```
+poetry install
+poetry env info
+```
 
 The second comand will reply with a **Path:**.
 Select and copy this path.
@@ -56,11 +60,12 @@ You are ready to go!
 
 Under **PyCharm**, Open one of the examples from the folder _examples_ (the _get_info.py_ is generic, so it's a good option) and update the COMx to your COM number.
 Right-click on top of the file and chose option _Run 'get_info.py_. You should read something like this in the console:
-
-> Device info:
-> . Who am I: (2080) IblBehavior
-> . HW version: 1.0
-> . Assembly version: 0
-> . HARP version: 1.6
-> . Firmware version: 1.0
-> . Device user name: IBL_rig_0
+```
+Device info:
+* Who am I: (2080) IblBehavior
+* HW version: 1.0
+* Assembly version: 0
+* HARP version: 1.6
+* Firmware version: 1.0
+* Device user name: IBL_rig_0
+```
