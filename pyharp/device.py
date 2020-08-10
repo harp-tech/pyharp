@@ -15,7 +15,8 @@ class Device:
     _ser: serial.Serial
     _dump_file_path: Path
 
-    WHO_AM_I: str
+    WHO_AM_I: int
+    WHO_AM_I_DEVICE: str
     HW_VERSION_H: int
     HW_VERSION_L: int
     ASSEMBLY_VERSION: int
@@ -40,6 +41,7 @@ class Device:
 
     def load(self) -> None:
         self.WHO_AM_I = self.read_who_am_i()
+        self.WHO_AM_I_DEVICE = self.read_who_am_i_device()
         self.HW_VERSION_H = self.read_hw_version_h()
         self.HW_VERSION_L = self.read_hw_version_l()
         self.ASSEMBLY_VERSION = self.read_assembly_version()
@@ -51,7 +53,9 @@ class Device:
 
     def info(self) -> None:
         print("Device info:")
-        print(f"* Who am I: {self.WHO_AM_I}")
+        #print(f"* Who am I (ID): {self.WHO_AM_I}")
+        #print(f"* Who am I (Device): {self.WHO_AM_I_DEVICE}")
+        print(f"* Who am I: ({self.WHO_AM_I}) {self.WHO_AM_I_DEVICE}")
         print(f"* HW version: {self.HW_VERSION_H}.{self.HW_VERSION_L}")
         print(f"* Assembly version: {self.ASSEMBLY_VERSION}")
         print(f"* HARP version: {self.HARP_VERSION_H}.{self.HARP_VERSION_L}")
@@ -77,15 +81,23 @@ class Device:
     def disconnect(self) -> None:
         self._ser.close()
 
-    def read_who_am_i(self) -> str:
+    def read_who_am_i(self) -> int:
         address = CommonRegisters.WHO_AM_I
 
         reply: ReplyHarpMessage = self.send(
             HarpMessage.ReadU16(address).frame, dump=False
         )
 
-        whoami_value: int = reply.payload_as_int()
-        return device_names.get(whoami_value)
+        return reply.payload_as_int()
+
+    def read_who_am_i_device(self) -> str:
+        address = CommonRegisters.WHO_AM_I
+
+        reply: ReplyHarpMessage = self.send(
+            HarpMessage.ReadU16(address).frame, dump=False
+        )
+
+        return device_names.get(reply.payload_as_int())
 
     def read_hw_version_h(self) -> int:
         address = CommonRegisters.HW_VERSION_H
