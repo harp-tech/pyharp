@@ -4,8 +4,10 @@ from typing import Union, Tuple, Optional
 
 class MessageType:
     READ: int = 1
-    Write: int = 2
-    Event: int = 3
+    WRITE: int = 2
+    EVENT: int = 3
+    READ_ERROR: int = 9
+    WRITE_ERROR: int = 10
 
 
 class PayloadType:
@@ -281,7 +283,7 @@ class ReadS16HarpMessage(ReadHarpMessage):
 
 class WriteHarpMessage(HarpMessage):
     BASE_LENGTH: int = 5
-    MESSAGE_TYPE: int = MessageType.Write
+    MESSAGE_TYPE: int = MessageType.WRITE
     _length: int
     _address: int
     _payload_type: int
@@ -371,7 +373,7 @@ class WriteS8HarpMessage(WriteHarpMessage):
 class WriteU16HarpMessage(WriteHarpMessage):
     def __init__(self, address: int, value: int):
         super().__init__(
-            PayloadType.U16, value.to_bytes(2, byteorder="little"), address, offset=1
+            PayloadType.U16, value.to_bytes(2, byteorder="little", signed=False), address, offset=1
         )
 
     @property
