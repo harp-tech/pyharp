@@ -58,9 +58,9 @@ Under **PyCharm**, Open one of the examples from the folder _examples_ (the _get
 Right-click on top of the file and chose option _Run 'get_info.py_. You should read something like this in the console:
 
 > Device info:
-> \* Who am I: (2080) IblBehavior
-> \* HW version: 1.0
-> \* Assembly version: 0
-> \* HARP version: 1.6
-> \* Firmware version: 1.0
-> \* Device user name: IBL_rig_0
+> . Who am I: (2080) IblBehavior
+> . HW version: 1.0
+> . Assembly version: 0
+> . HARP version: 1.6
+> . Firmware version: 1.0
+> . Device user name: IBL_rig_0
