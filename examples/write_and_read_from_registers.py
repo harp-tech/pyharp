@@ -25,5 +25,13 @@ device.send(HarpMessage.WriteU16(42, analog_threshold_h+1).frame)
 analog_threshold_h = device.send(HarpMessage.ReadU16(42).frame).payload_as_int()
 print(f"Analog sensor's higher threshold: {analog_threshold_h}")
 
+# Read 10 samples of the analog sensor and display the values
+# The value is at register STREAM[0], address 33
+analog_sensor = []
+for x in range(10):
+    value = device.send(HarpMessage.ReadS16(33).frame).payload_as_int()
+    analog_sensor.append(value & 0xffff)
+print(f"Analog sensor's values: {analog_sensor}")
+
 # Close connection
 device.disconnect()
