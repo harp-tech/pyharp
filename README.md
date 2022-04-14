@@ -6,7 +6,7 @@ Harp implementation of the Harp protocol.
 From this directory, install in editable mode with
 ````
 pip install -e .
-```
+````
 
 Note that for the above to work, a fairly recent version of pip (>= 21.3) is required.
 
