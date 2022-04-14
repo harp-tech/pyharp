@@ -3,11 +3,7 @@
 Harp implementation of the Harp protocol.
 
 ## Install with Pip
-From this directory, create a *setup.py* file with
-````
-poetry build
-````
-and then install in editable mode with
+From this directory, install in editable mode with
 ````
 pip install -e .
 ```
