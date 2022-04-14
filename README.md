@@ -75,3 +75,17 @@ Device info:
 * Firmware version: 1.0
 * Device user name: IBL_rig_0
 ```
+
+## For Linux Only
+
+### UDEV rules
+either copy `10-ftdi.rules` into your /etc/udev/rules.d folder or symlink it with
+````
+sudo ln -s /full/path/to/pyharp/10-ftdi.rules /etc/udev/rules.d/10-ftdi.rules
+
+````
+
+Reload udev rules with:
+````
+sudo udevadm control --reload-rules
+````
