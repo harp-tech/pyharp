@@ -4,7 +4,7 @@ from pathlib import Path
 
 from pyharp.messages import HarpMessage, ReplyHarpMessage
 from pyharp.messages import CommonRegisters
-from pyharp import device_names
+from pyharp.device_names import device_names
 
 
 class Device:

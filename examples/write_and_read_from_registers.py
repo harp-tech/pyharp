@@ -1,7 +1,9 @@
+#!/usr/bin/env python3
 from pyharp.device import Device
 from pyharp.messages import HarpMessage
 from pyharp.messages import MessageType
 from struct import *
+import os
 
 
 # ON THIS EXAMPLE
@@ -12,7 +14,11 @@ from struct import *
 
 
 # Open the device and print the info on screen
-device = Device("COM95", "ibl.bin")     # Open serial connection and save communication to a file
+# Open serial connection and save communication to a file
+if os.name == 'posix': # check for Linux.
+    device = Device("/dev/harp_device_00", "ibl.bin")
+else: # assume Windows.
+    device = Device("COM95", "ibl.bin")
 
 # Read current analog sensor's higher threshold (ANA_SENSOR_TH0_HIGH) at address 42
 analog_threshold_h = device.send(HarpMessage.ReadU16(42).frame).payload_as_int()
