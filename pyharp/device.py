@@ -9,7 +9,7 @@ from pyharp.device_names import device_names
 
 class Device:
     """
-    https://github.com/harp-tech/protocol/blob/master/Device%201.0%201.3%2020190207.pdf
+    https://github.com/harp-tech/protocol/blob/master/Device%201.1%201.0%2020220402.pdf
     """
 
     _ser: serial.Serial

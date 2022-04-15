@@ -16,7 +16,7 @@ import os
 # Open the device
 # Open serial connection
 if os.name == "posix": # check for Linux.
-    device = Device("/dev/ttyUSB0")
+    device = Device("/dev/harp_device_00")
 else: # assume Windows.
     device = Device("COM95")
 
