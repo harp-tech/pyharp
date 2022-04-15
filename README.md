@@ -76,16 +76,16 @@ Device info:
 * Device user name: IBL_rig_0
 ```
 
-## For Linux Only
+## for Linux
 
-### UDEV rules
-either copy `10-ftdi.rules` into your /etc/udev/rules.d folder or symlink it with
+### Install UDEV Rules
+
+Install by either copying `10-harp.rules` over to your `/etc/udev/rules.d` folder or by symlinking it with:
 ````
-sudo ln -s /full/path/to/pyharp/10-ftdi.rules /etc/udev/rules.d/10-ftdi.rules
-
+sudo ln -s /absolute/path/to/vibratome-controller/10-harp.rules /etc/udev/rules.d/10-harp.rules
 ````
 
-Reload udev rules with:
+Then reload udev rules with
 ````
 sudo udevadm control --reload-rules
 ````
