@@ -1,3 +1,4 @@
+from __future__ import annotations # for type hints (PEP 563)
 # from abc import ABC, abstractmethod
 from typing import Union, Tuple, Optional
 
@@ -81,39 +82,39 @@ class HarpMessage:
         return self._frame[0]
 
     @staticmethod
-    def ReadU8(address: int) -> "ReadU8HarpMessage":
+    def ReadU8(address: int) -> ReadU8HarpMessage:
         return ReadU8HarpMessage(address)
 
     @staticmethod
-    def ReadS8(address: int) -> "ReadS8HarpMessage":
+    def ReadS8(address: int) -> ReadS8HarpMessage:
         return ReadS8HarpMessage(address)
 
     @staticmethod
-    def ReadS16(address: int) -> "ReadS16HarpMessage":
+    def ReadS16(address: int) -> ReadS16HarpMessage:
         return ReadS16HarpMessage(address)
 
     @staticmethod
-    def ReadU16(address: int) -> "ReadU16HarpMessage":
+    def ReadU16(address: int) -> ReadU16HarpMessage:
         return ReadU16HarpMessage(address)
 
     @staticmethod
-    def WriteU8(address: int, value: int) -> "WriteU8HarpMessage":
+    def WriteU8(address: int, value: int) -> WriteU8HarpMessage:
         return WriteU8HarpMessage(address, value)
 
     @staticmethod
-    def WriteS8(address: int, value: int) -> "WriteS8HarpMessage":
+    def WriteS8(address: int, value: int) -> WriteS8HarpMessage:
         return WriteS8HarpMessage(address, value)
 
     @staticmethod
-    def WriteS16(address: int, value: int) -> "WriteS16HarpMessage":
+    def WriteS16(address: int, value: int) -> WriteS16HarpMessage:
         return WriteS16HarpMessage(address, value)
 
     @staticmethod
-    def WriteU16(address: int, value: int) -> "WriteU16HarpMessage":
+    def WriteU16(address: int, value: int) -> WriteU16HarpMessage:
         return WriteU16HarpMessage(address, value)
 
     @staticmethod
-    def parse(frame: bytearray) -> "ReplyHarpMessage":
+    def parse(frame: bytearray) -> ReplyHarpMessage:
         return ReplyHarpMessage(frame)
 
 
