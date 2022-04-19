@@ -1,9 +1,10 @@
 from __future__ import annotations # for type hints (PEP 563)
+from enum import Enum
 # from abc import ABC, abstractmethod
 from typing import Union, Tuple, Optional
 
 
-class MessageType:
+class MessageType(Enum):
     READ: int = 1
     WRITE: int = 2
     EVENT: int = 3
@@ -11,7 +12,7 @@ class MessageType:
     WRITE_ERROR: int = 10
 
 
-class PayloadType:
+class PayloadType(Enum):
     isUnsigned: int = 0x00
     isSigned: int = 0x80
     isFloat: int = 0x40
@@ -37,8 +38,17 @@ class PayloadType:
     TimestampedS64 = hasTimestamp | S64
     TimestampedFloat = hasTimestamp | Float
 
-    ALL_UNSIGNED = [U8, U16, U32, TimestampedU8, TimestampedU16]
-    ALL_SIGNED = [S8, S16, S32, TimestampedS8, TimestampedS16]
+
+ALL_UNSIGNED = [PayloadType.U8,
+                PayloadType.U16,
+                PayloadType.U32,
+                PayloadType.TimestampedU8,
+                PayloadType.TimestampedU16]
+ALL_SIGNED = [PayloadType.S8,
+              PayloadType.S16,
+              PayloadType.S32,
+              PayloadType.TimestampedS8,
+              PayloadType.TimestampedS16]
 
 
 class CommonRegisters:
@@ -61,6 +71,10 @@ T = Union[int, bytearray]
 
 
 class HarpMessage:
+    """
+    https://github.com/harp-tech/protocol/blob/master/Binary%20Protocol%201.0%201.1%2020180223.pdf
+    """
+
     DEFAULT_PORT: int = 255
     _frame: bytearray
 
@@ -79,7 +93,27 @@ class HarpMessage:
 
     @property
     def message_type(self) -> int:
-        return self._frame[0]
+        return MessageType(self._frame[0])
+
+    @property
+    def length(self) -> int:
+        return self._frame[1]
+
+    @property
+    def address(self) -> int:
+        return self._frame[2]
+
+    @property
+    def port(self) -> int:
+        return self._frame[3]
+
+    @property
+    def payload_type(self) -> int:
+        return PayloadType(self._frame[4])
+
+    @property
+    def checksum(self) -> int:
+        return self._frame[-1]
 
     @staticmethod
     def ReadU8(address: int) -> ReadU8HarpMessage:
@@ -118,6 +152,7 @@ class HarpMessage:
         return ReplyHarpMessage(frame)
 
 
+# A Response Message from a harp device.
 class ReplyHarpMessage(HarpMessage):
     PAYLOAD_START_ADDRESS: int
     PAYLOAD_LAST_ADDRESS: int
@@ -141,16 +176,10 @@ class ReplyHarpMessage(HarpMessage):
 
         self._frame = frame
 
-        self._message_type = frame[0]
-        self._length = frame[1]
-        self._address = frame[2]
-        self._port = frame[3]
-        self._payload_type = frame[4]
-        # TOOO: add timestamp here
-        self._payload = frame[
-            11:-1
-        ]  # retrieve all content from 11 (where payload starts) until the checksum (not inclusive)
-        self._checksum = frame[-1]  # last index is the checksum
+        self._timestamp = int.from_bytes(frame[5:9], byteorder="little", signed=False) + \
+                          int.from_bytes(frame[9:11], byteorder="little", signed=False)*32e-6
+        # retrieve all content from 11 (where payload starts) until the checksum (not inclusive)
+        self._payload = frame[11:-1]
 
         # print(f"Type: {self.message_type}")
         # print(f"Length: {self.length}")
@@ -162,60 +191,42 @@ class ReplyHarpMessage(HarpMessage):
         # print(f"Frame: {self.frame}")
 
     @property
-    def frame(self) -> bytearray:
-        return self._frame
-
-    @property
-    def message_type(self) -> int:
-        return self._message_type
-
-    @property
-    def length(self) -> int:
-        return self._length
-
-    @property
-    def address(self) -> int:
-        return self._address
-
-    @property
-    def port(self) -> int:
-        return self._port
-
-    @property
-    def payload_type(self) -> int:
-        return self._payload_type
-
-    @property
     def payload(self) -> bytes:
         return self._payload
 
+    @property
+    def timestamp(self) -> float:
+        return self._timestamp
+
     def payload_as_int(self) -> int:
         value: int = 0
-        if self.payload_type in PayloadType.ALL_UNSIGNED:
+        if self.payload_type in ALL_UNSIGNED:
             value = int.from_bytes(self.payload, byteorder="little", signed=False)
-        elif self.payload_type in PayloadType.ALL_SIGNED:
+        elif self.payload_type in ALL_SIGNED:
             value = int.from_bytes(self.payload, byteorder="little", signed=True)
         return value
 
-    def payload_as_int_array(self):
-        pass  # TODO: implement this
+    def payload_as_int_array(self) -> list:
+        datatype_bytes = 0x0F & self.payload_type.value # number of bytes per chunk: 1, 2, 4, or 8.
+        # TODO: is len(self.payload) == self.length?
+        signed = True if self.payload_type in ALL_UNSIGNED else False
+        # Break the payload into chunks of datatype size in bytes
+        byte_chunks = [self.payload[i: i+datatype_bytes] for i in range(0, len(self.payload), datatype_bytes)]
+        return [int.from_bytes(chunk, byteorder="little", signed=signed) for chunk in byte_chunks]
 
     def payload_as_string(self) -> str:
         return self.payload.decode("utf-8")
 
-    @property
-    def checksum(self) -> int:
-        return self._checksum
 
-
+# A Read Request Message sent to a harp device.
 class ReadHarpMessage(HarpMessage):
-    MESSAGE_TYPE: int = MessageType.READ
-    _length: int
-    _address: int
-    _payload_type: int
+    MESSAGE_TYPE: int = MessageType.READ.value
+    _length: int # length of this message minus checksum.
+    _address: int # address to read from # address to read from
+    _payload_type: int # p
     _checksum: int
 
-    def __init__(self, payload_type: int, address: int):
+    def __init__(self, payload_type: PayloadType, address: int):
         self._frame = bytearray()
 
         self._frame.append(self.MESSAGE_TYPE)
@@ -225,41 +236,8 @@ class ReadHarpMessage(HarpMessage):
 
         self._frame.append(address)
         self._frame.append(self.DEFAULT_PORT)
-        self._frame.append(payload_type)
+        self._frame.append(payload_type.value)
         self._frame.append(self.calculate_checksum())
-
-    # def calculate_checksum(self) -> int:
-    #     return (
-    #         self.message_type
-    #         + self.length
-    #         + self.address
-    #         + self.port
-    #         + self.payload_type
-    #     ) & 255
-
-    @property
-    def message_type(self) -> int:
-        return self._frame[0]
-
-    @property
-    def length(self) -> int:
-        return self._frame[1]
-
-    @property
-    def address(self) -> int:
-        return self._frame[2]
-
-    @property
-    def port(self) -> int:
-        return self._frame[3]
-
-    @property
-    def payload_type(self) -> int:
-        return self._frame[4]
-
-    @property
-    def checksum(self) -> int:
-        return self._frame[5]
 
 
 class ReadU8HarpMessage(ReadHarpMessage):
@@ -284,7 +262,7 @@ class ReadS16HarpMessage(ReadHarpMessage):
 
 class WriteHarpMessage(HarpMessage):
     BASE_LENGTH: int = 5
-    MESSAGE_TYPE: int = MessageType.WRITE
+    MESSAGE_TYPE: int = MessageType.WRITE.value
     _length: int
     _address: int
     _payload_type: int
@@ -292,7 +270,7 @@ class WriteHarpMessage(HarpMessage):
     _checksum: int
 
     def __init__(
-        self, payload_type: int, payload: bytes, address: int, offset: int = 0
+        self, payload_type: PayloadType, payload: bytes, address: int, offset: int = 0
     ):
         """
 
@@ -309,46 +287,12 @@ class WriteHarpMessage(HarpMessage):
 
         self._frame.append(address)
         self._frame.append(HarpMessage.DEFAULT_PORT)
-        self._frame.append(payload_type)
+        self._frame.append(payload_type.value)
 
         for i in payload:
             self._frame.append(i)
 
         self._frame.append(self.calculate_checksum())
-
-    # def calculate_checksum(self) -> int:
-    #     return (
-    #         self.message_type
-    #         + self.length
-    #         + self.address
-    #         + self.port
-    #         + self.payload_type
-    #         + self.payload
-    #     ) & 255
-
-    @property
-    def message_type(self) -> int:
-        return self._frame[0]
-
-    @property
-    def length(self) -> int:
-        return self._frame[1]
-
-    @property
-    def address(self) -> int:
-        return self._frame[2]
-
-    @property
-    def port(self) -> int:
-        return self._frame[3]
-
-    @property
-    def payload_type(self) -> int:
-        return self._frame[4]
-
-    @property
-    def checksum(self) -> int:
-        return self._frame[-1]
 
 
 class WriteU8HarpMessage(WriteHarpMessage):

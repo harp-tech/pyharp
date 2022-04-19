@@ -21,8 +21,17 @@ else: # assume Windows.
     device = Device("COM95", "ibl.bin")
 
 # Read current analog sensor's higher threshold (ANA_SENSOR_TH0_HIGH) at address 42
-analog_threshold_h = device.send(HarpMessage.ReadU16(42).frame).payload_as_int()
-print(f"Analog sensor's higher threshold: {analog_threshold_h}")
+#analog_threshold_h = device.send(HarpMessage.ReadU16(42).frame).payload_as_int()
+#print(f"Analog sensor's higher threshold: {analog_threshold_h}")
+
+
+data_stream = device.send(HarpMessage.ReadU8(33).frame) # returns a ReplyHarpMessage
+#data_stream = device.send(HarpMessage.ReadS16(33).frame).payload_as_int_array()
+print(f"Data Stream payload type: {data_stream.payload_type}")
+print(f"Data Stream message type: {data_stream.message_type}")
+print(f"Data Stream timestamp: {data_stream.timestamp}")
+print(f"Data Stream num bytes: {data_stream.length}")
+print(f"Data Stream: {data_stream.payload}")
 
 # Increase current analog sensor's higher threshold by one unit
 device.send(HarpMessage.WriteU16(42, analog_threshold_h+1).frame)
