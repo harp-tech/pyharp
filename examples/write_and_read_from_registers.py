@@ -27,8 +27,8 @@ else: # assume Windows.
 
 data_stream = device.send(HarpMessage.ReadU8(33).frame) # returns a ReplyHarpMessage
 #data_stream = device.send(HarpMessage.ReadS16(33).frame).payload_as_int_array()
-print(f"Data Stream payload type: {data_stream.payload_type}")
-print(f"Data Stream message type: {data_stream.message_type}")
+print(f"Data Stream payload type: {data_stream.payload_type.name}")
+print(f"Data Stream message type: {data_stream.message_type.name}")
 print(f"Data Stream timestamp: {data_stream.timestamp}")
 print(f"Data Stream num bytes: {data_stream.length}")
 print(f"Data Stream: {data_stream.payload}")

@@ -67,9 +67,6 @@ class CommonRegisters:
     DEVICE_NAME = 0x0C
 
 
-T = Union[int, bytearray]
-
-
 class HarpMessage:
     """
     https://github.com/harp-tech/protocol/blob/master/Binary%20Protocol%201.0%201.1%2020180223.pdf
@@ -154,38 +151,27 @@ class HarpMessage:
 
 # A Response Message from a harp device.
 class ReplyHarpMessage(HarpMessage):
-    PAYLOAD_START_ADDRESS: int
-    PAYLOAD_LAST_ADDRESS: int
-    _message_type: int
-    _length: int
-    _address: int
-    _payload_type: int
-    _payload: bytes
-    _checksum: int
+
 
     def __init__(
         self, frame: bytearray,
     ):
         """
 
-        :param payload_type:
-        :param payload:
-        :param address:
-        :param offset: how many bytes more besides the length corresponding to U8 (for example, for U16 it would be offset=1)
+        :param frame: the serialized message frame.
         """
 
         self._frame = frame
-
         self._timestamp = int.from_bytes(frame[5:9], byteorder="little", signed=False) + \
                           int.from_bytes(frame[9:11], byteorder="little", signed=False)*32e-6
         # retrieve all content from 11 (where payload starts) until the checksum (not inclusive)
         self._payload = frame[11:-1]
 
-        # print(f"Type: {self.message_type}")
+        # print(f"Type: {self.message_type.name}")
         # print(f"Length: {self.length}")
         # print(f"Address: {self.address}")
         # print(f"Port: {self.port}")
-        # print(f"Payload Type: {self.payload_type}")
+        # print(f"Payload Type: {self.payload_type.name}")
         # print(f"Payload: {self.payload}")
         # print(f"Checksum: {self.checksum}")
         # print(f"Frame: {self.frame}")
@@ -207,7 +193,8 @@ class ReplyHarpMessage(HarpMessage):
         return value
 
     def payload_as_int_array(self) -> list:
-        datatype_bytes = 0x0F & self.payload_type.value # number of bytes per chunk: 1, 2, 4, or 8.
+        # Number of bytes per chunk. Get this from the bit field structure.
+        datatype_bytes = 0x0F & self.payload_type.value
         # TODO: is len(self.payload) == self.length?
         signed = True if self.payload_type in ALL_UNSIGNED else False
         # Break the payload into chunks of datatype size in bytes
@@ -220,20 +207,16 @@ class ReplyHarpMessage(HarpMessage):
 
 # A Read Request Message sent to a harp device.
 class ReadHarpMessage(HarpMessage):
-    MESSAGE_TYPE: int = MessageType.READ.value
-    _length: int # length of this message minus checksum.
-    _address: int # address to read from # address to read from
-    _payload_type: int # p
-    _checksum: int
+    MESSAGE_TYPE: int = MessageType.READ
+
 
     def __init__(self, payload_type: PayloadType, address: int):
         self._frame = bytearray()
 
-        self._frame.append(self.MESSAGE_TYPE)
+        self._frame.append(self.MESSAGE_TYPE.value)
 
         length: int = 4
         self._frame.append(length)
-
         self._frame.append(address)
         self._frame.append(self.DEFAULT_PORT)
         self._frame.append(payload_type.value)
@@ -262,12 +245,7 @@ class ReadS16HarpMessage(ReadHarpMessage):
 
 class WriteHarpMessage(HarpMessage):
     BASE_LENGTH: int = 5
-    MESSAGE_TYPE: int = MessageType.WRITE.value
-    _length: int
-    _address: int
-    _payload_type: int
-    _payload: int
-    _checksum: int
+    MESSAGE_TYPE: int = MessageType.WRITE
 
     def __init__(
         self, payload_type: PayloadType, payload: bytes, address: int, offset: int = 0
@@ -281,7 +259,7 @@ class WriteHarpMessage(HarpMessage):
         """
         self._frame = bytearray()
 
-        self._frame.append(self.MESSAGE_TYPE)
+        self._frame.append(self.MESSAGE_TYPE.value)
 
         self._frame.append(self.BASE_LENGTH + offset)
 
