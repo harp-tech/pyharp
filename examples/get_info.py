@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-from pyharp.device import Device
+from pyharp.device import Device, DeviceMode
 from pyharp.messages import HarpMessage
 from pyharp.messages import MessageType
 from struct import *

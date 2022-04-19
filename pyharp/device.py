@@ -5,6 +5,14 @@ from pathlib import Path
 from pyharp.messages import HarpMessage, ReplyHarpMessage
 from pyharp.messages import CommonRegisters
 from pyharp.device_names import device_names
+from enum import Enum
+
+
+class DeviceMode(Enum):
+    Standby = 0
+    Active = 1
+    Reserved = 2
+    Speed = 3
 
 
 class Device:
@@ -53,16 +61,13 @@ class Device:
 
     def info(self) -> None:
         print("Device info:")
-        #print(f"* Who am I (ID): {self.WHO_AM_I}")
-        #print(f"* Who am I (Device): {self.WHO_AM_I_DEVICE}")
         print(f"* Who am I: ({self.WHO_AM_I}) {self.WHO_AM_I_DEVICE}")
         print(f"* HW version: {self.HW_VERSION_H}.{self.HW_VERSION_L}")
         print(f"* Assembly version: {self.ASSEMBLY_VERSION}")
         print(f"* HARP version: {self.HARP_VERSION_H}.{self.HARP_VERSION_L}")
-        print(
-            f"* Firmware version: {self.FIRMWARE_VERSION_H}.{self.FIRMWARE_VERSION_L}"
-        )
+        print(f"* Firmware version: {self.FIRMWARE_VERSION_H}.{self.FIRMWARE_VERSION_L}")
         print(f"* Device user name: {self.DEVICE_NAME}")
+        print(f"* Mode: {self.read_device_mode().name}")
 
     def read(self):
         pass
@@ -158,7 +163,7 @@ class Device:
 
         reply: ReplyHarpMessage = self.send(
             HarpMessage.ReadU8(address).frame, dump=False
-        )
+)
 
         return reply.payload_as_int()
 
@@ -171,6 +176,45 @@ class Device:
         )
 
         return reply.payload_as_string()
+
+    def read_device_mode(self) -> int:
+        address = CommonRegisters.OPERATION_CTRL
+        reply = self.send(HarpMessage.ReadU8(address).frame)
+        return DeviceMode(reply.payload_as_int() & 0x03)
+
+# TODO: Not sure if we want to implement these. Delete if no.
+#    def set_mode(self, mode: DeviceMode):
+#        address = CommonRegisters.OPERATION_CTRL
+#        # Read register first.
+#        reg_value = self.send(HarpMessage.ReadU8(address).frame).payload_as_int()
+#        reg_value &= ~0x03 # mask off old mode.
+#        reg_value |= mode.value
+#        reply = self.send(HarpMessage.WriteU8(address, reg_value).frame)
+#
+#    def enable_alive_en(self):
+#        """Enable ALIVE_EN such that the device sends an event each second."""
+#        address = CommonRegisters.OPERATION_CTRL
+#        # Read register first.
+#        reg_value = self.send(HarpMessage.ReadU8(address).frame).payload_as_int()
+#        reg_value |= (1 << 7)
+#        reply = self.send(HarpMessage.WriteU8(address, reg_value).frame)
+#
+#    def enable_status_led(self):
+#        """enable the device's status led if one exists."""
+#        address = CommonRegisters.OPERATION_CTRL
+#        # Read register first.
+#        reg_value = self.send(HarpMessage.ReadU8(address).frame).payload_as_int()
+#        reg_value |= (1 << 6)
+#        reply = self.send(HarpMessage.WriteU8(address, reg_value).frame)
+
+    def disable_alive_en(self):
+        """disable ALIVE_EN such that the device does not send an event each second."""
+        address = CommonRegisters.OPERATION_CTRL
+        # Read register first.
+        reg_value = self.send(HarpMessage.ReadU8(address).frame).payload_as_int()
+        reg_value &= ~(1 << 7) # mask off old mode.
+        reply = self.send(HarpMessage.WriteU8(address, reg_value).frame)
+
 
     def send(self, message_bytes: bytearray, dump: bool = True) -> ReplyHarpMessage:
 
