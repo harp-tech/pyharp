@@ -167,6 +167,16 @@ class ReplyHarpMessage(HarpMessage):
         # retrieve all content from 11 (where payload starts) until the checksum (not inclusive)
         self._payload = frame[11:-1]
 
+    def __str__(self):
+        return f"Type: {self.message_type.name}\r\n" + \
+               f"Length: {self.length}\r\n" + \
+               f"Address: {self.address}\r\n" + \
+               f"Port: {self.port}\r\n" + \
+               f"Timestampe: {self.timestamp:6f}\r\n" + \
+               f"Payload Type: {self.payload_type.name}\r\n" + \
+               f"Payload: {self.payload}\r\n" + \
+               f"Checksum: {self.checksum}\r\n" + \
+               f"Raw Frame: {self.frame}\r\n"
         # print(f"Type: {self.message_type.name}")
         # print(f"Length: {self.length}")
         # print(f"Address: {self.address}")
