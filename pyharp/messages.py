@@ -169,7 +169,7 @@ class ReplyHarpMessage(HarpMessage):
         self._timestamp = int.from_bytes(frame[5:9], byteorder="little", signed=False) + \
                           int.from_bytes(frame[9:11], byteorder="little", signed=False)*32e-6
         # Timestamp is junk if it's not present.
-        if self.payload_type.value & PayloadType.hasTimestamp.value:
+        if not (self.payload_type.value & PayloadType.hasTimestamp.value):
             self._timestamp = None
 
 
