@@ -5,14 +5,16 @@ from pyharp.device_names import device_names
 from pyharp.device import Device
 import serial
 from serial.serialutil import SerialException
+from enum import Enum
 
 
+# These definitions are from app_regs.h in the firmware.
 # Type, Base Address, "Description."
 REGISTERS = \
 {   # RJ45 "PORT" (0, 1, 2)  Digital Inputs
     "PORT_DIS" : ("U8", 32, "Reflects the state of DI digital lines of each Port."),
 
-    # Manipulate any of the boards digital outputs.
+    # Manipulate any of the board's digital outputs.
     "OUTPUTS_SET": ("U16", 34, "Set the corresponding output."),
     "OUTPUTS_CLR": ("U16", 35, "Clear the corresponding output."),
     "OUTPUTS_TOGGLE": ("U16", 36, "Toggle the corresponding output."),
@@ -25,8 +27,47 @@ REGISTERS = \
     "PORT_DIOS_OUT": ("U8", 41, "Control the corresponding DIO."),
     "PORT_DIOS_CONF": ("U8", 42, "Set the DIOs direction (1 is output)."),
     "PORT_DIOS_IN": ("U8", 43, "State of the DIOs."),
+
+    "EVNT_ENABLE": ("U8", 77, "Enable events within the bitfields."),
 }
 
+
+# Register Bitfields
+class PORT_DIS(Enum):
+    DI0 = 0
+    DI1 = 1
+    DI2 = 2
+
+class OUTPUTS_OUT(Enum):
+    PORT0_DO = 0
+    PORT0_D1 = 1
+    PORT0_D2 = 2
+
+    PORT0_12V = 3
+    PORT1_12V = 4
+    PORT2_12V = 5
+
+    B_LED0 = 6
+    B_LED1 = 7
+    B_RGB0 = 8
+    B_RGB1 = 9
+
+    DO0 = 10
+    DO1 = 11
+    DO2 = 12
+    DO3 = 13
+
+class PORT_DIOS_IN(Enum):
+    DIO0 = 0
+    DIO1 = 0
+    DIO2 = 0
+
+class EVNT_ENABLE(Enum):
+    PORT_DIS = 0
+    PORT_DIOS_IN = 1
+    DATA = 2
+    CAM0 = 3
+    CAM1 = 4
 
 
 class Behavior:
@@ -72,7 +113,6 @@ class Behavior:
             raise IOError("Error: Did not connect to Harp Behavior Device.")
 
 
-    # TODO: put this in a base class?
     def get_reg_info(self, reg_name: str) -> str:
         """get info for this device's particular reg."""
         try:
@@ -85,70 +125,95 @@ class Behavior:
 # Board inputs, outputs, and some settings configured as @properties.
     # INPUTS
     @property
-    def all_port_input_states(self):
+    def all_input_states(self):
         """return the state of all PORT digital inputs."""
         reg_type, reg_index, _ = REGISTERS["PORT_DIS"]
         read_message_type = self.__class__.READ_MSG_LOOKUP[reg_type]
         return self.device.send(read_message_type(reg_index).frame).payload_as_int()
 
     @property
-    def port0_i0(self):
-        """return the state of port0 digital in 0."""
+    def DI0(self):
+        """return the state of port0 digital input 0."""
         return self.all_port_input_states & 0x01
 
     @property
-    def port1_i0(self):
-        """return the state of port0 digital in 0."""
-        return (self.all_port_input_states >> 1) & 0x01
+    def DI1(self):
+        """return the state of port1 digital input 0."""
+        offset = PORT_DIS.DI1.value
+        return (self.all_port_input_states >> offset) & 0x01
 
     @property
-    def port2_i0(self):
-        """return the state of port2 digital in 0."""
-        return (self.all_port_input_states >> 2) & 0x01
+    def DI2(self):
+        """return the state of port2 digital input 0."""
+        offset = PORT_DIS.DI2.value
+        return (self.all_input_states >> offset) & 0x01
 
-    # IOs
-    def set_port_io_states(self, bitmask : int):
-        """set the state of all PORT digital ios. (1 is output.)"""
-        reg_type, reg_index, _ = REGISTERS["PORT_DIOS_CONF"]
-        write_message_type = self.__class__.WRITE_MSG_LOOKUP[reg_type]
-        self.device.send(write_message_type(reg_index, bitmask).frame)
-
-    @property #FIXME: this doesn't seem to work
-    def all_port_io_states(self):
-        """return the state of all PORT digital ios."""
-        reg_type, reg_index, _ = REGISTERS["PORT_DIOS_IN"]
-        read_message_type = self.__class__.READ_MSG_LOOKUP[reg_type]
-        return self.device.send(read_message_type(reg_index).frame).payload_as_int()
-
-    @property
-    def port0_io0(self):
-        """read the digital io state."""
-        return self.all_port_io_states & 0x01
-
-    @port0_io0.setter
-    def port0_io0(self, value: int):
-        """write port0 digital io state."""
-        pass
-
-    @property
-    def port1_io0(self):
-        """read the digital io state."""
-        return (self.all_port_io_states >> 1) & 0x01
-
-    @port0_io0.setter
-    def port1_io0(self, value: int):
-        """write port0 digital io state."""
-        self.set_outputs(value&0x01)
-
-    @property
-    def port2_io0(self):
-        """read the digital io state."""
-        return (self.all_port_io_states >> 2) & 0x01
-
-    @port0_io0.setter
-    def port2_io0(self, value: int):
-        """write port0 digital io state."""
-        pass
+# These do not work currently. Perhaps something needs to be cleared (MIMIC?)
+# before they will configure properly.
+#    # IOs
+#    def set_io_configuration(self, bitmask : int):
+#        """set the state of all PORT digital ios. (1 is output.)"""
+#        reg_type, reg_index, _ = REGISTERS["PORT_DIOS_CONF"]
+#        write_message_type = self.__class__.WRITE_MSG_LOOKUP[reg_type]
+#        self.device.send(write_message_type(reg_index, bitmask).frame)
+#
+#    @property
+#    def all_io_states(self):
+#        """return the state of all PORT digital ios."""
+#        reg_type, reg_index, _ = REGISTERS["PORT_DIOS_IN"]
+#        read_message_type = self.__class__.READ_MSG_LOOKUP[reg_type]
+#        return self.device.send(read_message_type(reg_index).frame).payload_as_int()
+#
+#    @all_io_states.setter
+#    def all_io_states(self, bitmask : int):
+#        """set the state of all PORT digital input/outputs."""
+#        # Setting the state of the "DIO" pins, requires writing to the
+#        # _IN register, which is different from the OUTPUT
+#        reg_type, reg_index, _ = REGISTERS["PORT_DIOS_IN"]
+#        write_message_type = self.__class__.WRITE_MSG_LOOKUP[reg_type]
+#        return self.device.send(write_message_type(reg_index, bitmask).frame)
+#
+#    def set_io_outputs(self, bitmask : int):
+#        """set digital input/outputs to logic 1 according to bitmask."""
+#        reg_type, reg_index, _ = REGISTERS["PORT_DIOS_SET"]
+#        write_message_type = self.__class__.WRITE_MSG_LOOKUP[reg_type]
+#        return self.device.send(write_message_type(reg_index, bitmask).frame)
+#
+#    def clear_io_outputs(self, bitmask : int):
+#        """clear digital input/outputs (specified with logic 1) according to bitmask."""
+#        reg_type, reg_index, _ = REGISTERS["PORT_DIOS_CLEAR"]
+#        write_message_type = self.__class__.WRITE_MSG_LOOKUP[reg_type]
+#        return self.device.send(write_message_type(reg_index, bitmask).frame)
+#
+#    @property
+#    def port0_io0(self):
+#        """read the digital io state."""
+#        return self.all_port_io_states & 0x01
+#
+#    @port0_io0.setter
+#    def port0_io0(self, value: int):
+#        """write port0 digital io state."""
+#        pass
+#
+#    @property
+#    def port1_io0(self):
+#        """read the digital io state."""
+#        return (self.all_port_io_states >> 1) & 0x01
+#
+#    @port0_io0.setter
+#    def port1_io0(self, value: int):
+#        """write port0 digital io state."""
+#        self.set_outputs(value&0x01)
+#
+#    @property
+#    def port2_io0(self):
+#        """read the digital io state."""
+#        return (self.all_port_io_states >> 2) & 0x01
+#
+#    @port0_io0.setter
+#    def port2_io0(self, value: int):
+#        """write port0 digital io state."""
+#        pass
 
 
     # OUTPUTS
@@ -296,6 +361,8 @@ class Behavior:
             self.set_outputs(1 << 5)
         else:
             self.clear_outputs(1 << 5)
+
+
 
 
     def __enter__(self):

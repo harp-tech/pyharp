@@ -1,5 +1,5 @@
 import serial
-from typing import Optional
+from typing import Optional, Union
 from pathlib import Path
 
 from pyharp.messages import HarpMessage, ReplyHarpMessage
@@ -177,19 +177,22 @@ class Device:
 
         return reply.payload_as_string()
 
-    def read_device_mode(self) -> int:
+    def read_device_mode(self) -> DeviceMode:
         address = CommonRegisters.OPERATION_CTRL
         reply = self.send(HarpMessage.ReadU8(address).frame)
+        print(reply)
         return DeviceMode(reply.payload_as_int() & 0x03)
 
 # TODO: Not sure if we want to implement these. Delete if no.
-#    def set_mode(self, mode: DeviceMode):
-#        address = CommonRegisters.OPERATION_CTRL
-#        # Read register first.
-#        reg_value = self.send(HarpMessage.ReadU8(address).frame).payload_as_int()
-#        reg_value &= ~0x03 # mask off old mode.
-#        reg_value |= mode.value
-#        reply = self.send(HarpMessage.WriteU8(address, reg_value).frame)
+    def set_mode(self, mode: DeviceMode) -> ReplyHarpMessage:
+        """Change the device's OPMODE. Reply can be ignored."""
+        address = CommonRegisters.OPERATION_CTRL
+        # Read register first.
+        reg_value = self.send(HarpMessage.ReadU8(address).frame).payload_as_int()
+        reg_value &= ~0x03 # mask off old mode.
+        reg_value |= mode.value
+        reply = self.send(HarpMessage.WriteU8(address, reg_value).frame)
+        return reply
 #
 #    def enable_alive_en(self):
 #        """Enable ALIVE_EN such that the device sends an event each second."""
@@ -217,26 +220,34 @@ class Device:
 
 
     def send(self, message_bytes: bytearray, dump: bool = True) -> ReplyHarpMessage:
-
+        """Send a harp message; return the device's reply."""
         self._ser.write(message_bytes)
 
         # TODO: handle case where read is None
-
-        message_type = self._ser.read(1)[0]  # byte array with only one byte
-        message_length = self._ser.read(1)[0]
-        message_content = self._ser.read(message_length)
-
-        frame = bytearray()
-        frame.append(message_type)
-        frame.append(message_length)
-        frame += message_content
-
-        reply: ReplyHarpMessage = HarpMessage.parse(frame)
+        reply: ReplyHarpMessage = self._read()
 
         if dump:
             self._dump_reply(reply.frame)
 
         return reply
+
+
+    def _read(self) -> Union[ReplyHarpMessage, None]:
+        """Read an incoming serial message."""
+        try:
+            message_type = self._ser.read(1)[0]  # byte array with only one byte
+            message_length = self._ser.read(1)[0]
+            message_content = self._ser.read(message_length)
+
+            frame = bytearray()
+            frame.append(message_type)
+            frame.append(message_length)
+            frame += message_content
+
+            return HarpMessage.parse(frame)
+        except IndexError:
+            return None
+
 
     def _dump_reply(self, reply: bytes):
         assert self._dump_file_path is not None

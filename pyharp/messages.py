@@ -89,7 +89,7 @@ class HarpMessage:
         return self._frame
 
     @property
-    def message_type(self) -> int:
+    def message_type(self) -> MessageType:
         return MessageType(self._frame[0])
 
     @property
@@ -162,29 +162,51 @@ class ReplyHarpMessage(HarpMessage):
         """
 
         self._frame = frame
-        self._timestamp = int.from_bytes(frame[5:9], byteorder="little", signed=False) + \
-                          int.from_bytes(frame[9:11], byteorder="little", signed=False)*32e-6
         # retrieve all content from 11 (where payload starts) until the checksum (not inclusive)
         self._payload = frame[11:-1]
 
+        # Assign timestamp after _payload since @properties all rely on self._payload.
+        self._timestamp = int.from_bytes(frame[5:9], byteorder="little", signed=False) + \
+                          int.from_bytes(frame[9:11], byteorder="little", signed=False)*32e-6
+        # Timestamp is junk if it's not present.
+        if self.payload_type.value & PayloadType.hasTimestamp.value:
+            self._timestamp = None
+
+
+    def __repr__(self):
+        """Print debug representation of a reply message."""
+        print(self.__str__())
+        print(f"Raw Frame: {self.frame}")
+
+
     def __str__(self):
+        """Print friendly representation of a reply message."""
+        payload_str = ""
+        format_str = ""
+        if self.payload_type.value & 0x01:
+            format_str = '08b'
+        elif self.payload_type.value & 0x02:
+            format_str = '016b'
+        elif self.payload_type.value & 0x04:
+            if self.message_type.value & PayloadType.isFloat.value:
+                format_str = '.6f'
+            else:
+                format_str = '032b'
+        elif self.payload_type.value & 0x08:
+            format_str = '064b'
+
+        for item in self.payload:
+            payload_str += f"{item:{format_str}} "
+
         return f"Type: {self.message_type.name}\r\n" + \
                f"Length: {self.length}\r\n" + \
                f"Address: {self.address}\r\n" + \
                f"Port: {self.port}\r\n" + \
-               f"Timestampe: {self.timestamp:6f}\r\n" + \
+               f"Timestamp: {self.timestamp}\r\n" + \
                f"Payload Type: {self.payload_type.name}\r\n" + \
-               f"Payload: {self.payload}\r\n" + \
-               f"Checksum: {self.checksum}\r\n" + \
-               f"Raw Frame: {self.frame}\r\n"
-        # print(f"Type: {self.message_type.name}")
-        # print(f"Length: {self.length}")
-        # print(f"Address: {self.address}")
-        # print(f"Port: {self.port}")
-        # print(f"Payload Type: {self.payload_type.name}")
-        # print(f"Payload: {self.payload}")
-        # print(f"Checksum: {self.checksum}")
-        # print(f"Frame: {self.frame}")
+               f"Payload Length: {len(self.payload)}\r\n" + \
+               f"Payload: {payload_str}\r\n" + \
+               f"Checksum: {self.checksum}"
 
     @property
     def payload(self) -> bytes:

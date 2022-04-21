@@ -14,21 +14,33 @@ if os.name == 'posix': # check for Linux.
 else: # assume Windows.
     device = Behavior("COM95", "ibl.bin")
 
+print(f"digital inputs: {device.all_input_states:03b}")
 print(f"digital outputs: {device.all_output_states:016b}")
 print(f"setting digital outputs")
-device.all_output_states = 0x0000
-device.set_outputs(0x0000)
+#device.all_output_states = 0x0000 # Set the whole port directly.
+#device.set_outputs(0xFFFF) # Set the values set to logic 1 only.
+#device.clear_outputs(0xFFFF)# Clear values set to logic 1 only.
 print(f"digital outputs: {device.all_output_states:016b}")
+device.set_io_configuration(0b111)
 
-device.D0 = 1
-print(f"D0: {device.D0}")
-device.D0 = 0
-print(f"D0: {device.D0}")
+# TODO: FIXME. IOs are not working
+#device.set_io_configuration(0b111) # This is getting ignored?
+#device.set_io_outputs(0b000)
+#device.all_io_states = 0b000
+#print(f"digital ios: {device.all_io_states:03b}")
 
-device.D1 = 1
-print(f"D1: {device.D1}")
-device.D1 = 0
-print(f"D1: {device.D1}")
+#device.D0 = 0
+#print(f"D0: {device.D0}")
+#device.D0 = 1
+#print(f"D0: {device.D0}")
+#
+#device.D1 = 0
+#print(f"D1: {device.D1}")
+#device.D1 = 1
+#print(f"D1: {device.D1}")
+#
+#print(f"DI2: {device.DI2}")
+
 
 #import time
 #while True:
