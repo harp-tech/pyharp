@@ -193,29 +193,37 @@ class Device:
         reg_value |= mode.value
         reply = self.send(HarpMessage.WriteU8(address, reg_value).frame)
         return reply
-#
-#    def enable_alive_en(self):
-#        """Enable ALIVE_EN such that the device sends an event each second."""
-#        address = CommonRegisters.OPERATION_CTRL
-#        # Read register first.
-#        reg_value = self.send(HarpMessage.ReadU8(address).frame).payload_as_int()
-#        reg_value |= (1 << 7)
-#        reply = self.send(HarpMessage.WriteU8(address, reg_value).frame)
-#
-#    def enable_status_led(self):
-#        """enable the device's status led if one exists."""
-#        address = CommonRegisters.OPERATION_CTRL
-#        # Read register first.
-#        reg_value = self.send(HarpMessage.ReadU8(address).frame).payload_as_int()
-#        reg_value |= (1 << 6)
-#        reply = self.send(HarpMessage.WriteU8(address, reg_value).frame)
+
+    def enable_status_led(self):
+        """enable the device's status led if one exists."""
+        address = CommonRegisters.OPERATION_CTRL
+        # Read register first.
+        reg_value = self.send(HarpMessage.ReadU8(address).frame).payload_as_int()
+        reg_value |= (1 << 6)
+        reply = self.send(HarpMessage.WriteU8(address, reg_value).frame)
+
+    def enable_status_led(self):
+        """enable the device's status led if one exists."""
+        address = CommonRegisters.OPERATION_CTRL
+        # Read register first.
+        reg_value = self.send(HarpMessage.ReadU8(address).frame).payload_as_int()
+        reg_value &= ~(1 << 6)
+        reply = self.send(HarpMessage.WriteU8(address, reg_value).frame)
+
+    def enable_alive_en(self):
+        """Enable ALIVE_EN such that the device sends an event each second."""
+        address = CommonRegisters.OPERATION_CTRL
+        # Read register first.
+        reg_value = self.send(HarpMessage.ReadU8(address).frame).payload_as_int()
+        reg_value |= (1 << 7)
+        reply = self.send(HarpMessage.WriteU8(address, reg_value).frame)
 
     def disable_alive_en(self):
         """disable ALIVE_EN such that the device does not send an event each second."""
         address = CommonRegisters.OPERATION_CTRL
         # Read register first.
-        reg_value = self.send(HarpMessage.ReadU8(address).frame).payload_as_int()
-        reg_value &= ~(1 << 7) # mask off old mode.
+        reg_value = self.send(HarpMessage.ReadU8(address).frame).payload_as_fixed_int()
+        reg_value != (1<< 7 & 0xFF)
         reply = self.send(HarpMessage.WriteU8(address, reg_value).frame)
 
 

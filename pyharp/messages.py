@@ -39,18 +39,6 @@ class PayloadType(Enum):
     TimestampedFloat = hasTimestamp | Float
 
 
-ALL_UNSIGNED = [PayloadType.U8,
-                PayloadType.U16,
-                PayloadType.U32,
-                PayloadType.TimestampedU8,
-                PayloadType.TimestampedU16]
-ALL_SIGNED = [PayloadType.S8,
-              PayloadType.S16,
-              PayloadType.S32,
-              PayloadType.TimestampedS8,
-              PayloadType.TimestampedS16]
-
-
 class CommonRegisters:
     WHO_AM_I = 0x00
     HW_VERSION_H = 0x01
@@ -163,7 +151,8 @@ class ReplyHarpMessage(HarpMessage):
 
         self._frame = frame
         # retrieve all content from 11 (where payload starts) until the checksum (not inclusive)
-        self._payload = frame[11:-1]
+        self._raw_payload = frame[11:-1]
+        self._payload = self._parse_payload(self._raw_payload) # payload formatted as list[payload type]
 
         # Assign timestamp after _payload since @properties all rely on self._payload.
         self._timestamp = int.from_bytes(frame[5:9], byteorder="little", signed=False) + \
@@ -171,6 +160,16 @@ class ReplyHarpMessage(HarpMessage):
         # Timestamp is junk if it's not present.
         if not (self.payload_type.value & PayloadType.hasTimestamp.value):
             self._timestamp = None
+
+
+    def _parse_payload(self, raw_payload) -> list[int]:
+        """return the payload as a list of ints after parsing it from the raw payload."""
+        is_signed = True if (self.payload_type.value & 0x80) else False
+        bytes_per_word = self.payload_type.value & 0x07
+        payload_len = len(raw_payload)
+
+        word_chunks = [raw_payload[i:i+bytes_per_word] for i in range(0, payload_len, bytes_per_word)]
+        return [int.from_bytes(chunk, byteorder="little", signed=is_signed) for chunk in word_chunks]
 
 
     def __repr__(self):
@@ -183,17 +182,11 @@ class ReplyHarpMessage(HarpMessage):
         """Print friendly representation of a reply message."""
         payload_str = ""
         format_str = ""
-        if self.payload_type.value & 0x01:
-            format_str = '08b'
-        elif self.payload_type.value & 0x02:
-            format_str = '016b'
-        elif self.payload_type.value & 0x04:
-            if self.message_type.value & PayloadType.isFloat.value:
-                format_str = '.6f'
-            else:
-                format_str = '032b'
-        elif self.payload_type.value & 0x08:
-            format_str = '064b'
+        if self.payload_type == PayloadType.Float:
+            format_str = '.6f'
+        else:
+            bytes_per_word = self.payload_type.value & 0x07
+            format_str = f'0{bytes_per_word}b'
 
         for item in self.payload:
             payload_str += f"{item:{format_str}} "
@@ -205,11 +198,12 @@ class ReplyHarpMessage(HarpMessage):
                f"Timestamp: {self.timestamp}\r\n" + \
                f"Payload Type: {self.payload_type.name}\r\n" + \
                f"Payload Length: {len(self.payload)}\r\n" + \
-               f"Payload: {payload_str}\r\n" + \
+               f"Payload: {self.payload}\r\n" + \
                f"Checksum: {self.checksum}"
 
     @property
-    def payload(self) -> bytes:
+    def payload(self) -> Union[int, list[int]]:
+        """return the payload formatted as the appropriate type."""
         return self._payload
 
     @property
@@ -217,24 +211,10 @@ class ReplyHarpMessage(HarpMessage):
         return self._timestamp
 
     def payload_as_int(self) -> int:
-        value: int = 0
-        if self.payload_type in ALL_UNSIGNED:
-            value = int.from_bytes(self.payload, byteorder="little", signed=False)
-        elif self.payload_type in ALL_SIGNED:
-            value = int.from_bytes(self.payload, byteorder="little", signed=True)
-        return value
-
-    def payload_as_int_array(self) -> list:
-        # Number of bytes per chunk. Get this from the bit field structure.
-        datatype_bytes = 0x0F & self.payload_type.value
-        # TODO: is len(self.payload) == self.length?
-        signed = True if self.payload_type in ALL_UNSIGNED else False
-        # Break the payload into chunks of datatype size in bytes
-        byte_chunks = [self.payload[i: i+datatype_bytes] for i in range(0, len(self.payload), datatype_bytes)]
-        return [int.from_bytes(chunk, byteorder="little", signed=signed) for chunk in byte_chunks]
+        return self.payload[0]
 
     def payload_as_string(self) -> str:
-        return self.payload.decode("utf-8")
+        return self._raw_payload.decode("utf-8")
 
 
 # A Read Request Message sent to a harp device.
