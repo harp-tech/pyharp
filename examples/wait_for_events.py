@@ -17,6 +17,7 @@ else: # assume Windows.
     device = Behavior("COM95", "ibl.bin")
 
 print("Setting mode to active.")
+# Mode will remain active for up to 3 seconds after CTS pin is brought low.
 device.device.set_mode(DeviceMode.Active)
 device.disable_all_events()
 device.enable_events(Events.port_digital_inputs)

@@ -239,7 +239,11 @@ class Device:
 
 
     def _read(self) -> Union[ReplyHarpMessage, None]:
-        """Read an incoming serial message."""
+        """(Blocking) Read an incoming serial message."""
+        # block until we get at least one byte.
+        while True:
+            if self._ser.inWaiting():
+                break
         try:
             message_type = self._ser.read(1)[0]  # byte array with only one byte
             message_length = self._ser.read(1)[0]
