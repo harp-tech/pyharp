@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-from pyharp.drivers.behavior import Behavior
+from pyharp.drivers.behavior import Behavior, Events
 from pyharp.messages import HarpMessage
 from pyharp.messages import MessageType
 from struct import *
@@ -18,8 +18,10 @@ else: # assume Windows.
 
 print("Setting mode to active.")
 device.device.set_mode(DeviceMode.Active)
+device.disable_all_events()
+device.enable_events(Events.port_digital_inputs)
 while True:
     event_response = device.device._read() # read any incoming events.
-    if event_response is not None and event_response.address != 44:
+    if event_response is not None:# and event_response.address != 44:
         print()
         print(event_response)

@@ -166,7 +166,7 @@ class ReplyHarpMessage(HarpMessage):
         """return the payload as a list of ints after parsing it from the raw payload."""
         is_signed = True if (self.payload_type.value & 0x80) else False
         bytes_per_word = self.payload_type.value & 0x07
-        payload_len = len(raw_payload)
+        payload_len = len(raw_payload) # payload length in bytes.
 
         word_chunks = [raw_payload[i:i+bytes_per_word] for i in range(0, payload_len, bytes_per_word)]
         return [int.from_bytes(chunk, byteorder="little", signed=is_signed) for chunk in word_chunks]

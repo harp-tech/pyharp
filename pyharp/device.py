@@ -32,10 +32,6 @@ class Device:
     HARP_VERSION_L: int
     FIRMWARE_VERSION_H: int
     FIRMWARE_VERSION_L: int
-    # TIMESTAMP_SECOND = 0x08
-    # TIMESTAMP_MICRO = 0x09
-    # OPERATION_CTRL = 0x0A
-    # RESET_DEV = 0x0B
     DEVICE_NAME: str
 
     def __init__(self, serial_port: str, dump_file_path: Optional[str] = None):
@@ -222,8 +218,8 @@ class Device:
         """disable ALIVE_EN such that the device does not send an event each second."""
         address = CommonRegisters.OPERATION_CTRL
         # Read register first.
-        reg_value = self.send(HarpMessage.ReadU8(address).frame).payload_as_fixed_int()
-        reg_value != (1<< 7 & 0xFF)
+        reg_value = self.send(HarpMessage.ReadU8(address).frame).payload[0]
+        reg_value &= ((1<< 7) ^ 0xFF) # bitwise ~ operator substitute for Python ints.
         reply = self.send(HarpMessage.WriteU8(address, reg_value).frame)
 
 
@@ -232,6 +228,8 @@ class Device:
         self._ser.write(message_bytes)
 
         # TODO: handle case where read is None
+        # FIXME: waiting for a message reply like this
+        #        breaks if events are also being broadcasted (i.e: in ActiveMode).
         reply: ReplyHarpMessage = self._read()
 
         if dump:

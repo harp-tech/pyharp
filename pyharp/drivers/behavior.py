@@ -28,6 +28,8 @@ REGISTERS = \
     "PORT_DIOS_CONF": ("U8", 42, "Set the DIOs direction (1 is output)."),
     "PORT_DIOS_IN": ("U8", 43, "State of the DIOs."),
 
+    "ADD_REG_DATA": ("S16", 44, "Voltage at ADC input and decoder (poke2) value."),
+
     "EVNT_ENABLE": ("U8", 77, "Enable events within the bitfields."),
 }
 
@@ -62,16 +64,18 @@ class PORT_DIOS_IN(Enum):
     DIO1 = 0
     DIO2 = 0
 
-class EVNT_ENABLE(Enum):
-    PORT_DIS = 0
-    PORT_DIOS_IN = 1
-    DATA = 2
-    CAM0 = 3
-    CAM1 = 4
+
+# reader-friendly events for enabling/disabling.
+class Events(Enum):
+    port_digital_inputs = 0 # PORT_DIS
+    port_digital_ios = 1    # PORT_DIOS_IN
+    analog_input = 2        # DATA
+    cam0 = 3                # CAM0
+    cam1 = 3                # CAM1
 
 
 class Behavior:
-    """Driver for BehaviorDevice."""
+    """Driver for Behavior Device."""
 
     # On Linux, the symlink to the first detected harp device.
     # Name set in udev rules and will increment with subsequent devices.
@@ -120,6 +124,28 @@ class Behavior:
         except KeyError:
             raise KeyError(f"reg: {reg_name} is not a register in "
                             "{self.__class__.name} Device's register map.")
+
+
+    def disable_all_events(self) -> ReplyHarpMessage:
+        """Disable the publishing of all events from Behavior device."""
+        event_reg_bitmask = (((1 << Events.port_digital_inputs.value) | \
+                              (1 << Events.port_digital_ios.value) | \
+                              (1 << Events.analog_input.value) | \
+                              (1 << Events.cam0.value) | \
+                              (1 << Events.cam1.value) ) ^ 0xFF)
+        reg_type, reg_index, _ = REGISTERS["EVNT_ENABLE"]
+        write_message_type = self.__class__.WRITE_MSG_LOOKUP[reg_type]
+        return self.device.send(write_message_type(reg_index, event_reg_bitmask).frame)
+
+
+    def enable_events(self, *events: Events) -> ReplyHarpMessage:
+        """enable any events passed in as arguments."""
+        event_reg_bitmask = 0x00
+        for event in events:
+            event_reg_bitmask |= (1 << event.value)
+        reg_type, reg_index, _ = REGISTERS["EVNT_ENABLE"]
+        write_message_type = self.__class__.WRITE_MSG_LOOKUP[reg_type]
+        return self.device.send(write_message_type(reg_index, event_reg_bitmask).frame)
 
 
 # Board inputs, outputs, and some settings configured as @properties.
@@ -372,9 +398,11 @@ class Behavior:
 
     def __exit__(self, *args):
         """Cleanup for the 'with' statement"""
-        self.device.disconnect()
+        if self.device is not None:
+            self.device.disconnect()
 
 
     def __del__(self):
         """Cleanup when Device gets garbage collected."""
-        self.device.disconnect()
+        if self.device is not None:
+            self.device.disconnect()
