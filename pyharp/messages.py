@@ -174,8 +174,7 @@ class ReplyHarpMessage(HarpMessage):
 
     def __repr__(self):
         """Print debug representation of a reply message."""
-        print(self.__str__())
-        print(f"Raw Frame: {self.frame}")
+        return self.__str__() + f"\r\nRaw Frame: {self.frame}"
 
 
     def __str__(self):

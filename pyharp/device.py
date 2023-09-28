@@ -3,9 +3,10 @@ from typing import Optional, Union
 from pathlib import Path
 
 from pyharp.messages import HarpMessage, ReplyHarpMessage
-from pyharp.messages import CommonRegisters
+from pyharp.messages import CommonRegisters, MessageType
 from pyharp.device_names import device_names
 from enum import Enum
+from time import perf_counter
 
 
 class DeviceMode(Enum):
@@ -33,6 +34,8 @@ class Device:
     FIRMWARE_VERSION_H: int
     FIRMWARE_VERSION_L: int
     DEVICE_NAME: str
+
+    TIMEOUT_S = 1.0
 
     def __init__(self, serial_port: str, dump_file_path: Optional[str] = None):
         self._serial_port = serial_port
@@ -72,7 +75,7 @@ class Device:
         self._ser = serial.Serial(
             self._serial_port,  # "/dev/tty.usbserial-A106C8O9"
             baudrate=1000000,
-            timeout=1,
+            timeout=self.__class__.TIMEOUT_S,
             parity=serial.PARITY_NONE,
             stopbits=1,
             bytesize=8,
@@ -88,7 +91,7 @@ class Device:
         reply: ReplyHarpMessage = self.send(
             HarpMessage.ReadU16(address).frame, dump=False
         )
-
+        #print(str(reply))
         return reply.payload_as_int()
 
     def read_who_am_i_device(self) -> str:
@@ -97,6 +100,7 @@ class Device:
         reply: ReplyHarpMessage = self.send(
             HarpMessage.ReadU16(address).frame, dump=False
         )
+        #print(str(reply))
 
         return device_names.get(reply.payload_as_int())
 
@@ -106,6 +110,7 @@ class Device:
         reply: ReplyHarpMessage = self.send(
             HarpMessage.ReadU8(address).frame, dump=False
         )
+        #print(str(reply))
 
         return reply.payload_as_int()
 
@@ -115,6 +120,7 @@ class Device:
         reply: ReplyHarpMessage = self.send(
             HarpMessage.ReadU8(address).frame, dump=False
         )
+        #print(str(reply))
 
         return reply.payload_as_int()
 
@@ -124,6 +130,7 @@ class Device:
         reply: ReplyHarpMessage = self.send(
             HarpMessage.ReadU8(address).frame, dump=False
         )
+        #print(str(reply))
 
         return reply.payload_as_int()
 
@@ -133,6 +140,7 @@ class Device:
         reply: ReplyHarpMessage = self.send(
             HarpMessage.ReadU8(address).frame, dump=False
         )
+        #print(str(reply))
 
         return reply.payload_as_int()
 
@@ -142,6 +150,7 @@ class Device:
         reply: ReplyHarpMessage = self.send(
             HarpMessage.ReadU8(address).frame, dump=False
         )
+        #print(str(reply))
 
         return reply.payload_as_int()
 
@@ -151,6 +160,7 @@ class Device:
         reply: ReplyHarpMessage = self.send(
             HarpMessage.ReadU8(address).frame, dump=False
         )
+        #print(str(reply))
 
         return reply.payload_as_int()
 
@@ -160,6 +170,7 @@ class Device:
         reply: ReplyHarpMessage = self.send(
             HarpMessage.ReadU8(address).frame, dump=False
 )
+        #print(str(reply))
 
         return reply.payload_as_int()
 
@@ -170,14 +181,31 @@ class Device:
         reply: ReplyHarpMessage = self.send(
             HarpMessage.ReadU8(address).frame, dump=False
         )
+        #print(str(reply))
 
         return reply.payload_as_string()
 
     def read_device_mode(self) -> DeviceMode:
         address = CommonRegisters.OPERATION_CTRL
         reply = self.send(HarpMessage.ReadU8(address).frame)
-        print(reply)
         return DeviceMode(reply.payload_as_int() & 0x03)
+
+    def dump_registers(self) -> list:
+        """Assert the DUMP bit to dump the values of all core and app registers
+        as Harp Read Reply Messages.
+        """
+        address = CommonRegisters.OPERATION_CTRL
+        reg_value = self.send(HarpMessage.ReadU8(address).frame).payload_as_int()
+        reg_value |= 0x08  # Assert DUMP bit
+        self._ser.write(HarpMessage.WriteU8(address, reg_value).frame)
+        replies = []
+        while True:
+            msg = self._read()
+            if msg is not None:
+                replies.append(msg)
+            else:
+                break
+        return replies
 
 # TODO: Not sure if we want to implement these. Delete if no.
     def set_mode(self, mode: DeviceMode) -> ReplyHarpMessage:
@@ -225,6 +253,7 @@ class Device:
 
     def send(self, message_bytes: bytearray, dump: bool = True) -> ReplyHarpMessage:
         """Send a harp message; return the device's reply."""
+        #print(f"Sending: {repr(message_bytes)}")
         self._ser.write(message_bytes)
 
         # TODO: handle case where read is None
@@ -232,7 +261,7 @@ class Device:
         #        breaks if events are also being broadcasted (i.e: in ActiveMode).
         reply: ReplyHarpMessage = self._read()
 
-        if dump:
+        if dump and self._dump_file_path is not None:
             self._dump_reply(reply.frame)
 
         return reply
@@ -240,21 +269,29 @@ class Device:
 
     def _read(self) -> Union[ReplyHarpMessage, None]:
         """(Blocking) Read an incoming serial message."""
-        # block until we get at least one byte.
+        # block for up to TIMEOUT until we get at least one byte.
+        read_start = perf_counter()
         while True:
             if self._ser.inWaiting():
+                break
+            if perf_counter() - read_start >= self.__class__.TIMEOUT_S:
                 break
         try:
             message_type = self._ser.read(1)[0]  # byte array with only one byte
             message_length = self._ser.read(1)[0]
             message_content = self._ser.read(message_length)
+            #print(f"Read back:")
+            #print(f"  type: {MessageType(message_type).name}")
+            #print(f"  length : {repr(message_length)}")
+            #print(f"  payload: {list(message_content)}")
 
             frame = bytearray()
             frame.append(message_type)
             frame.append(message_length)
             frame += message_content
+            msg = HarpMessage.parse(frame)
 
-            return HarpMessage.parse(frame)
+            return msg
         except IndexError:
             return None
 

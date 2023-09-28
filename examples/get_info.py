@@ -15,7 +15,9 @@ import os
 # Open the device and print the info on screen
 # Open serial connection and save communication to a file
 if os.name == 'posix': # check for Linux.
-    device = Device("/dev/harp_device_00", "ibl.bin")
+    #device = Device("/dev/harp_device_00", "ibl.bin")
+    #device = Device("/dev/ttyACM0")
+    device = Device("/dev/ttyUSB0")
 else: # assume Windows.
     device = Device("COM95", "ibl.bin")
 device.info()                           # Display device's info on screen
@@ -33,6 +35,8 @@ device_hw_l = device.HW_VERSION_L               # Get device's hardware version
 device_harp_h = device.HARP_VERSION_H           # Get device's harp core version
 device_harp_l = device.HARP_VERSION_L           # Get device's harp core version
 device_assembly = device.ASSEMBLY_VERSION       # Get device's assembly version
+
+print(device.dump_registers())
 
 # Close connection
 device.disconnect()
