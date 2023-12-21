@@ -396,9 +396,9 @@ class WriteU32HarpMessage(WriteHarpMessage):
 class WriteS32HarpMessage(WriteHarpMessage):
     def __init__(self, address: int, value: int):
         super().__init__(
-            PayloadType.S32, value.to_bytes(4, byteorder="little", signed=False), address, offset=3
+            PayloadType.S32, value.to_bytes(4, byteorder="little", signed=True), address, offset=3
         )
 
     @property
     def payload(self) -> int:
-        return int.from_bytes(self._frame[5:9], byteorder="little", signed=False)
+        return int.from_bytes(self._frame[5:9], byteorder="little", signed=True)
