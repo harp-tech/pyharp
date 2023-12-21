@@ -1,10 +1,16 @@
-
-
 # pyharp
 
 Harp implementation of the Harp protocol.
 
-## Edit the code
+## Install with Pip
+From this directory, install in editable mode with
+````
+pip install -e .
+````
+
+Note that for the above to work, a fairly recent version of pip (>= 21.3) is required.
+
+## Install with Poetry
 
 Each Python user has is own very dear IDE for editing. Here, we are leaving instructions on how to edit this code using pyCharm, Anaconda and Poetry.
 
@@ -69,3 +75,17 @@ Device info:
 * Firmware version: 1.0
 * Device user name: IBL_rig_0
 ```
+
+## for Linux
+
+### Install UDEV Rules
+
+Install by either copying `10-harp.rules` over to your `/etc/udev/rules.d` folder or by symlinking it with:
+````
+sudo ln -s /absolute/path/to/vibratome-controller/10-harp.rules /etc/udev/rules.d/10-harp.rules
+````
+
+Then reload udev rules with
+````
+sudo udevadm control --reload-rules
+````

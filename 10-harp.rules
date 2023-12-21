@@ -1,0 +1,3 @@
+# UDEV rules for a Harp Device (actually an ftdi RS232 Serial [Uart] IC)
+SUBSYSTEMS=="usb", ENV{.LOCAL_ifNum}="$attr{bInterfaceNumber}"
+SUBSYSTEMS=="usb", KERNEL=="ttyUSB*", ATTRS{idVendor}=="0403", ATTRS{idProduct}=="6001", MODE="0666", SYMLINK+="harp_device_%E{.LOCAL_ifNum}"
