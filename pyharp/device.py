@@ -223,15 +223,15 @@ class Device:
         address = CommonRegisters.OPERATION_CTRL
         # Read register first.
         reg_value = self.send(HarpMessage.ReadU8(address).frame).payload_as_int()
-        reg_value |= (1 << 6)
+        reg_value |= (1 << 5)
         reply = self.send(HarpMessage.WriteU8(address, reg_value).frame)
 
-    def enable_status_led(self):
-        """enable the device's status led if one exists."""
+    def disable_status_led(self):
+        """disable the device's status led if one exists."""
         address = CommonRegisters.OPERATION_CTRL
         # Read register first.
         reg_value = self.send(HarpMessage.ReadU8(address).frame).payload_as_int()
-        reg_value &= ~(1 << 6)
+        reg_value &= ~(1 << 5)
         reply = self.send(HarpMessage.WriteU8(address, reg_value).frame)
 
     def enable_alive_en(self):

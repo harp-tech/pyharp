@@ -2,6 +2,7 @@ from __future__ import annotations # for type hints (PEP 563)
 from enum import Enum
 # from abc import ABC, abstractmethod
 from typing import Union, Tuple, Optional
+import struct
 
 
 class MessageType(Enum):
@@ -93,7 +94,7 @@ class HarpMessage:
         return self._frame[3]
 
     @property
-    def payload_type(self) -> int:
+    def payload_type(self) -> PayloadType:
         return PayloadType(self._frame[4])
 
     @property
@@ -116,6 +117,16 @@ class HarpMessage:
     def ReadU16(address: int) -> ReadU16HarpMessage:
         return ReadU16HarpMessage(address)
 
+    # TODO: ReadS16
+
+    @staticmethod
+    def ReadU32(address: int) -> ReadU32HarpMessage:
+        return ReadU32HarpMessage(address)
+
+    @staticmethod
+    def ReadFloat(address: int) -> ReadFloatHarpMessage:
+        return ReadFloatHarpMessage(address)
+
     @staticmethod
     def WriteU8(address: int, value: int) -> WriteU8HarpMessage:
         return WriteU8HarpMessage(address, value)
@@ -131,6 +142,10 @@ class HarpMessage:
     @staticmethod
     def WriteU16(address: int, value: int) -> WriteU16HarpMessage:
         return WriteU16HarpMessage(address, value)
+
+    @staticmethod
+    def WriteFloat(address: int, value: int) -> WriteFloatHarpMessage:
+        return WriteFloatHarpMessage(address, value)
 
     @staticmethod
     def parse(frame: bytearray) -> ReplyHarpMessage:
@@ -165,11 +180,15 @@ class ReplyHarpMessage(HarpMessage):
     def _parse_payload(self, raw_payload) -> list[int]:
         """return the payload as a list of ints after parsing it from the raw payload."""
         is_signed = True if (self.payload_type.value & 0x80) else False
+        is_float = True if (self.payload_type.value & 0x40) else False
         bytes_per_word = self.payload_type.value & 0x07
         payload_len = len(raw_payload) # payload length in bytes.
 
         word_chunks = [raw_payload[i:i+bytes_per_word] for i in range(0, payload_len, bytes_per_word)]
-        return [int.from_bytes(chunk, byteorder="little", signed=is_signed) for chunk in word_chunks]
+        if not is_float:
+            return [int.from_bytes(chunk, byteorder="little", signed=is_signed) for chunk in word_chunks]
+        else: # handle float case.
+            return [struct.unpack('<f', chunk)[0] for chunk in word_chunks]
 
 
     def __repr__(self):
@@ -181,7 +200,7 @@ class ReplyHarpMessage(HarpMessage):
         """Print friendly representation of a reply message."""
         payload_str = ""
         format_str = ""
-        if self.payload_type == PayloadType.Float:
+        if self.payload_type in [PayloadType.Float, PayloadType.TimestampedFloat]:
             format_str = '.6f'
         else:
             bytes_per_word = self.payload_type.value & 0x07
@@ -214,6 +233,9 @@ class ReplyHarpMessage(HarpMessage):
 
     def payload_as_string(self) -> str:
         return self._raw_payload.decode("utf-8")
+
+    def payload_as_float(self) -> float:
+        return self.payload[0]  # already parsed.
 
 
 # A Read Request Message sent to a harp device.
@@ -252,6 +274,15 @@ class ReadU16HarpMessage(ReadHarpMessage):
 class ReadS16HarpMessage(ReadHarpMessage):
     def __init__(self, address: int):
         super().__init__(PayloadType.S16, address)
+
+class ReadU32HarpMessage(ReadHarpMessage):
+    def __init__(self, address: int):
+        super().__init__(PayloadType.U32, address)
+
+
+class ReadFloatHarpMessage(ReadHarpMessage):
+    def __init__(self, address: int):
+        super().__init__(PayloadType.Float, address)
 
 
 class WriteHarpMessage(HarpMessage):
@@ -327,3 +358,17 @@ class WriteS16HarpMessage(WriteHarpMessage):
     @property
     def payload(self) -> int:
         return int.from_bytes(self._frame[5:7], byteorder="little", signed=True)
+
+
+class WriteFloatHarpMessage(WriteHarpMessage):
+    def __init__(self, address: int, value: float):
+        super().__init__(
+            PayloadType.Float,
+            struct.pack('<f', value), #value.to_bytes(4, byteorder="little", signed=True),
+            address,
+            offset=3,
+        )
+
+    @property
+    def payload(self) -> float:
+        return struct.unpack('<f', self._frame[5:9])[0]
