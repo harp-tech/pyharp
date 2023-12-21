@@ -148,6 +148,14 @@ class HarpMessage:
         return WriteFloatHarpMessage(address, value)
 
     @staticmethod
+    def WriteU32(address: int, value: int) -> WriteU32HarpMessage:
+        return WriteU32HarpMessage(address, value)
+
+    @staticmethod
+    def WriteS32(address: int, value: int) -> WriteS32HarpMessage:
+        return WriteS32HarpMessage(address, value)
+
+    @staticmethod
     def parse(frame: bytearray) -> ReplyHarpMessage:
         return ReplyHarpMessage(frame)
 
@@ -372,3 +380,25 @@ class WriteFloatHarpMessage(WriteHarpMessage):
     @property
     def payload(self) -> float:
         return struct.unpack('<f', self._frame[5:9])[0]
+
+
+class WriteU32HarpMessage(WriteHarpMessage):
+    def __init__(self, address: int, value: int):
+        super().__init__(
+            PayloadType.U32, value.to_bytes(4, byteorder="little", signed=False), address, offset=3
+        )
+
+    @property
+    def payload(self) -> int:
+        return int.from_bytes(self._frame[5:9], byteorder="little", signed=False)
+
+
+class WriteS32HarpMessage(WriteHarpMessage):
+    def __init__(self, address: int, value: int):
+        super().__init__(
+            PayloadType.S32, value.to_bytes(4, byteorder="little", signed=False), address, offset=3
+        )
+
+    @property
+    def payload(self) -> int:
+        return int.from_bytes(self._frame[5:9], byteorder="little", signed=False)

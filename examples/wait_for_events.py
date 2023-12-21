@@ -13,7 +13,8 @@ from pyharp.device import Device, DeviceMode
 device = None
 if os.name == 'posix': # check for Linux.
     #device = Behavior("/dev/harp_device_00", "ibl.bin")
-    device = Device("/dev/ttyACM0",)
+    #device = Device("/dev/ttyACM0",)
+    device = Device("/dev/ttyUSB0",)
 else: # assume Windows.
     device = Behavior("COM95", "ibl.bin")
 

@@ -16,8 +16,8 @@ import os
 # Open serial connection and save communication to a file
 if os.name == 'posix': # check for Linux.
     #device = Device("/dev/harp_device_00", "ibl.bin")
-    device = Device("/dev/ttyACM0")
-    #device = Device("/dev/ttyUSB0")
+    #device = Device("/dev/ttyACM0")
+    device = Device("/dev/ttyUSB0")
 else: # assume Windows.
     device = Device("COM95", "ibl.bin")
 device.info()                           # Display device's info on screen
