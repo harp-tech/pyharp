@@ -1,4 +1,5 @@
 import serial
+import logging
 from typing import Optional, Union
 from pathlib import Path
 
@@ -38,6 +39,7 @@ class Device:
     TIMEOUT_S = 1.0
 
     def __init__(self, serial_port: str, dump_file_path: Optional[str] = None):
+        self.log = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
         self._serial_port = serial_port
         if dump_file_path is None:
             self._dump_file_path = None
@@ -280,6 +282,9 @@ class Device:
             message_type = self._ser.read(1)[0]  # byte array with only one byte
             message_length = self._ser.read(1)[0]
             message_content = self._ser.read(message_length)
+            self.log.debug(f"reply (type): {message_type}")
+            self.log.debug(f"reply (length): {message_length}")
+            self.log.debug(f"reply (payload): {message_content}")
             #print(f"Read back:")
             #print(f"  type: {MessageType(message_type).name}")
             #print(f"  length : {repr(message_length)}")
