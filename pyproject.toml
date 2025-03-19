@@ -1,23 +1,21 @@
-[tool.poetry]
+[project]
 name = "pyharp"
 version = "0.1.0"
 description = "Library for data acquisition and control of devices implementing the Harp protocol."
-authors = ["filcarv <filipe@open-ephys.org>"]
+authors = [{ name= "Filipe Carvalho", email="filipe@open-ephys.org"}]
 license = "MIT"
 readme = 'README.md'
+requires-python = ">=3.11"
+dependencies = [
+    "pyserial>=3.5",
+]
 
-[tool.poetry.dependencies]
-python = "^3.4"
-pyserial = "^3.4"
-
-[tool.poetry.dev-dependencies]
-pytest = "^5.2"
-mypy = "^0.782"
-black = "^19.10b0"
+[dependency-groups]
+dev = [
+    "pytest>=8.3.5",
+    "ruff>=0.11.0",
+]
 
 [build-system]
-requires = ["poetry-core>=1.0.8"]
-build-backend = "poetry.core.masonry.api"
-
-[tool.poetry.scripts]
-pyharp = "pyharp.main:main"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
