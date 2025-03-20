@@ -2,6 +2,9 @@
 
 Harp implementation of the Harp protocol.
 
+> [!CAUTION]
+> The README is currently outdated!
+
 ## Install with Pip
 From this directory, install in editable mode with
 ````
