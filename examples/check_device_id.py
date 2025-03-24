@@ -1,11 +1,9 @@
-#!/usr/bin/env python3
-from pyharp.device import Device
-from pyharp.messages import HarpMessage
-from pyharp.messages import MessageType
-from pyharp.device_names import device_names
-from struct import *
 import os
+from struct import *
 
+from pyharp.device import Device
+from pyharp.device_names import device_names
+from pyharp.messages import HarpMessage, MessageType
 
 # ON THIS EXAMPLE
 #
@@ -15,15 +13,15 @@ import os
 
 # Open the device
 # Open serial connection
-if os.name == "posix": # check for Linux.
+if os.name == "posix":  # check for Linux.
     device = Device("/dev/harp_device_00")
-else: # assume Windows.
+else:  # assume Windows.
     device = Device("COM95")
 
 # Get some of the device's parameters
-device_id = device.WHO_AM_I                     # Get device's ID
+device_id = device.WHO_AM_I  # Get device's ID
 device_id_description = device.WHO_AM_I_DEVICE  # Get device's user name
-device_user_name = device.DEVICE_NAME           # Get device's user name
+device_user_name = device.DEVICE_NAME  # Get device's user name
 
 # Check if we are dealing with the correct device
 if device_id in device_names:
