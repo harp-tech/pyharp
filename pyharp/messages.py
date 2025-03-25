@@ -102,34 +102,32 @@ class HarpMessage:
         return self._frame[-1]
 
     @staticmethod
-    def ReadU8(address: int) -> ReadU8HarpMessage:
-        return ReadU8HarpMessage(address)
+    def ReadU8(address: int) -> ReadHarpMessage:
+        return ReadHarpMessage(payload_type=PayloadType.U8, address=address)
 
     @staticmethod
-    def ReadS8(address: int) -> ReadS8HarpMessage:
-        return ReadS8HarpMessage(address)
+    def ReadS8(address: int) -> ReadHarpMessage:
+        return ReadHarpMessage(payload_type=PayloadType.S8, address=address)
 
     @staticmethod
-    def ReadS16(address: int) -> ReadS16HarpMessage:
-        return ReadS16HarpMessage(address)
+    def ReadS16(address: int) -> ReadHarpMessage:
+        return ReadHarpMessage(payload_type=PayloadType.S16, address=address)
 
     @staticmethod
-    def ReadU16(address: int) -> ReadU16HarpMessage:
-        return ReadU16HarpMessage(address)
-
-    # TODO: ReadS16
+    def ReadU16(address: int) -> ReadHarpMessage:
+        return ReadHarpMessage(payload_type=PayloadType.U16, address=address)
 
     @staticmethod
-    def ReadU32(address: int) -> ReadU32HarpMessage:
-        return ReadU32HarpMessage(address)
+    def ReadU32(address: int) -> ReadHarpMessage:
+        return ReadHarpMessage(payload_type=PayloadType.U32, address=address)
 
     @staticmethod
-    def ReadS32(address: int) -> ReadS32HarpMessage:
-        return ReadS32HarpMessage(address)
+    def ReadS32(address: int) -> ReadHarpMessage:
+        return ReadHarpMessage(payload_type=PayloadType.S32, address=address)
 
     @staticmethod
-    def ReadFloat(address: int) -> ReadFloatHarpMessage:
-        return ReadFloatHarpMessage(address)
+    def ReadFloat(address: int) -> ReadHarpMessage:
+        return ReadHarpMessage(payload_type=PayloadType.Float, address=address)
 
     @staticmethod
     def WriteU8(address: int, value: int) -> WriteU8HarpMessage:
@@ -266,40 +264,6 @@ class ReadHarpMessage(HarpMessage):
         self._frame.append(self.DEFAULT_PORT)
         self._frame.append(payload_type.value)
         self._frame.append(self.calculate_checksum())
-
-
-class ReadU8HarpMessage(ReadHarpMessage):
-    def __init__(self, address: int):
-        super().__init__(PayloadType.U8, address)
-
-
-class ReadS8HarpMessage(ReadHarpMessage):
-    def __init__(self, address: int):
-        super().__init__(PayloadType.S8, address)
-
-
-class ReadU16HarpMessage(ReadHarpMessage):
-    def __init__(self, address: int):
-        super().__init__(PayloadType.U16, address)
-
-
-class ReadS16HarpMessage(ReadHarpMessage):
-    def __init__(self, address: int):
-        super().__init__(PayloadType.S16, address)
-
-class ReadU32HarpMessage(ReadHarpMessage):
-    def __init__(self, address: int):
-        super().__init__(PayloadType.U32, address)
-
-
-class ReadS32HarpMessage(ReadHarpMessage):
-    def __init__(self, address: int):
-        super().__init__(PayloadType.S32, address)
-
-
-class ReadFloatHarpMessage(ReadHarpMessage):
-    def __init__(self, address: int):
-        super().__init__(PayloadType.Float, address)
 
 
 class WriteHarpMessage(HarpMessage):
