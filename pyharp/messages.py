@@ -52,34 +52,6 @@ class HarpMessage:
         return self._frame[-1]
 
     @staticmethod
-    def ReadU8(address: int) -> ReadHarpMessage:
-        return ReadHarpMessage(payload_type=PayloadType.U8, address=address)
-
-    @staticmethod
-    def ReadS8(address: int) -> ReadHarpMessage:
-        return ReadHarpMessage(payload_type=PayloadType.S8, address=address)
-
-    @staticmethod
-    def ReadS16(address: int) -> ReadHarpMessage:
-        return ReadHarpMessage(payload_type=PayloadType.S16, address=address)
-
-    @staticmethod
-    def ReadU16(address: int) -> ReadHarpMessage:
-        return ReadHarpMessage(payload_type=PayloadType.U16, address=address)
-
-    @staticmethod
-    def ReadU32(address: int) -> ReadHarpMessage:
-        return ReadHarpMessage(payload_type=PayloadType.U32, address=address)
-
-    @staticmethod
-    def ReadS32(address: int) -> ReadHarpMessage:
-        return ReadHarpMessage(payload_type=PayloadType.S32, address=address)
-
-    @staticmethod
-    def ReadFloat(address: int) -> ReadHarpMessage:
-        return ReadHarpMessage(payload_type=PayloadType.Float, address=address)
-
-    @staticmethod
     def WriteU8(address: int, value: int) -> WriteU8HarpMessage:
         return WriteU8HarpMessage(address, value)
 
