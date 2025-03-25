@@ -1,6 +1,5 @@
-from pyharp.messages import HarpMessage
+from pyharp.base import CommonRegisters
 from pyharp.messages import HarpMessage, MessageType
-from pyharp.messages import CommonRegisters
 
 DEFAULT_ADDRESS = 42
 

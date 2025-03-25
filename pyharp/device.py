@@ -1,16 +1,17 @@
-from __future__ import annotations # enable subscriptable type hints for lists.
-import serial
+from __future__ import annotations  # enable subscriptable type hints for lists.
+
 import logging
 import queue
-from typing import Optional, Union
+from enum import Enum
 from pathlib import Path
+from typing import Optional, Union
 
+import serial
+
+from pyharp.base import CommonRegisters
+from pyharp.device_names import device_names
 from pyharp.harp_serial import HarpSerial
 from pyharp.messages import HarpMessage, ReplyHarpMessage
-from pyharp.messages import CommonRegisters, MessageType
-from pyharp.device_names import device_names
-from enum import Enum
-from time import perf_counter
 
 
 class DeviceMode(Enum):
