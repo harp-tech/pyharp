@@ -1,5 +1,10 @@
 from enum import Enum
 
+# TODO: Find a way to really hide this from the user
+_isUnsigned: int = 0x00
+_isSigned: int = 0x80
+_isFloat: int = 0x40
+_hasTimestamp: int = 0x10
 
 class MessageType(Enum):
     READ: int = 1
@@ -10,30 +15,25 @@ class MessageType(Enum):
 
 
 class PayloadType(Enum):
-    isUnsigned: int = 0x00
-    isSigned: int = 0x80
-    isFloat: int = 0x40
-    hasTimestamp: int = 0x10
-
-    U8 = isUnsigned | 1  # 1
-    S8 = isSigned | 1  # 129
-    U16 = isUnsigned | 2  # 2
-    S16 = isSigned | 2  # 130
-    U32 = isUnsigned | 4
-    S32 = isSigned | 4
-    U64 = isUnsigned | 8
-    S64 = isSigned | 8
-    Float = isFloat | 4
-    Timestamp = hasTimestamp
-    TimestampedU8 = hasTimestamp | U8
-    TimestampedS8 = hasTimestamp | S8
-    TimestampedU16 = hasTimestamp | U16
-    TimestampedS16 = hasTimestamp | S16
-    TimestampedU32 = hasTimestamp | U32
-    TimestampedS32 = hasTimestamp | S32
-    TimestampedU64 = hasTimestamp | U64
-    TimestampedS64 = hasTimestamp | S64
-    TimestampedFloat = hasTimestamp | Float
+    U8 = _isUnsigned | 1  # 1
+    S8 = _isSigned | 1  # 129
+    U16 = _isUnsigned | 2  # 2
+    S16 = _isSigned | 2  # 130
+    U32 = _isUnsigned | 4
+    S32 = _isSigned | 4
+    U64 = _isUnsigned | 8
+    S64 = _isSigned | 8
+    Float = _isFloat | 4
+    Timestamp = _hasTimestamp
+    TimestampedU8 = _hasTimestamp | U8
+    TimestampedS8 = _hasTimestamp | S8
+    TimestampedU16 = _hasTimestamp | U16
+    TimestampedS16 = _hasTimestamp | S16
+    TimestampedU32 = _hasTimestamp | U32
+    TimestampedS32 = _hasTimestamp | S32
+    TimestampedU64 = _hasTimestamp | U64
+    TimestampedS64 = _hasTimestamp | S64
+    TimestampedFloat = _hasTimestamp | Float
 
 
 class CommonRegisters:

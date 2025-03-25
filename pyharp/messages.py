@@ -108,7 +108,7 @@ class ReplyHarpMessage(HarpMessage):
             + int.from_bytes(frame[9:11], byteorder="little", signed=False) * 32e-6
         )
         # Timestamp is junk if it's not present.
-        if not (self.payload_type.value & PayloadType.hasTimestamp.value):
+        if not (self.payload_type.value & PayloadType.Timestamp.value):
             self._timestamp = None
 
     def _parse_payload(self, raw_payload) -> list[int]:
