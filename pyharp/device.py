@@ -308,6 +308,16 @@ class Device:
             ReadHarpMessage(payload_type=PayloadType.S32, address=address).frame, dump
         )
 
+    def read_u64(self, address: int, dump: bool = True) -> ReplyHarpMessage:
+        return self.send(
+            ReadHarpMessage(payload_type=PayloadType.U64, address=address).frame, dump
+        )
+
+    def read_s64(self, address: int, dump: bool = True) -> ReplyHarpMessage:
+        return self.send(
+            ReadHarpMessage(payload_type=PayloadType.S64, address=address).frame, dump
+        )
+
     def read_float(self, address: int, dump: bool = True) -> ReplyHarpMessage:
         return self.send(
             ReadHarpMessage(payload_type=PayloadType.FLOAT, address=address).frame, dump
