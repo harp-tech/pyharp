@@ -8,7 +8,7 @@ from pyharp.base import MessageType, PayloadType
 
 class HarpMessage:
     """
-    https://github.com/harp-tech/protocol/blob/master/Binary%20Protocol%201.0%201.1%2020180223.pdf
+    https://github.com/harp-tech/protocol/blob/main/BinaryProtocol-8bit.md
     """
 
     DEFAULT_PORT: int = 255
