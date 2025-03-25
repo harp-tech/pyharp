@@ -1,8 +1,6 @@
 import os
-from struct import *
 
 from pyharp.device import Device
-from pyharp.messages import HarpMessage, MessageType
 
 # ON THIS EXAMPLE
 #
@@ -14,7 +12,7 @@ from pyharp.messages import HarpMessage, MessageType
 # Open the device and print the info on screen
 # Open serial connection and save communication to a file
 if os.name == "posix":  # check for Linux.
-    device = Device("/dev/harp_device_00", "ibl.bin")
+    device = Device("/dev/ttyUSB0", "ibl.bin")
 else:  # assume Windows.
     device = Device("COM95", "ibl.bin")
 
@@ -26,8 +24,8 @@ else:  # assume Windows.
 import time
 
 print(f"System time: {time.perf_counter():.6f}")
-data_stream = device.send(HarpMessage.ReadU8(33).frame)  # returns a ReplyHarpMessage
-# data_stream = device.send(HarpMessage.ReadS16(33).frame).payload_as_int_array()
+data_stream = device.read_u8(33)
+
 print(f"Data Stream payload type: {data_stream.payload_type.name}")
 print(f"Data Stream message type: {data_stream.message_type.name}")
 print(f"Data Stream timestamp: {data_stream.timestamp}")
@@ -35,9 +33,7 @@ print(f"Data Stream num bytes: {data_stream.length}")
 print(f"Data Stream payload: {data_stream.payload}")
 
 print(f"System time: {time.perf_counter():.6f}")
-event_reg_response = device.send(
-    HarpMessage.ReadU8(77).frame
-)  # returns a ReplyHarpMessage
+event_reg_response = device.read_u8(77)  # returns a ReplyHarpMessage
 print(f"EVNT_ENABLE payload type: {event_reg_response.payload_type.name}")
 print(f"EVNT_ENABLE message type: {event_reg_response.message_type.name}")
 print(f"EVNT_ENABLE timestamp:    {event_reg_response.timestamp}")

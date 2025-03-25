@@ -1,9 +1,7 @@
 import os
-from struct import *
 
 from pyharp.device import Device
 from pyharp.device_names import device_names
-from pyharp.messages import HarpMessage, MessageType
 
 # ON THIS EXAMPLE
 #

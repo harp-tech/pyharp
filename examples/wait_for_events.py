@@ -1,9 +1,7 @@
 import os
-from struct import *
 
 from pyharp.device import Device, DeviceMode
-from pyharp.drivers.behavior import Behavior, Events
-from pyharp.messages import HarpMessage, MessageType
+from pyharp.drivers.behavior import Behavior
 
 # Open the device and print the info on screen
 # Open serial connection and save communication to a file
