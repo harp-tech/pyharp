@@ -52,40 +52,16 @@ class HarpMessage:
         return self._frame[-1]
 
     @staticmethod
-    def WriteU8(address: int, value: int) -> WriteU8HarpMessage:
-        return WriteU8HarpMessage(address, value)
-
-    @staticmethod
-    def WriteS8(address: int, value: int) -> WriteS8HarpMessage:
-        return WriteS8HarpMessage(address, value)
-
-    @staticmethod
-    def WriteS16(address: int, value: int) -> WriteS16HarpMessage:
-        return WriteS16HarpMessage(address, value)
-
-    @staticmethod
-    def WriteU16(address: int, value: int) -> WriteU16HarpMessage:
-        return WriteU16HarpMessage(address, value)
-
-    @staticmethod
-    def WriteFloat(address: int, value: int) -> WriteFloatHarpMessage:
-        return WriteFloatHarpMessage(address, value)
-
-    @staticmethod
-    def WriteU32(address: int, value: int) -> WriteU32HarpMessage:
-        return WriteU32HarpMessage(address, value)
-
-    @staticmethod
-    def WriteS32(address: int, value: int) -> WriteS32HarpMessage:
-        return WriteS32HarpMessage(address, value)
-
-    @staticmethod
     def parse(frame: bytearray) -> ReplyHarpMessage:
         return ReplyHarpMessage(frame)
 
 
 # A Response Message from a harp device.
 class ReplyHarpMessage(HarpMessage):
+    """
+    A Response Message from a harp device.
+    """
+
     def __init__(
         self,
         frame: bytearray,
@@ -197,122 +173,103 @@ class ReadHarpMessage(HarpMessage):
 
 class WriteHarpMessage(HarpMessage):
     BASE_LENGTH: int = 5
+    BASE_LENGTH: int = 4
     MESSAGE_TYPE: int = MessageType.WRITE
 
+    # Define payload type properties
+    _PAYLOAD_CONFIG = {
+        # payload_type: (byte_size, signed, is_float)
+        PayloadType.U8: (1, False, False),
+        PayloadType.S8: (1, True, False),
+        PayloadType.U16: (2, False, False),
+        PayloadType.S16: (2, True, False),
+        PayloadType.U32: (4, False, False),
+        PayloadType.S32: (4, True, False),
+        PayloadType.U64: (8, False, False),
+        PayloadType.S64: (8, True, False),
+        PayloadType.Float: (4, False, True),
+    }
+
     def __init__(
-        self, payload_type: PayloadType, payload: bytes, address: int, offset: int = 0
+        self,
+        payload_type: PayloadType,
+        address: int,
+        value: int | float | List[int] | List[float] = None,
     ):
         """
+        Create a WriteHarpMessage to send to a device.
 
-        :param payload_type:
-        :param payload:
-        :param address:
-        :param offset: how many bytes more besides the length corresponding to U8 (for example, for U16 it would be offset=1)
+        Parameters
+        ----------
+        payload_type : PayloadType
+            Type of payload (U8, S8, U16, etc.)
+        address : int
+            Register address to write to
+        value : int, float, List[int], or List[float], optional
+            Value(s) to write - can be a single value or list of values
+
+        Notes
+        -----
+        The message frame is constructed according to the HARP binary protocol.
+        The length is calculated as BASE_LENGTH + payload size in bytes.
         """
+
         self._frame = bytearray()
 
+        # Get configuration for this payload type
+        byte_size, signed, is_float = self._PAYLOAD_CONFIG.get(
+            payload_type, (1, False, False)
+        )
+
+        # Convert value to payload bytes
+        payload = bytearray()
+        values = value if isinstance(value, list) else [value]
+
+        for val in values:
+            if is_float:
+                payload += struct.pack("<f", val)
+            else:
+                payload += val.to_bytes(byte_size, byteorder="little", signed=signed)
+
+        # Build the frame
         self._frame.append(self.MESSAGE_TYPE.value)
-
-        self._frame.append(self.BASE_LENGTH + offset)
-
+        # Length is BASE_LENGTH + payload size
+        self._frame.append(self.BASE_LENGTH + len(payload))
         self._frame.append(address)
         self._frame.append(self.DEFAULT_PORT)
         self._frame.append(payload_type.value)
-
-        # Handle payloads that are bytes or bytearray (bytearray = multi-motor instructions)
-        if isinstance(payload, bytearray):
-            self._frame += payload
-        else:
-            for i in payload:
-                self._frame.append(i)
-
+        self._frame += payload
         self._frame.append(self.calculate_checksum())
 
-
-class WriteU8HarpMessage(WriteHarpMessage):
-    def __init__(self, address: int, value: int):
-        super().__init__(PayloadType.U8, value.to_bytes(1, byteorder="little"), address)
-
     @property
-    def payload(self) -> int:
-        return self.frame[5]
-
-
-class WriteS8HarpMessage(WriteHarpMessage):
-    def __init__(self, address: int, value: int):
-        super().__init__(
-            PayloadType.S8, value.to_bytes(1, byteorder="little", signed=True), address
-        )
-
-    @property
-    def payload(self) -> int:
-        return int.from_bytes([self.frame[5]], byteorder="little", signed=True)
-
-
-class WriteU16HarpMessage(WriteHarpMessage):
-    def __init__(self, address: int, value: int):
-        super().__init__(
-            PayloadType.U16, value.to_bytes(2, byteorder="little", signed=False), address, offset=1
-        )
-
-    @property
-    def payload(self) -> int:
-        return int.from_bytes(self._frame[5:7], byteorder="little", signed=False)
-
-
-class WriteS16HarpMessage(WriteHarpMessage):
-    def __init__(self, address: int, value: int):
-        super().__init__(
-            PayloadType.S16,
-            value.to_bytes(2, byteorder="little", signed=True),
-            address,
-            offset=1,
-        )
-
-    @property
-    def payload(self) -> int:
-        return int.from_bytes(self._frame[5:7], byteorder="little", signed=True)
-
-
-class WriteFloatHarpMessage(WriteHarpMessage):
-    def __init__(self, address: int, value: float):
-        super().__init__(
-            PayloadType.Float,
-            struct.pack('<f', value), #value.to_bytes(4, byteorder="little", signed=True),
-            address,
-            offset=3,
-        )
-
-    @property
-    def payload(self) -> float:
-        return struct.unpack('<f', self._frame[5:9])[0]
-
-
-class WriteU32HarpMessage(WriteHarpMessage):
-    def __init__(self, address: int, value: int):
-        super().__init__(
-            PayloadType.U32, value.to_bytes(4, byteorder="little", signed=False), address, offset=3
-        )
-
-    @property
-    def payload(self) -> int:
-        return int.from_bytes(self._frame[5:9], byteorder="little", signed=False)
-
-
-class WriteS32HarpMessage(WriteHarpMessage):
-    def __init__(self, address: int, value: int | List[int]):
-        if isinstance(value, list):
-            payload = bytearray()
-            for val in value:
-                payload += val.to_bytes(4, byteorder="little", signed=True)
-            offset = 15
-        else:
-            payload = value.to_bytes(4, byteorder="little", signed=True)
-            offset = 3
-        super().__init__(
-            PayloadType.S32, payload, address, offset=offset
-        )
-
-    @property
-    def payload(self) -> int | List[int]:
-        return int.from_bytes(self._frame[5:9], byteorder="little", signed=True)
+    def payload(self) -> Union[int, list[int]]:
+        match self.payload_type:
+            case PayloadType.U8:
+                return self.frame[5]
+            case PayloadType.S8:
+                return int.from_bytes([self.frame[5]], byteorder="little", signed=True)
+            case PayloadType.U16:
+                return int.from_bytes(
+                    self._frame[5:7], byteorder="little", signed=False
+                )
+            case PayloadType.S16:
+                return int.from_bytes(self._frame[5:7], byteorder="little", signed=True)
+            case PayloadType.Float:
+                return struct.unpack("<f", self._frame[5:9])[0]
+            case PayloadType.U32:
+                return int.from_bytes(
+                    self._frame[5:9], byteorder="little", signed=False
+                )
+            case PayloadType.S32:
+                return int.from_bytes(self._frame[5:9], byteorder="little", signed=True)
+            # TODO: missing validation for U64 and S64
+            case PayloadType.U64:
+                return int.from_bytes(
+                    self._frame[5:13], byteorder="little", signed=False
+                )
+            case PayloadType.S64:
+                return int.from_bytes(
+                    self._frame[5:13], byteorder="little", signed=True
+                )
+            case _:
+                return self._frame[5:]

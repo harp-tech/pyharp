@@ -2,37 +2,38 @@
 
 from enum import Enum
 
-import serial
 from serial.serialutil import SerialException
 
 from pyharp.base import PayloadType
 from pyharp.device import Device
-from pyharp.device_names import device_names
-from pyharp.messages import HarpMessage, ReadHarpMessage, ReplyHarpMessage
+from pyharp.messages import ReadHarpMessage, ReplyHarpMessage, WriteHarpMessage
 
 # These definitions are from app_regs.h in the firmware.
 # Type, Base Address, "Description."
-REGISTERS = \
-{   # RJ45 "PORT" (0, 1, 2)  Digital Inputs
-    "PORT_DIS" : ("U8", 32, "Reflects the state of DI digital lines of each Port."),
-
+REGISTERS = {  # RJ45 "PORT" (0, 1, 2)  Digital Inputs
+    "PORT_DIS": (
+        PayloadType.U8,
+        32,
+        "Reflects the state of DI digital lines of each Port.",
+    ),
     # Manipulate any of the board's digital outputs.
-    "OUTPUTS_SET": ("U16", 34, "Set the corresponding output."),
-    "OUTPUTS_CLR": ("U16", 35, "Clear the corresponding output."),
-    "OUTPUTS_TOGGLE": ("U16", 36, "Toggle the corresponding output."),
-    "OUTPUTS_OUT": ("U16", 37, "Control corresponding output."),
-
+    "OUTPUTS_SET": (PayloadType.U16, 34, "Set the corresponding output."),
+    "OUTPUTS_CLR": (PayloadType.U16, 35, "Clear the corresponding output."),
+    "OUTPUTS_TOGGLE": (PayloadType.U16, 36, "Toggle the corresponding output."),
+    "OUTPUTS_OUT": (PayloadType.U16, 37, "Control corresponding output."),
     # RJ45 "PORT" (0, 1, 2) Digital IOs
-    "PORT_DIOS_SET": ("U8", 38, "Set the corresponding DIO."),
-    "PORT_DIOS_CLEAR": ("U8", 39, "Clear the corresponding DIO."),
-    "PORT_DIOS_TOGGLE": ("U8", 40, "Toggle the corresponding DIO."),
-    "PORT_DIOS_OUT": ("U8", 41, "Control the corresponding DIO."),
-    "PORT_DIOS_CONF": ("U8", 42, "Set the DIOs direction (1 is output)."),
-    "PORT_DIOS_IN": ("U8", 43, "State of the DIOs."),
-
-    "ADD_REG_DATA": ("S16", 44, "Voltage at ADC input and decoder (poke2) value."),
-
-    "EVNT_ENABLE": ("U8", 77, "Enable events within the bitfields."),
+    "PORT_DIOS_SET": (PayloadType.U8, 38, "Set the corresponding DIO."),
+    "PORT_DIOS_CLEAR": (PayloadType.U8, 39, "Clear the corresponding DIO."),
+    "PORT_DIOS_TOGGLE": (PayloadType.U8, 40, "Toggle the corresponding DIO."),
+    "PORT_DIOS_OUT": (PayloadType.U8, 41, "Control the corresponding DIO."),
+    "PORT_DIOS_CONF": (PayloadType.U8, 42, "Set the DIOs direction (1 is output)."),
+    "PORT_DIOS_IN": (PayloadType.U8, 43, "State of the DIOs."),
+    "ADD_REG_DATA": (
+        PayloadType.S16,
+        44,
+        "Voltage at ADC input and decoder (poke2) value.",
+    ),
+    "EVNT_ENABLE": (PayloadType.U8, 77, "Enable events within the bitfields."),
 }
 
 
@@ -41,6 +42,7 @@ class PORT_DIS(Enum):
     DI0 = 0
     DI1 = 1
     DI2 = 2
+
 
 class OUTPUTS_OUT(Enum):
     PORT0_DO = 0
@@ -61,6 +63,7 @@ class OUTPUTS_OUT(Enum):
     DO2 = 12
     DO3 = 13
 
+
 class PORT_DIOS_IN(Enum):
     DIO0 = 0
     DIO1 = 0
@@ -69,11 +72,11 @@ class PORT_DIOS_IN(Enum):
 
 # reader-friendly events for enabling/disabling.
 class Events(Enum):
-    port_digital_inputs = 0 # PORT_DIS
-    port_digital_ios = 1    # PORT_DIOS_IN
-    analog_input = 2        # DATA
-    cam0 = 3                # CAM0
-    cam1 = 3                # CAM1
+    port_digital_inputs = 0  # PORT_DIS
+    port_digital_ios = 1  # PORT_DIOS_IN
+    analog_input = 2  # DATA
+    cam0 = 3  # CAM0
+    cam1 = 3  # CAM1
 
 
 class Behavior:
@@ -84,21 +87,6 @@ class Behavior:
     DEVICE_NAME = "Behavior"
     DEFAULT_PORT_NAME = "/dev/harp_device_00"
     ID = 1216
-
-    # TODO: put this in a base class?
-    READ_MSG_LOOKUP = {
-        "U8": PayloadType.U8,
-        "U16": PayloadType.U16,
-        "S16": PayloadType.S16,
-    }
-
-    WRITE_MSG_LOOKUP = \
-    {
-        "U8": HarpMessage.WriteU8,
-        "U16": HarpMessage.WriteU16,
-        "S16": HarpMessage.WriteS16,
-    }
-
 
     def __init__(self, port_name=None, output_filename=None):
         """Class constructor. Connect to a device."""
@@ -135,8 +123,9 @@ class Behavior:
                               (1 << Events.cam0.value) | \
                               (1 << Events.cam1.value) ) ^ 0xFF)
         reg_type, reg_index, _ = REGISTERS["EVNT_ENABLE"]
-        write_message_type = self.__class__.WRITE_MSG_LOOKUP[reg_type]
-        return self.device.send(write_message_type(reg_index, event_reg_bitmask).frame)
+        return self.device.send(
+            WriteHarpMessage(reg_type, reg_index, event_reg_bitmask).frame
+        )
 
 
     def enable_events(self, *events: Events) -> ReplyHarpMessage:
@@ -145,8 +134,9 @@ class Behavior:
         for event in events:
             event_reg_bitmask |= (1 << event.value)
         reg_type, reg_index, _ = REGISTERS["EVNT_ENABLE"]
-        write_message_type = self.__class__.WRITE_MSG_LOOKUP[reg_type]
-        return self.device.send(write_message_type(reg_index, event_reg_bitmask).frame)
+        return self.device.send(
+            WriteHarpMessage(reg_type, reg_index, event_reg_bitmask).frame
+        )
 
 
 # Board inputs, outputs, and some settings configured as @properties.
@@ -155,9 +145,8 @@ class Behavior:
     def all_input_states(self):
         """return the state of all PORT digital inputs."""
         reg_type, reg_index, _ = REGISTERS["PORT_DIS"]
-        read_message_type = self.__class__.READ_MSG_LOOKUP[reg_type]
         return self.device.send(
-            ReadHarpMessage(read_message_type, reg_index).frame
+            ReadHarpMessage(reg_type, reg_index).frame
         ).payload_as_int()
 
     @property
@@ -183,8 +172,8 @@ class Behavior:
 #    def set_io_configuration(self, bitmask : int):
 #        """set the state of all PORT digital ios. (1 is output.)"""
 #        reg_type, reg_index, _ = REGISTERS["PORT_DIOS_CONF"]
-#        write_message_type = self.__class__.WRITE_MSG_LOOKUP[reg_type]
-#        self.device.send(write_message_type(reg_index, bitmask).frame)
+
+    #        self.device.send(WriteHarpMessage(reg_type, reg_index, bitmask).frame)
 #
 #    @property
 #    def all_io_states(self):
@@ -199,20 +188,20 @@ class Behavior:
 #        # Setting the state of the "DIO" pins, requires writing to the
 #        # _IN register, which is different from the OUTPUT
 #        reg_type, reg_index, _ = REGISTERS["PORT_DIOS_IN"]
-#        write_message_type = self.__class__.WRITE_MSG_LOOKUP[reg_type]
-#        return self.device.send(write_message_type(reg_index, bitmask).frame)
+
+    #        return self.device.send(WriteHarpMessage(reg_type, reg_index, bitmask).frame)
 #
 #    def set_io_outputs(self, bitmask : int):
 #        """set digital input/outputs to logic 1 according to bitmask."""
 #        reg_type, reg_index, _ = REGISTERS["PORT_DIOS_SET"]
-#        write_message_type = self.__class__.WRITE_MSG_LOOKUP[reg_type]
-#        return self.device.send(write_message_type(reg_index, bitmask).frame)
+
+    #        return self.device.send(WriteHarpMessage(reg_type, reg_index, bitmask).frame)
 #
 #    def clear_io_outputs(self, bitmask : int):
 #        """clear digital input/outputs (specified with logic 1) according to bitmask."""
 #        reg_type, reg_index, _ = REGISTERS["PORT_DIOS_CLEAR"]
-#        write_message_type = self.__class__.WRITE_MSG_LOOKUP[reg_type]
-#        return self.device.send(write_message_type(reg_index, bitmask).frame)
+
+    #        return self.device.send(WriteHarpMessage(reg_type, reg_index, bitmask).frame)
 #
 #    @property
 #    def port0_io0(self):
@@ -250,29 +239,25 @@ class Behavior:
     def all_output_states(self):
         """return the state of all PORT digital inputs."""
         reg_type, reg_index, _ = REGISTERS["OUTPUTS_OUT"]
-        read_message_type = self.__class__.READ_MSG_LOOKUP[reg_type]
         return self.device.send(
-            ReadHarpMessage(read_message_type, reg_index).frame
+            ReadHarpMessage(reg_type, reg_index).frame
         ).payload_as_int()
 
     @all_output_states.setter
     def all_output_states(self, bitmask : int):
         """set the state of all PORT digital inputs."""
         reg_type, reg_index, _ = REGISTERS["OUTPUTS_OUT"]
-        write_message_type = self.__class__.WRITE_MSG_LOOKUP[reg_type]
-        return self.device.send(write_message_type(reg_index, bitmask).frame)
+        return self.device.send(WriteHarpMessage(reg_type, reg_index, bitmask).frame)
 
     def set_outputs(self, bitmask : int):
         """set digital outputs to logic 1 according to bitmask."""
         reg_type, reg_index, _ = REGISTERS["OUTPUTS_SET"]
-        write_message_type = self.__class__.WRITE_MSG_LOOKUP[reg_type]
-        return self.device.send(write_message_type(reg_index, bitmask).frame)
+        return self.device.send(WriteHarpMessage(reg_type, reg_index, bitmask).frame)
 
     def clear_outputs(self, bitmask : int):
         """clear digital outputs (specified with logic 1) according to bitmask."""
         reg_type, reg_index, _ = REGISTERS["OUTPUTS_CLR"]
-        write_message_type = self.__class__.WRITE_MSG_LOOKUP[reg_type]
-        return self.device.send(write_message_type(reg_index, bitmask).frame)
+        return self.device.send(WriteHarpMessage(reg_type, reg_index, bitmask).frame)
 
     @property
     def D0(self):

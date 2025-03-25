@@ -1,5 +1,5 @@
 from pyharp.base import CommonRegisters, PayloadType
-from pyharp.messages import HarpMessage, MessageType, ReadHarpMessage
+from pyharp.messages import MessageType, ReadHarpMessage, WriteHarpMessage
 
 DEFAULT_ADDRESS = 42
 
@@ -38,9 +38,9 @@ def test_create_read_S16() -> None:
 
 def test_create_write_U8() -> None:
     value: int = 23
-    message = HarpMessage.WriteU8(DEFAULT_ADDRESS, value)
+    message = WriteHarpMessage(PayloadType.U8, DEFAULT_ADDRESS, value)
 
-    assert message.message_type == MessageType.Write
+    assert message.message_type == MessageType.WRITE
     assert message.payload == value
     assert message.checksum == 72  # 2 + 5 + 42 + 255 + 1 + 23 - 256
     print(message.frame)
@@ -48,9 +48,9 @@ def test_create_write_U8() -> None:
 
 def test_create_write_S8() -> None:
     value: int = -3  # corresponds to signed int 253 (0xFD)
-    message = HarpMessage.WriteS8(DEFAULT_ADDRESS, value)
+    message = WriteHarpMessage(PayloadType.S8, DEFAULT_ADDRESS, value)
 
-    assert message.message_type == MessageType.Write
+    assert message.message_type == MessageType.WRITE
     assert message.payload == value
     assert message.checksum == 174  # (2 + 5 + 42 + 255 + 129 + 253) & 255
     print(message.frame)
@@ -58,9 +58,9 @@ def test_create_write_S8() -> None:
 
 def test_create_write_U16() -> None:
     value: int = 1024  # 4 0 (2 x bytes)
-    message = HarpMessage.WriteU16(DEFAULT_ADDRESS, value)
+    message = WriteHarpMessage(PayloadType.U16, DEFAULT_ADDRESS, value)
 
-    assert message.message_type == MessageType.Write
+    assert message.message_type == MessageType.WRITE
     assert message.length == 6
     assert message.payload == value
     assert message.checksum == 55  # (2 + 6 + 42 + 255 + 2 + 4 + 0) & 255
@@ -69,9 +69,9 @@ def test_create_write_U16() -> None:
 
 def test_create_write_S16() -> None:
     value: int = -4837  # 27 237 (2 x bytes), corresponds to signed int 7149
-    message = HarpMessage.WriteS16(DEFAULT_ADDRESS, value)
+    message = WriteHarpMessage(PayloadType.S16, DEFAULT_ADDRESS, value)
 
-    assert message.message_type == MessageType.Write
+    assert message.message_type == MessageType.WRITE
     assert message.length == 6
     assert message.payload == value
     assert message.checksum == 187  # (2 + 6 + 42 + 255 + 130 + 27 + 237) & 255

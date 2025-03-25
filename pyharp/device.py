@@ -4,14 +4,14 @@ import logging
 import queue
 from enum import Enum
 from pathlib import Path
-from typing import Optional, Union
+from typing import List, Optional, Union
 
 import serial
 
 from pyharp.base import CommonRegisters, PayloadType
 from pyharp.device_names import device_names
 from pyharp.harp_serial import HarpSerial
-from pyharp.messages import HarpMessage, ReadHarpMessage, ReplyHarpMessage
+from pyharp.messages import ReadHarpMessage, ReplyHarpMessage, WriteHarpMessage
 
 
 class DeviceMode(Enum):
@@ -179,7 +179,7 @@ class Device:
         address = CommonRegisters.OPERATION_CTRL
         reg_value = self.read_u8(address).payload_as_int()
         reg_value |= 0x08  # Assert DUMP bit
-        self._ser.write(HarpMessage.WriteU8(address, reg_value).frame)
+        self._ser.write(WriteHarpMessage(PayloadType.U8, address, reg_value).frame)
         replies = []
         while True:
             msg = self._read()
@@ -197,7 +197,7 @@ class Device:
         reg_value = self.read_u8(address).payload_as_int()
         reg_value &= ~0x03 # mask off old mode.
         reg_value |= mode.value
-        reply = self.send(HarpMessage.WriteU8(address, reg_value).frame)
+        reply = self.send(WriteHarpMessage(PayloadType.U8, address, reg_value).frame)
         return reply
 
     def enable_status_led(self):
@@ -206,7 +206,7 @@ class Device:
         # Read register first.
         reg_value = self.read_u8(address).payload_as_int()
         reg_value |= (1 << 5)
-        reply = self.send(HarpMessage.WriteU8(address, reg_value).frame)
+        reply = self.send(WriteHarpMessage(PayloadType.U8, address, reg_value).frame)
 
     def disable_status_led(self):
         """disable the device's status led if one exists."""
@@ -214,7 +214,7 @@ class Device:
         # Read register first.
         reg_value = self.read_u8(address).payload_as_int()
         reg_value &= ~(1 << 5)
-        reply = self.send(HarpMessage.WriteU8(address, reg_value).frame)
+        reply = self.send(WriteHarpMessage(PayloadType.U8, address, reg_value).frame)
 
     def enable_alive_en(self):
         """Enable ALIVE_EN such that the device sends an event each second."""
@@ -222,22 +222,21 @@ class Device:
         # Read register first.
         reg_value = self.read_u8(address).payload_as_int()
         reg_value |= (1 << 7)
-        reply = self.send(HarpMessage.WriteU8(address, reg_value).frame)
+        reply = self.send(WriteHarpMessage(PayloadType.U8, address, reg_value).frame)
 
     def disable_alive_en(self):
         """disable ALIVE_EN such that the device does not send an event each second."""
         address = CommonRegisters.OPERATION_CTRL
         # Read register first.
         reg_value = self.read_u8(address).payload[0]
-        reg_value &= ((1<< 7) ^ 0xFF) # bitwise ~ operator substitute for Python ints.
-        reply = self.send(HarpMessage.WriteU8(address, reg_value).frame)
+        reg_value &= (1 << 7) ^ 0xFF  # bitwise ~ operator substitute for Python ints.
+        reply = self.send(WriteHarpMessage(PayloadType.U8, address, reg_value).frame)
 
     def reset_device(self):
         address = CommonRegisters.RESET_DEV
         # reset_value = 0xFF & (1<<ResetDevOffsets.RST_DEV_OFFSET)
         reset_value = 0x01
-        # reply = self.send(HarpMessage.WriteU8(address,reset_value).frame)
-        self._ser.write(HarpMessage.WriteU8(address, reset_value).frame)
+        self._ser.write(WriteHarpMessage(PayloadType.U8, address, reset_value).frame)
 
     def send(self, message_bytes: bytearray, dump: bool = True) -> ReplyHarpMessage:
         """Send a harp message; return the device's reply."""
@@ -320,5 +319,86 @@ class Device:
 
     def read_float(self, address: int, dump: bool = True) -> ReplyHarpMessage:
         return self.send(
-            ReadHarpMessage(payload_type=PayloadType.FLOAT, address=address).frame, dump
+            ReadHarpMessage(payload_type=PayloadType.Float, address=address).frame, dump
+        )
+
+    def write_u8(self, address: int, value: int | List[int]) -> ReplyHarpMessage:
+        return self.send(
+            WriteHarpMessage(
+                payload_type=PayloadType.U8,
+                address=address,
+                value=value,
+            ).frame
+        )
+
+    def write_s8(self, address: int, value: int | List[int]) -> ReplyHarpMessage:
+        return self.send(
+            WriteHarpMessage(
+                payload_type=PayloadType.S8,
+                address=address,
+                value=value,
+            ).frame
+        )
+
+    def write_u16(self, address: int, value: int | List[int]) -> ReplyHarpMessage:
+        return self.send(
+            WriteHarpMessage(
+                payload_type=PayloadType.U16,
+                address=address,
+                value=value,
+            ).frame
+        )
+
+    def write_s16(self, address: int, value: int | List[int]) -> ReplyHarpMessage:
+        return self.send(
+            WriteHarpMessage(
+                payload_type=PayloadType.S16,
+                address=address,
+                value=value,
+            ).frame
+        )
+
+    def write_u32(self, address: int, value: int | List[int]) -> ReplyHarpMessage:
+        return self.send(
+            WriteHarpMessage(
+                payload_type=PayloadType.U32,
+                address=address,
+                value=value,
+            ).frame
+        )
+
+    def write_s32(self, address: int, value: int | List[int]) -> ReplyHarpMessage:
+        return self.send(
+            WriteHarpMessage(
+                payload_type=PayloadType.S32,
+                address=address,
+                value=value,
+            ).frame
+        )
+
+    def write_u64(self, address: int, value: int | List[int]) -> ReplyHarpMessage:
+        return self.send(
+            WriteHarpMessage(
+                payload_type=PayloadType.U64,
+                address=address,
+                value=value,
+            ).frame
+        )
+
+    def write_s64(self, address: int, value: int | List[int]) -> ReplyHarpMessage:
+        return self.send(
+            WriteHarpMessage(
+                payload_type=PayloadType.S64,
+                address=address,
+                value=value,
+            ).frame
+        )
+
+    def write_float(self, address: int, value: float | List[float]) -> ReplyHarpMessage:
+        return self.send(
+            WriteHarpMessage(
+                payload_type=PayloadType.Float,
+                address=address,
+                value=value,
+            ).frame
         )

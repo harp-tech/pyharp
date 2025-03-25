@@ -8,7 +8,7 @@ DEFAULT_ADDRESS = 42
 
 def test_create_device() -> None:
     # open serial connection and load info
-    device = Device("/dev/tty.usbserial-A106C8O9")
+    device = Device("/dev/ttyUSB0", "dump.bin")
     assert device._ser.is_open
     device.info()
     device.disconnect()
@@ -17,7 +17,7 @@ def test_create_device() -> None:
 
 def test_read_U8() -> None:
     # open serial connection and load info
-    device = Device("/dev/tty.usbserial-A106C8O9", "dump.bin")
+    device = Device("/dev/ttyUSB0", "dump.bin")
 
     # read register 38
     register: int = 38
@@ -34,7 +34,7 @@ def test_read_U8() -> None:
 
 def test_U8() -> None:
     # open serial connection and load info
-    device = Device("/dev/tty.usbserial-A106C8O9", "dump.txt")
+    device = Device("/dev/ttyUSB0", "dump.bin")
     assert device._dump_file_path.exists()
 
     register: int = 38
@@ -44,8 +44,7 @@ def test_U8() -> None:
     # assert reply[11] == 0  # what is the default register value?!
 
     # write 65 on register 38
-    write_message = HarpMessage.WriteU8(register, write_value)
-    reply : ReplyHarpMessage = device.send(write_message.frame)
+    reply: ReplyHarpMessage = device.write_u8(register, write_value)
     assert reply is not None
 
     # read register 38
