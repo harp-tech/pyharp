@@ -23,8 +23,7 @@ def test_read_U8() -> None:
     register: int = 38
     read_size: int = 35  # TODO: automatically calculate this!
 
-    read_message = HarpMessage.ReadU8(register)
-    reply: ReplyHarpMessage = device.send(read_message.frame)
+    reply: ReplyHarpMessage = device.read_u8(register)
     assert reply is not None
     # assert reply.payload_as_int() == write_value
 
@@ -50,8 +49,7 @@ def test_U8() -> None:
     assert reply is not None
 
     # read register 38
-    read_message = HarpMessage.ReadU8(register)
-    reply = device.send(read_message.frame)
+    reply = device.read_u8(register)
     assert reply is not None
     assert reply.payload_as_int() == write_value
 

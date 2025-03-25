@@ -1,12 +1,14 @@
 """Behavior Device Driver."""
 
-from pyharp.messages import HarpMessage, ReplyHarpMessage
-from pyharp.device_names import device_names
-from pyharp.device import Device
-import serial
-from serial.serialutil import SerialException
 from enum import Enum
 
+import serial
+from serial.serialutil import SerialException
+
+from pyharp.base import PayloadType
+from pyharp.device import Device
+from pyharp.device_names import device_names
+from pyharp.messages import HarpMessage, ReadHarpMessage, ReplyHarpMessage
 
 # These definitions are from app_regs.h in the firmware.
 # Type, Base Address, "Description."
@@ -84,11 +86,10 @@ class Behavior:
     ID = 1216
 
     # TODO: put this in a base class?
-    READ_MSG_LOOKUP = \
-    {
-        "U8": HarpMessage.ReadU8,
-        "U16": HarpMessage.ReadU16,
-        "S16": HarpMessage.ReadS16,
+    READ_MSG_LOOKUP = {
+        "U8": PayloadType.U8,
+        "U16": PayloadType.U16,
+        "S16": PayloadType.S16,
     }
 
     WRITE_MSG_LOOKUP = \
@@ -155,7 +156,9 @@ class Behavior:
         """return the state of all PORT digital inputs."""
         reg_type, reg_index, _ = REGISTERS["PORT_DIS"]
         read_message_type = self.__class__.READ_MSG_LOOKUP[reg_type]
-        return self.device.send(read_message_type(reg_index).frame).payload_as_int()
+        return self.device.send(
+            ReadHarpMessage(read_message_type, reg_index).frame
+        ).payload_as_int()
 
     @property
     def DI0(self):
@@ -248,7 +251,9 @@ class Behavior:
         """return the state of all PORT digital inputs."""
         reg_type, reg_index, _ = REGISTERS["OUTPUTS_OUT"]
         read_message_type = self.__class__.READ_MSG_LOOKUP[reg_type]
-        return self.device.send(read_message_type(reg_index).frame).payload_as_int()
+        return self.device.send(
+            ReadHarpMessage(read_message_type, reg_index).frame
+        ).payload_as_int()
 
     @all_output_states.setter
     def all_output_states(self, bitmask : int):

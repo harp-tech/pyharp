@@ -6,7 +6,7 @@ from pyharp.drivers.behavior import Behavior
 # Open serial connection and save communication to a file
 device = None
 if os.name == "posix":  # check for Linux.
-    device = Behavior("/dev/harp_device_00", "ibl.bin")
+    device = Behavior("/dev/ttyUSB0", "ibl.bin")
 else:  # assume Windows.
     device = Behavior("COM95", "ibl.bin")
 
@@ -17,7 +17,7 @@ print(f"setting digital outputs")
 # device.set_outputs(0xFFFF) # Set the values set to logic 1 only.
 # device.clear_outputs(0xFFFF)# Clear values set to logic 1 only.
 print(f"digital outputs: {device.all_output_states:016b}")
-device.set_io_configuration(0b111)
+# device.set_io_configuration(0b111)
 
 # TODO: FIXME. IOs are not working
 # device.set_io_configuration(0b111) # This is getting ignored?

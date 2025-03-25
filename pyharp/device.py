@@ -8,10 +8,10 @@ from typing import Optional, Union
 
 import serial
 
-from pyharp.base import CommonRegisters
+from pyharp.base import CommonRegisters, PayloadType
 from pyharp.device_names import device_names
 from pyharp.harp_serial import HarpSerial
-from pyharp.messages import HarpMessage, ReplyHarpMessage
+from pyharp.messages import HarpMessage, ReadHarpMessage, ReplyHarpMessage
 
 
 class DeviceMode(Enum):
@@ -100,106 +100,76 @@ class Device:
     def read_who_am_i(self) -> int:
         address = CommonRegisters.WHO_AM_I
 
-        reply: ReplyHarpMessage = self.send(
-            HarpMessage.ReadU16(address).frame, dump=False
-        )
-        #print(str(reply))
+        reply: ReplyHarpMessage = self.read_u16(address, dump=False)
+
         return reply.payload_as_int()
 
     def read_who_am_i_device(self) -> str:
         address = CommonRegisters.WHO_AM_I
 
-        reply: ReplyHarpMessage = self.send(
-            HarpMessage.ReadU16(address).frame, dump=False
-        )
-        #print(str(reply))
+        reply: ReplyHarpMessage = self.read_u16(address, dump=False)
 
         return device_names.get(reply.payload_as_int())
 
     def read_hw_version_h(self) -> int:
         address = CommonRegisters.HW_VERSION_H
 
-        reply: ReplyHarpMessage = self.send(
-            HarpMessage.ReadU8(address).frame, dump=False
-        )
-        #print(str(reply))
+        reply: ReplyHarpMessage = self.read_u8(address, dump=False)
 
         return reply.payload_as_int()
 
     def read_hw_version_l(self) -> int:
         address = CommonRegisters.HW_VERSION_L
 
-        reply: ReplyHarpMessage = self.send(
-            HarpMessage.ReadU8(address).frame, dump=False
-        )
-        #print(str(reply))
+        reply: ReplyHarpMessage = self.read_u8(address, dump=False)
 
         return reply.payload_as_int()
 
     def read_assembly_version(self) -> int:
         address = CommonRegisters.ASSEMBLY_VERSION
 
-        reply: ReplyHarpMessage = self.send(
-            HarpMessage.ReadU8(address).frame, dump=False
-        )
-        #print(str(reply))
+        reply: ReplyHarpMessage = self.read_u8(address, dump=False)
 
         return reply.payload_as_int()
 
     def read_harp_h_version(self) -> int:
         address = CommonRegisters.HARP_VERSION_H
 
-        reply: ReplyHarpMessage = self.send(
-            HarpMessage.ReadU8(address).frame, dump=False
-        )
-        #print(str(reply))
+        reply: ReplyHarpMessage = self.read_u8(address, dump=False)
 
         return reply.payload_as_int()
 
     def read_harp_l_version(self) -> int:
         address = CommonRegisters.HARP_VERSION_L
 
-        reply: ReplyHarpMessage = self.send(
-            HarpMessage.ReadU8(address).frame, dump=False
-        )
-        #print(str(reply))
+        reply: ReplyHarpMessage = self.read_u8(address, dump=False)
 
         return reply.payload_as_int()
 
     def read_fw_h_version(self) -> int:
         address = CommonRegisters.FIRMWARE_VERSION_H
 
-        reply: ReplyHarpMessage = self.send(
-            HarpMessage.ReadU8(address).frame, dump=False
-        )
-        #print(str(reply))
+        reply: ReplyHarpMessage = self.read_u8(address, dump=False)
 
         return reply.payload_as_int()
 
     def read_fw_l_version(self) -> int:
         address = CommonRegisters.FIRMWARE_VERSION_L
 
-        reply: ReplyHarpMessage = self.send(
-            HarpMessage.ReadU8(address).frame, dump=False
-)
-        #print(str(reply))
+        reply: ReplyHarpMessage = self.read_u8(address, dump=False)
 
         return reply.payload_as_int()
 
     def read_device_name(self) -> str:
         address = CommonRegisters.DEVICE_NAME
 
-        # reply: Optional[bytes] = self.send(HarpMessage.ReadU8(address).frame, 13 + 24)
-        reply: ReplyHarpMessage = self.send(
-            HarpMessage.ReadU8(address).frame, dump=False
-        )
-        #print(str(reply))
+        reply: ReplyHarpMessage = self.read_u8(address, dump=False)
 
         return reply.payload_as_string()
 
     def read_device_mode(self) -> DeviceMode:
         address = CommonRegisters.OPERATION_CTRL
-        reply = self.send(HarpMessage.ReadU8(address).frame)
+        reply = self.read_u8(address)
         return DeviceMode(reply.payload_as_int() & 0x03)
 
     def dump_registers(self) -> list:
@@ -207,7 +177,7 @@ class Device:
         as Harp Read Reply Messages.
         """
         address = CommonRegisters.OPERATION_CTRL
-        reg_value = self.send(HarpMessage.ReadU8(address).frame).payload_as_int()
+        reg_value = self.read_u8(address).payload_as_int()
         reg_value |= 0x08  # Assert DUMP bit
         self._ser.write(HarpMessage.WriteU8(address, reg_value).frame)
         replies = []
@@ -224,7 +194,7 @@ class Device:
         """Change the device's OPMODE. Reply can be ignored."""
         address = CommonRegisters.OPERATION_CTRL
         # Read register first.
-        reg_value = self.send(HarpMessage.ReadU8(address).frame).payload_as_int()
+        reg_value = self.read_u8(address).payload_as_int()
         reg_value &= ~0x03 # mask off old mode.
         reg_value |= mode.value
         reply = self.send(HarpMessage.WriteU8(address, reg_value).frame)
@@ -234,7 +204,7 @@ class Device:
         """enable the device's status led if one exists."""
         address = CommonRegisters.OPERATION_CTRL
         # Read register first.
-        reg_value = self.send(HarpMessage.ReadU8(address).frame).payload_as_int()
+        reg_value = self.read_u8(address).payload_as_int()
         reg_value |= (1 << 5)
         reply = self.send(HarpMessage.WriteU8(address, reg_value).frame)
 
@@ -242,7 +212,7 @@ class Device:
         """disable the device's status led if one exists."""
         address = CommonRegisters.OPERATION_CTRL
         # Read register first.
-        reg_value = self.send(HarpMessage.ReadU8(address).frame).payload_as_int()
+        reg_value = self.read_u8(address).payload_as_int()
         reg_value &= ~(1 << 5)
         reply = self.send(HarpMessage.WriteU8(address, reg_value).frame)
 
@@ -250,7 +220,7 @@ class Device:
         """Enable ALIVE_EN such that the device sends an event each second."""
         address = CommonRegisters.OPERATION_CTRL
         # Read register first.
-        reg_value = self.send(HarpMessage.ReadU8(address).frame).payload_as_int()
+        reg_value = self.read_u8(address).payload_as_int()
         reg_value |= (1 << 7)
         reply = self.send(HarpMessage.WriteU8(address, reg_value).frame)
 
@@ -258,7 +228,7 @@ class Device:
         """disable ALIVE_EN such that the device does not send an event each second."""
         address = CommonRegisters.OPERATION_CTRL
         # Read register first.
-        reg_value = self.send(HarpMessage.ReadU8(address).frame).payload[0]
+        reg_value = self.read_u8(address).payload[0]
         reg_value &= ((1<< 7) ^ 0xFF) # bitwise ~ operator substitute for Python ints.
         reply = self.send(HarpMessage.WriteU8(address, reg_value).frame)
 
@@ -307,3 +277,38 @@ class Device:
     def event_count(self) -> int:
         """Get the number of events in the event queue."""
         return self._ser.event_q.qsize()
+
+    def read_u8(self, address: int, dump: bool = True) -> ReplyHarpMessage:
+        return self.send(
+            ReadHarpMessage(payload_type=PayloadType.U8, address=address).frame, dump
+        )
+
+    def read_s8(self, address: int, dump: bool = True) -> ReplyHarpMessage:
+        return self.send(
+            ReadHarpMessage(payload_type=PayloadType.S8, address=address).frame, dump
+        )
+
+    def read_u16(self, address: int, dump: bool = True) -> ReplyHarpMessage:
+        return self.send(
+            ReadHarpMessage(payload_type=PayloadType.U16, address=address).frame, dump
+        )
+
+    def read_s16(self, address: int, dump: bool = True) -> ReplyHarpMessage:
+        return self.send(
+            ReadHarpMessage(payload_type=PayloadType.S16, address=address).frame, dump
+        )
+
+    def read_u32(self, address: int, dump: bool = True) -> ReplyHarpMessage:
+        return self.send(
+            ReadHarpMessage(payload_type=PayloadType.U32, address=address).frame, dump
+        )
+
+    def read_s32(self, address: int, dump: bool = True) -> ReplyHarpMessage:
+        return self.send(
+            ReadHarpMessage(payload_type=PayloadType.S32, address=address).frame, dump
+        )
+
+    def read_float(self, address: int, dump: bool = True) -> ReplyHarpMessage:
+        return self.send(
+            ReadHarpMessage(payload_type=PayloadType.FLOAT, address=address).frame, dump
+        )
