@@ -1,8 +1,7 @@
-import serial
 import time
-from typing import Optional
-from pyharp.messages import HarpMessage, ReplyHarpMessage
+
 from pyharp.device import Device
+from pyharp.messages import HarpMessage, ReplyHarpMessage
 
 DEFAULT_ADDRESS = 42
 
