@@ -120,8 +120,7 @@ class ReplyHarpMessage(HarpMessage):
             bytes_per_word = self.payload_type.value & 0x07
             format_str = f"0{bytes_per_word}b"
 
-        for item in self.payload:
-            payload_str += f"{item:{format_str}} "
+        payload_str = "".join(f"{item:{format_str}} " for item in self.payload)
 
         return (
             f"Type: {self.message_type.name}\r\n"
@@ -131,7 +130,7 @@ class ReplyHarpMessage(HarpMessage):
             + f"Timestamp: {self.timestamp}\r\n"
             + f"Payload Type: {self.payload_type.name}\r\n"
             + f"Payload Length: {len(self.payload)}\r\n"
-            + f"Payload: {self.payload}\r\n"
+            + f"Payload: {payload_str}\r\n"
             + f"Checksum: {self.checksum}"
         )
 
@@ -245,7 +244,7 @@ class WriteHarpMessage(HarpMessage):
     def payload(self) -> Union[int, list[int]]:
         match self.payload_type:
             case PayloadType.U8:
-                return self.frame[5]
+                return self._frame[5]
             case PayloadType.S8:
                 return int.from_bytes([self.frame[5]], byteorder="little", signed=True)
             case PayloadType.U16:
@@ -262,7 +261,6 @@ class WriteHarpMessage(HarpMessage):
                 )
             case PayloadType.S32:
                 return int.from_bytes(self._frame[5:9], byteorder="little", signed=True)
-            # TODO: missing validation for U64 and S64
             case PayloadType.U64:
                 return int.from_bytes(
                     self._frame[5:13], byteorder="little", signed=False

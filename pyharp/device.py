@@ -87,7 +87,7 @@ class Device:
         self._ser = HarpSerial(
             self._serial_port,  # "/dev/tty.usbserial-A106C8O9"
             baudrate=1000000,
-            timeout=self.__class__.TIMEOUT_S,
+            timeout=self.TIMEOUT_S,
             parity=serial.PARITY_NONE,
             stopbits=1,
             bytesize=8,
