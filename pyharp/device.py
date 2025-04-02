@@ -83,9 +83,6 @@ class Device:
         print(f"* Serial number: {self.SERIAL_NUMBER}")
         print(f"* Mode: {self.read_device_mode().name}")
 
-    def read(self):
-        pass
-
     def connect(self) -> None:
         self._ser = HarpSerial(
             self._serial_port,  # "/dev/tty.usbserial-A106C8O9"
