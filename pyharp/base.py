@@ -50,3 +50,4 @@ class CommonRegisters:
     OPERATION_CTRL = 0x0A
     RESET_DEV = 0x0B
     DEVICE_NAME = 0x0C
+    SERIAL_NUMBER = 0x0D

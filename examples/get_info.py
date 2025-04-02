@@ -31,6 +31,7 @@ device_hw_l = device.HW_VERSION_L  # Get device's hardware version
 device_harp_h = device.HARP_VERSION_H  # Get device's harp core version
 device_harp_l = device.HARP_VERSION_L  # Get device's harp core version
 device_assembly = device.ASSEMBLY_VERSION  # Get device's assembly version
+device_serial_number = device.SERIAL_NUMBER  # Get device's serial number
 
 reg_dump = device.dump_registers()
 for reg_reply in reg_dump:

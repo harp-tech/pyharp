@@ -39,6 +39,7 @@ class Device:
     FIRMWARE_VERSION_H: int
     FIRMWARE_VERSION_L: int
     DEVICE_NAME: str
+    SERIAL_NUMBER: int
 
     TIMEOUT_S = 1.0
 
@@ -69,6 +70,7 @@ class Device:
         self.FIRMWARE_VERSION_H = self._read_fw_h_version()
         self.FIRMWARE_VERSION_L = self._read_fw_l_version()
         self.DEVICE_NAME = self._read_device_name()
+        self.SERIAL_NUMBER = self._read_serial_number()
 
     def info(self) -> None:
         print("Device info:")
@@ -78,6 +80,7 @@ class Device:
         print(f"* HARP version: {self.HARP_VERSION_H}.{self.HARP_VERSION_L}")
         print(f"* Firmware version: {self.FIRMWARE_VERSION_H}.{self.FIRMWARE_VERSION_L}")
         print(f"* Device user name: {self.DEVICE_NAME}")
+        print(f"* Serial number: {self.SERIAL_NUMBER}")
         print(f"* Mode: {self.read_device_mode().name}")
 
     def read(self):
@@ -425,3 +428,14 @@ class Device:
         reply: ReplyHarpMessage = self.read_u8(address, dump=False)
 
         return reply.payload_as_string()
+
+    def _read_serial_number(self) -> int:
+        address = CommonRegisters.SERIAL_NUMBER
+
+        reply: ReplyHarpMessage = self.read_u8(address, dump=False)
+
+        if reply.has_error():
+            return 0
+
+        return reply.payload_as_int()
+
