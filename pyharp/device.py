@@ -322,83 +322,110 @@ class Device:
             ReadHarpMessage(payload_type=PayloadType.Float, address=address).frame, dump
         )
 
-    def write_u8(self, address: int, value: int | List[int]) -> ReplyHarpMessage:
+    def write_u8(
+        self, address: int, value: int | List[int], dump: bool = True
+    ) -> ReplyHarpMessage:
         return self.send(
             WriteHarpMessage(
                 payload_type=PayloadType.U8,
                 address=address,
                 value=value,
-            ).frame
+            ).frame,
+            dump=dump,
         )
 
-    def write_s8(self, address: int, value: int | List[int]) -> ReplyHarpMessage:
+    def write_s8(
+        self, address: int, value: int | List[int], dump: bool = True
+    ) -> ReplyHarpMessage:
         return self.send(
             WriteHarpMessage(
                 payload_type=PayloadType.S8,
                 address=address,
                 value=value,
-            ).frame
+            ).frame,
+            dump=dump,
         )
 
-    def write_u16(self, address: int, value: int | List[int]) -> ReplyHarpMessage:
+    def write_u16(
+        self, address: int, value: int | List[int], dump: bool = True
+    ) -> ReplyHarpMessage:
         return self.send(
             WriteHarpMessage(
                 payload_type=PayloadType.U16,
                 address=address,
                 value=value,
-            ).frame
+            ).frame,
+            dump=dump,
         )
 
-    def write_s16(self, address: int, value: int | List[int]) -> ReplyHarpMessage:
+    def write_s16(
+        self, address: int, value: int | List[int], dump: bool = True
+    ) -> ReplyHarpMessage:
         return self.send(
             WriteHarpMessage(
                 payload_type=PayloadType.S16,
                 address=address,
                 value=value,
-            ).frame
+            ).frame,
+            dump=dump,
         )
 
-    def write_u32(self, address: int, value: int | List[int]) -> ReplyHarpMessage:
+    def write_u32(
+        self, address: int, value: int | List[int], dump: bool = True
+    ) -> ReplyHarpMessage:
         return self.send(
             WriteHarpMessage(
                 payload_type=PayloadType.U32,
                 address=address,
                 value=value,
-            ).frame
+            ).frame,
+            dump=dump,
         )
 
-    def write_s32(self, address: int, value: int | List[int]) -> ReplyHarpMessage:
+    def write_s32(
+        self, address: int, value: int | List[int], dump: bool = True
+    ) -> ReplyHarpMessage:
         return self.send(
             WriteHarpMessage(
                 payload_type=PayloadType.S32,
                 address=address,
                 value=value,
-            ).frame
+            ).frame,
+            dump=dump,
         )
 
-    def write_u64(self, address: int, value: int | List[int]) -> ReplyHarpMessage:
+    def write_u64(
+        self, address: int, value: int | List[int], dump: bool = True
+    ) -> ReplyHarpMessage:
         return self.send(
             WriteHarpMessage(
                 payload_type=PayloadType.U64,
                 address=address,
                 value=value,
-            ).frame
+            ).frame,
+            dump=dump,
         )
 
-    def write_s64(self, address: int, value: int | List[int]) -> ReplyHarpMessage:
+    def write_s64(
+        self, address: int, value: int | List[int], dump: bool = True
+    ) -> ReplyHarpMessage:
         return self.send(
             WriteHarpMessage(
                 payload_type=PayloadType.S64,
                 address=address,
                 value=value,
-            ).frame
+            ).frame,
+            dump=dump,
         )
 
-    def write_float(self, address: int, value: float | List[float]) -> ReplyHarpMessage:
+    def write_float(
+        self, address: int, value: float | List[float], dump: bool = True
+    ) -> ReplyHarpMessage:
         return self.send(
             WriteHarpMessage(
                 payload_type=PayloadType.Float,
                 address=address,
                 value=value,
-            ).frame
+            ).frame,
+            dump=dump,
         )
