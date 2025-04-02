@@ -436,3 +436,30 @@ class Device:
 
         return reply.payload_as_int()
 
+    def __enter__(self):
+        """Support for using Device with 'with' statement.
+
+        Returns
+        -------
+        Device
+            The Device instance
+        """
+        # Connection is already established in __init__
+        # but we could add additional setup if needed
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Cleanup resources when exiting the 'with' block.
+
+        Parameters
+        ----------
+        exc_type : Exception type or None
+            Type of the exception that caused the context to be exited
+        exc_val : Exception or None
+            Exception instance that caused the context to be exited
+        exc_tb : traceback or None
+            Traceback if an exception occurred
+        """
+        self.disconnect()
+        # Return False to propagate exceptions that occurred in the with block
+        return False
