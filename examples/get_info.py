@@ -20,7 +20,7 @@ device.info()  # Display device's info on screen
 
 # Get some of the device's parameters
 device_id = device.WHO_AM_I  # Get device's ID
-device_id_description = device.WHO_AM_I_DEVICE  # Get device's user name
+device_id_description = device.DEFAULT_DEVICE_NAME  # Get device's user name
 device_user_name = device.DEVICE_NAME  # Get device's user name
 
 # Get versions

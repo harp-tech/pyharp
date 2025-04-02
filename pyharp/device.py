@@ -30,7 +30,7 @@ class Device:
     _dump_file_path: Path
 
     WHO_AM_I: int
-    WHO_AM_I_DEVICE: str
+    DEFAULT_DEVICE_NAME: str
     HW_VERSION_H: int
     HW_VERSION_L: int
     ASSEMBLY_VERSION: int
@@ -59,20 +59,20 @@ class Device:
         self.load()
 
     def load(self) -> None:
-        self.WHO_AM_I = self.read_who_am_i()
-        self.WHO_AM_I_DEVICE = self.read_who_am_i_device()
-        self.HW_VERSION_H = self.read_hw_version_h()
-        self.HW_VERSION_L = self.read_hw_version_l()
-        self.ASSEMBLY_VERSION = self.read_assembly_version()
-        self.HARP_VERSION_H = self.read_harp_h_version()
-        self.HARP_VERSION_L = self.read_harp_l_version()
-        self.FIRMWARE_VERSION_H = self.read_fw_h_version()
-        self.FIRMWARE_VERSION_L = self.read_fw_l_version()
-        self.DEVICE_NAME = self.read_device_name()
+        self.WHO_AM_I = self._read_who_am_i()
+        self.DEFAULT_DEVICE_NAME = self._read_default_device_name()
+        self.HW_VERSION_H = self._read_hw_version_h()
+        self.HW_VERSION_L = self._read_hw_version_l()
+        self.ASSEMBLY_VERSION = self._read_assembly_version()
+        self.HARP_VERSION_H = self._read_harp_h_version()
+        self.HARP_VERSION_L = self._read_harp_l_version()
+        self.FIRMWARE_VERSION_H = self._read_fw_h_version()
+        self.FIRMWARE_VERSION_L = self._read_fw_l_version()
+        self.DEVICE_NAME = self._read_device_name()
 
     def info(self) -> None:
         print("Device info:")
-        print(f"* Who am I: ({self.WHO_AM_I}) {self.WHO_AM_I_DEVICE}")
+        print(f"* Who am I: ({self.WHO_AM_I}) {self.DEFAULT_DEVICE_NAME}")
         print(f"* HW version: {self.HW_VERSION_H}.{self.HW_VERSION_L}")
         print(f"* Assembly version: {self.ASSEMBLY_VERSION}")
         print(f"* HARP version: {self.HARP_VERSION_H}.{self.HARP_VERSION_L}")
@@ -96,76 +96,6 @@ class Device:
 
     def disconnect(self) -> None:
         self._ser.close()
-
-    def read_who_am_i(self) -> int:
-        address = CommonRegisters.WHO_AM_I
-
-        reply: ReplyHarpMessage = self.read_u16(address, dump=False)
-
-        return reply.payload_as_int()
-
-    def read_who_am_i_device(self) -> str:
-        address = CommonRegisters.WHO_AM_I
-
-        reply: ReplyHarpMessage = self.read_u16(address, dump=False)
-
-        return device_names.get(reply.payload_as_int())
-
-    def read_hw_version_h(self) -> int:
-        address = CommonRegisters.HW_VERSION_H
-
-        reply: ReplyHarpMessage = self.read_u8(address, dump=False)
-
-        return reply.payload_as_int()
-
-    def read_hw_version_l(self) -> int:
-        address = CommonRegisters.HW_VERSION_L
-
-        reply: ReplyHarpMessage = self.read_u8(address, dump=False)
-
-        return reply.payload_as_int()
-
-    def read_assembly_version(self) -> int:
-        address = CommonRegisters.ASSEMBLY_VERSION
-
-        reply: ReplyHarpMessage = self.read_u8(address, dump=False)
-
-        return reply.payload_as_int()
-
-    def read_harp_h_version(self) -> int:
-        address = CommonRegisters.HARP_VERSION_H
-
-        reply: ReplyHarpMessage = self.read_u8(address, dump=False)
-
-        return reply.payload_as_int()
-
-    def read_harp_l_version(self) -> int:
-        address = CommonRegisters.HARP_VERSION_L
-
-        reply: ReplyHarpMessage = self.read_u8(address, dump=False)
-
-        return reply.payload_as_int()
-
-    def read_fw_h_version(self) -> int:
-        address = CommonRegisters.FIRMWARE_VERSION_H
-
-        reply: ReplyHarpMessage = self.read_u8(address, dump=False)
-
-        return reply.payload_as_int()
-
-    def read_fw_l_version(self) -> int:
-        address = CommonRegisters.FIRMWARE_VERSION_L
-
-        reply: ReplyHarpMessage = self.read_u8(address, dump=False)
-
-        return reply.payload_as_int()
-
-    def read_device_name(self) -> str:
-        address = CommonRegisters.DEVICE_NAME
-
-        reply: ReplyHarpMessage = self.read_u8(address, dump=False)
-
-        return reply.payload_as_string()
 
     def read_device_mode(self) -> DeviceMode:
         address = CommonRegisters.OPERATION_CTRL
@@ -429,3 +359,69 @@ class Device:
             ).frame,
             dump=dump,
         )
+
+    def _read_who_am_i(self) -> int:
+        address = CommonRegisters.WHO_AM_I
+
+        reply: ReplyHarpMessage = self.read_u16(address, dump=False)
+
+        return reply.payload_as_int()
+
+    def _read_default_device_name(self) -> str:
+        return device_names.get(self.WHO_AM_I, "Unknown device")
+
+    def _read_hw_version_h(self) -> int:
+        address = CommonRegisters.HW_VERSION_H
+
+        reply: ReplyHarpMessage = self.read_u8(address, dump=False)
+
+        return reply.payload_as_int()
+
+    def _read_hw_version_l(self) -> int:
+        address = CommonRegisters.HW_VERSION_L
+
+        reply: ReplyHarpMessage = self.read_u8(address, dump=False)
+
+        return reply.payload_as_int()
+
+    def _read_assembly_version(self) -> int:
+        address = CommonRegisters.ASSEMBLY_VERSION
+
+        reply: ReplyHarpMessage = self.read_u8(address, dump=False)
+
+        return reply.payload_as_int()
+
+    def _read_harp_h_version(self) -> int:
+        address = CommonRegisters.HARP_VERSION_H
+
+        reply: ReplyHarpMessage = self.read_u8(address, dump=False)
+
+        return reply.payload_as_int()
+
+    def _read_harp_l_version(self) -> int:
+        address = CommonRegisters.HARP_VERSION_L
+
+        reply: ReplyHarpMessage = self.read_u8(address, dump=False)
+
+        return reply.payload_as_int()
+
+    def _read_fw_h_version(self) -> int:
+        address = CommonRegisters.FIRMWARE_VERSION_H
+
+        reply: ReplyHarpMessage = self.read_u8(address, dump=False)
+
+        return reply.payload_as_int()
+
+    def _read_fw_l_version(self) -> int:
+        address = CommonRegisters.FIRMWARE_VERSION_L
+
+        reply: ReplyHarpMessage = self.read_u8(address, dump=False)
+
+        return reply.payload_as_int()
+
+    def _read_device_name(self) -> str:
+        address = CommonRegisters.DEVICE_NAME
+
+        reply: ReplyHarpMessage = self.read_u8(address, dump=False)
+
+        return reply.payload_as_string()
