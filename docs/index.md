@@ -1,4 +1,4 @@
-# pyharp
+# Introduction
 
 !!! Warning
     Work in Progress!
