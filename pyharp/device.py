@@ -55,7 +55,11 @@ class Device:
     DEVICE_NAME: str
     SERIAL_NUMBER: int
 
-    TIMEOUT_S = 1.0
+    _ser: HarpSerial
+    _dump_file_path: Path
+    _read_timeout_s: float
+
+    _TIMEOUT_S: float = 1.0
 
     def __init__(
         self,
@@ -79,7 +83,9 @@ class Device:
             self._dump_file_path = None
         else:
             self._dump_file_path = Path() / dump_file_path
-        self.read_timeout_s = read_timeout_s
+        self._read_timeout_s = read_timeout_s
+
+        # Connect to the Harp device and load the data stored in the device's common registers
         self.connect()
         self.load()
 
@@ -120,7 +126,7 @@ class Device:
         self._ser = HarpSerial(
             self._serial_port,  # "/dev/tty.usbserial-A106C8O9"
             baudrate=1000000,
-            timeout=self.TIMEOUT_S,
+            timeout=self._TIMEOUT_S,
             parity=serial.PARITY_NONE,
             stopbits=1,
             bytesize=8,
@@ -297,7 +303,7 @@ class Device:
             the incoming Harp message in case it exists
         """
         try:
-            return self._ser.msg_q.get(block=True, timeout=self.read_timeout_s)
+            return self._ser.msg_q.get(block=True, timeout=self._read_timeout_s)
         except queue.Empty:
             return None
 
