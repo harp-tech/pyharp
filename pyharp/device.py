@@ -100,10 +100,10 @@ class Device:
         self.HW_VERSION_H = self._read_hw_version_h()
         self.HW_VERSION_L = self._read_hw_version_l()
         self.ASSEMBLY_VERSION = self._read_assembly_version()
-        self.HARP_VERSION_H = self._read_harp_h_version()
-        self.HARP_VERSION_L = self._read_harp_l_version()
-        self.FIRMWARE_VERSION_H = self._read_fw_h_version()
-        self.FIRMWARE_VERSION_L = self._read_fw_l_version()
+        self.HARP_VERSION_H = self._read_harp_version_h()
+        self.HARP_VERSION_L = self._read_harp_version_l()
+        self.FIRMWARE_VERSION_H = self._read_fw_version_h()
+        self.FIRMWARE_VERSION_L = self._read_fw_version_l()
         self.DEVICE_NAME = self._read_device_name()
         self.SERIAL_NUMBER = self._read_serial_number()
 
@@ -858,28 +858,60 @@ class Device:
 
         return reply.payload_as_int()
 
-    def _read_harp_h_version(self) -> int:
+    def _read_harp_version_h(self) -> int:
+        """
+        Reads the value stored in the `HARP_VERSION_H` register.
+
+        Returns
+        -------
+        int
+            the value of the `HARP_VERSION_H` register.
+        """
         address = CommonRegisters.HARP_VERSION_H
 
         reply: ReplyHarpMessage = self.read_u8(address, dump=False)
 
         return reply.payload_as_int()
 
-    def _read_harp_l_version(self) -> int:
+    def _read_harp_version_l(self) -> int:
+        """
+        Reads the value stored in the `HARP_VERSION_L` register.
+
+        Returns
+        -------
+        int
+            the value of the `HARP_VERSION_L` register.
+        """
         address = CommonRegisters.HARP_VERSION_L
 
         reply: ReplyHarpMessage = self.read_u8(address, dump=False)
 
         return reply.payload_as_int()
 
-    def _read_fw_h_version(self) -> int:
+    def _read_fw_version_h(self) -> int:
+        """
+        Reads the value stored in the `FW_VERSION_H` register.
+
+        Returns
+        -------
+        int
+            the value of the `FW_VERSION_H` register.
+        """
         address = CommonRegisters.FIRMWARE_VERSION_H
 
         reply: ReplyHarpMessage = self.read_u8(address, dump=False)
 
         return reply.payload_as_int()
 
-    def _read_fw_l_version(self) -> int:
+    def _read_fw_version_l(self) -> int:
+        """
+        Reads the value stored in the `FW_VERSION_L` register.
+
+        Returns
+        -------
+        int
+            the value of the `FW_VERSION_L` register.
+        """
         address = CommonRegisters.FIRMWARE_VERSION_L
 
         reply: ReplyHarpMessage = self.read_u8(address, dump=False)
