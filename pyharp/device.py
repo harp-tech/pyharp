@@ -164,8 +164,11 @@ class Device:
         """
         address = CommonRegisters.OPERATION_CTRL
         reg_value = self.read_u8(address).payload_as_int()
-        reg_value |= 0x08  # Assert DUMP bit
-        self._ser.write(WriteHarpMessage(PayloadType.U8, address, reg_value).frame)
+        # Assert DUMP bit
+        reg_value |= 0x08
+        self.write_u8(address, reg_value)
+
+        # Receive the contents of all registers as Harp Read Reply Messages
         replies = []
         while True:
             msg = self._read()
@@ -193,9 +196,14 @@ class Device:
 
         # Read register first
         reg_value = self.read_u8(address).payload_as_int()
-        reg_value &= ~0x03 # mask off old mode.
-        reg_value |= mode.value
-        reply = self.send(WriteHarpMessage(PayloadType.U8, address, reg_value).frame)
+
+        # Clear old operation mode
+        reg_value &= ~0x03
+
+        # Set new operation mode
+        reg_value |= mode
+        reply = self.write_u8(address, reg_value)
+
         return reply
 
     def enable_status_led(self) -> ReplyHarpMessage:
@@ -211,8 +219,10 @@ class Device:
 
         # Read register first
         reg_value = self.read_u8(address).payload_as_int()
-        reg_value |= (1 << 5)
-        reply = self.send(WriteHarpMessage(PayloadType.U8, address, reg_value).frame)
+        reg_value |= 1 << 5
+        reply = self.write_u8(address, reg_value)
+
+        return reply
 
     def disable_status_led(self) -> ReplyHarpMessage:
         """
@@ -228,7 +238,9 @@ class Device:
         # Read register first
         reg_value = self.read_u8(address).payload_as_int()
         reg_value &= ~(1 << 5)
-        reply = self.send(WriteHarpMessage(PayloadType.U8, address, reg_value).frame)
+        reply = self.write_u8(address, reg_value)
+
+        return reply
 
     def enable_alive_en(self) -> ReplyHarpMessage:
         """
@@ -243,8 +255,10 @@ class Device:
 
         # Read register first
         reg_value = self.read_u8(address).payload_as_int()
-        reg_value |= (1 << 7)
-        reply = self.send(WriteHarpMessage(PayloadType.U8, address, reg_value).frame)
+        reg_value |= 1 << 7
+        reply = self.write_u8(address, reg_value)
+
+        return reply
 
     def disable_alive_en(self) -> ReplyHarpMessage:
         """
@@ -259,13 +273,25 @@ class Device:
 
         # Read register first
         reg_value = self.read_u8(address).payload[0]
-        reg_value &= (1 << 7) ^ 0xFF  # bitwise ~ operator substitute for Python ints.
-        reply = self.send(WriteHarpMessage(PayloadType.U8, address, reg_value).frame)
+        reg_value &= ~(1 << 7)
+        reply = self.write_u8(address, reg_value)
 
-    def reset_device(self):
+        return reply
+
+    def reset_device(self) -> ReplyHarpMessage:
+        """
+        Resets the device and reboots with all the registers with the default values. Beware that the EEPROM will be erased. More information on the reset device register can be found [here](https://harp-tech.org/protocol/Device.html#r_reset_dev-u8--reset-device-and-save-non-volatile-registers).
+
+        Returns
+        -------
+        ReplyHarpMessage
+            the reply to the Harp message
+        """
         address = CommonRegisters.RESET_DEV
         reset_value = 0x01
-        self._ser.write(WriteHarpMessage(PayloadType.U8, address, reset_value).frame)
+        reply = self.write_u8(address, reset_value)
+
+        return reply
 
     def send(self, message_bytes: bytearray, dump: bool = True) -> ReplyHarpMessage:
         """
