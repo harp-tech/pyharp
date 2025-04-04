@@ -8,7 +8,32 @@ from pyharp.base import MessageType, PayloadType
 
 class HarpMessage:
     """
-    https://github.com/harp-tech/protocol/blob/main/BinaryProtocol-8bit.md
+    The `HarpMessage` class implements the Harp message as described in the [protocol](https://harp-tech.org/protocol/BinaryProtocol-8bit.html).
+
+    Attributes
+    ----------
+    frame : bytearray
+        the bytearray containing the whole Harp message
+    message_type : MessageType
+        the message type
+    length : int
+        the length parameter of the Harp message
+        """
+        Calculates the checksum of the Harp message.
+
+        Returns
+        -------
+        int
+            the value of the checksum
+        """
+    address : int
+        the address of the register to which the Harp message refers to
+    port : int
+        indicates the origin or destination of the Harp message in case the device is a hub of Harp devices. The value 255 points to the device itself (default value).
+    payload_type : PayloadType
+        the payload type
+    checksum : int
+        the sum of all bytes contained in the Harp message
     """
 
     DEFAULT_PORT: int = 255
@@ -18,6 +43,14 @@ class HarpMessage:
         self._frame = bytearray()
 
     def calculate_checksum(self) -> int:
+        """
+        Calculates the checksum of the Harp message.
+
+        Returns
+        -------
+        int
+            the value of the checksum
+        """
         checksum: int = 0
         for i in self.frame:
             checksum += i
@@ -25,34 +58,103 @@ class HarpMessage:
 
     @property
     def frame(self) -> bytearray:
+        """
+        The bytearray containing the whole Harp message.
+
+        Returns
+        -------
+        bytearray
+            the bytearray containing the whole Harp message
+        """
         return self._frame
 
     @property
     def message_type(self) -> MessageType:
+        """
+        The message type.
+
+        Returns
+        -------
+        MessageType
+            the message type
+        """
         return MessageType(self._frame[0])
 
     @property
     def length(self) -> int:
+        """
+        The length parameter of the Harp message.
+
+        Returns
+        -------
+        int
+            the length parameter of the Harp message
+        """
         return self._frame[1]
 
     @property
     def address(self) -> int:
+        """
+        The address of the register to which the Harp message refers to.
+
+        Returns
+        -------
+        int
+            the address of the register to which the Harp message refers to
+        """
         return self._frame[2]
 
     @property
     def port(self) -> int:
+        """
+        Indicates the origin or destination of the Harp message in case the device is a hub of Harp devices. The value 255 points to the device itself (default value).
+
+        Returns
+        -------
+        int
+            the port value
+        """
         return self._frame[3]
 
     @property
     def payload_type(self) -> PayloadType:
+        """
+        The payload type.
+
+        Returns
+        -------
+        PayloadType
+            the payload type
+        """
         return PayloadType(self._frame[4])
 
     @property
     def checksum(self) -> int:
+        """
+        The sum of all bytes contained in the Harp message.
+
+        Returns
+        -------
+        int
+            the sum of all bytes contained in the Harp message
+        """
         return self._frame[-1]
 
     @staticmethod
     def parse(frame: bytearray) -> ReplyHarpMessage:
+        """
+        Parses a bytearray to a (reply) Harp message.
+
+        Parameters
+        ----------
+        frame : bytearray
+            the bytearray will be parsed into a (reply) Harp message
+
+        Returns
+        -------
+        ReplyHarpMessage
+            the Harp message object parsed from the original bytearray
+        """
         return ReplyHarpMessage(frame)
 
 
