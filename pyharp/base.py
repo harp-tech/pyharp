@@ -144,3 +144,10 @@ class CommonRegisters(IntEnum):
     RESET_DEV = 0x0B
     DEVICE_NAME = 0x0C
     SERIAL_NUMBER = 0x0D
+
+
+class DeviceMode(IntEnum):
+    Standby = 0
+    Active = 1
+    Reserved = 2
+    Speed = 3
