@@ -18,14 +18,6 @@ class HarpMessage:
         the message type
     length : int
         the length parameter of the Harp message
-        """
-        Calculates the checksum of the Harp message.
-
-        Returns
-        -------
-        int
-            the value of the checksum
-        """
     address : int
         the address of the register to which the Harp message refers to
     port : int
@@ -186,14 +178,14 @@ class ReplyHarpMessage(HarpMessage):
             + int.from_bytes(frame[9:11], byteorder="little", signed=False) * 32e-6
         )
         # Timestamp is junk if it's not present.
-        if not (self.payload_type.value & PayloadType.Timestamp.value):
+        if not (self.payload_type & PayloadType.Timestamp):
             self._timestamp = None
 
     def _parse_payload(self, raw_payload) -> list[int]:
         """return the payload as a list of ints after parsing it from the raw payload."""
-        is_signed = True if (self.payload_type.value & 0x80) else False
-        is_float = True if (self.payload_type.value & 0x40) else False
-        bytes_per_word = self.payload_type.value & 0x07
+        is_signed = True if (self.payload_type & 0x80) else False
+        is_float = True if (self.payload_type & 0x40) else False
+        bytes_per_word = self.payload_type & 0x07
         payload_len = len(raw_payload)  # payload length in bytes.
 
         word_chunks = [
@@ -219,7 +211,7 @@ class ReplyHarpMessage(HarpMessage):
         if self.payload_type in [PayloadType.Float, PayloadType.TimestampedFloat]:
             format_str = ".6f"
         else:
-            bytes_per_word = self.payload_type.value & 0x07
+            bytes_per_word = self.payload_type & 0x07
             format_str = f"0{bytes_per_word}b"
 
         payload_str = "".join(f"{item:{format_str}} " for item in self.payload)
@@ -262,13 +254,13 @@ class ReadHarpMessage(HarpMessage):
     def __init__(self, payload_type: PayloadType, address: int):
         self._frame = bytearray()
 
-        self._frame.append(self.MESSAGE_TYPE.value)
+        self._frame.append(self.MESSAGE_TYPE)
 
         length: int = 4
         self._frame.append(length)
         self._frame.append(address)
         self._frame.append(self.DEFAULT_PORT)
-        self._frame.append(payload_type.value)
+        self._frame.append(payload_type)
         self._frame.append(self.calculate_checksum())
 
 
@@ -333,12 +325,12 @@ class WriteHarpMessage(HarpMessage):
                 payload += val.to_bytes(byte_size, byteorder="little", signed=signed)
 
         # Build the frame
-        self._frame.append(self.MESSAGE_TYPE.value)
+        self._frame.append(self.MESSAGE_TYPE)
         # Length is BASE_LENGTH + payload size
         self._frame.append(self.BASE_LENGTH + len(payload))
         self._frame.append(address)
         self._frame.append(self.DEFAULT_PORT)
-        self._frame.append(payload_type.value)
+        self._frame.append(payload_type)
         self._frame += payload
         self._frame.append(self.calculate_checksum())
 
