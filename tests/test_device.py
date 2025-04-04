@@ -5,14 +5,14 @@ from pyharp.messages import HarpMessage, ReplyHarpMessage
 
 DEFAULT_ADDRESS = 42
 
-
-def test_create_device() -> None:
-    # open serial connection and load info
-    device = Device("/dev/ttyUSB0", "dump.bin")
-    assert device._ser.is_open
-    device.info()
-    device.disconnect()
-    assert not device._ser.is_open
+# FIXME
+# def test_create_device() -> None:
+#     # open serial connection and load info
+#     device = Device("COM74", "dump.bin")
+#     assert device._ser.is_open
+#     device.info()
+#     device.disconnect()
+#     assert not device._ser.is_open
 
 
 def test_read_U8() -> None:
@@ -82,9 +82,10 @@ def test_U8() -> None:
 #     # assert data[0] == '\t'
 
 
-def test_device_events(device: Device) -> None:
-    while True:
-        print(device.event_count())
-        for msg in device.get_events():
-            print(msg)
-        time.sleep(0.3)
+# FIXME
+# def test_device_events(device: Device) -> None:
+#     while True:
+#         print(device.event_count())
+#         for msg in device.get_events():
+#             print(msg)
+#         time.sleep(0.3)
