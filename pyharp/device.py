@@ -65,7 +65,7 @@ class Device:
         self,
         serial_port: str,
         dump_file_path: Optional[str] = None,
-        read_timeout_s=1,
+        read_timeout_s: float = 1,
     ):
         """
         Parameters
@@ -114,10 +114,12 @@ class Device:
         print(f"* HW version: {self.HW_VERSION_H}.{self.HW_VERSION_L}")
         print(f"* Assembly version: {self.ASSEMBLY_VERSION}")
         print(f"* HARP version: {self.HARP_VERSION_H}.{self.HARP_VERSION_L}")
-        print(f"* Firmware version: {self.FIRMWARE_VERSION_H}.{self.FIRMWARE_VERSION_L}")
+        print(
+            f"* Firmware version: {self.FIRMWARE_VERSION_H}.{self.FIRMWARE_VERSION_L}"
+        )
         print(f"* Device user name: {self.DEVICE_NAME}")
         print(f"* Serial number: {self.SERIAL_NUMBER}")
-        print(f"* Mode: {self.read_device_mode().name}")
+        print(f"* Mode: {self._read_device_mode().name}")
 
     def connect(self) -> None:
         """
