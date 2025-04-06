@@ -76,10 +76,10 @@ nav:
   - Home: index.md
   - Examples:
     - examples/index.md
-    - Getting Device Info: examples/get_info.md
-    - Check Device ID: examples/check_device_id.md
-    - Wait for Events: examples/wait_for_events.md
-    - Write and Read from Registers: examples/write_and_read_from_registers.md
+    - Getting Device Info: examples/get_info/get_info.md
+    - Wait for Events: examples/wait_for_events/wait_for_events.md
+    - Read and Write from Registers: examples/read_and_write_from_registers/read_and_write_from_registers.md
+    - Olfactometer Example: examples/olfactometer_example/olfactometer_example.md
   - API:
     - Device: api/device.md
     - Messages: api/messages.md
