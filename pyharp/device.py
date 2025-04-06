@@ -71,7 +71,7 @@ class Device:
         Parameters
         ----------
         serial_port : str
-            the serial port used to establish the connection with the Harp device. It must be denoted as `ttyUSBx` in Linux and `COMx` in Windows, where `x` is the number of the serial port
+            the serial port used to establish the connection with the Harp device. It must be denoted as `/dev/ttyUSBx` in Linux and `COMx` in Windows, where `x` is the number of the serial port
         dump_file_path: str, optional
             the binary file to which all Harp messages will be written
         read_timeout_s: float, optional

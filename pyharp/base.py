@@ -100,6 +100,8 @@ class CommonRegisters(IntEnum):
     """
     An enumeration with the registers that are common to every Harp device. More information on the common registers can be found [here](https://harp-tech.org/protocol/Device.html#table---list-of-available-common-registers).
 
+    Attributes
+    ----------
     WHO_AM_I : int
         the number of the `WHO_AM_I` register
     HW_VERSION_H : int
