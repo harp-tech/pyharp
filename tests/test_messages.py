@@ -1,4 +1,4 @@
-from pyharp.base import CommonRegisters, PayloadType
+from pyharp import CommonRegisters, PayloadType
 from pyharp.messages import MessageType, ReadHarpMessage, WriteHarpMessage
 
 DEFAULT_ADDRESS = 42

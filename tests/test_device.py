@@ -1,5 +1,6 @@
 import time
 
+from pyharp import MessageType, PayloadType
 from pyharp.device import Device
 from pyharp.messages import HarpMessage, ReplyHarpMessage
 

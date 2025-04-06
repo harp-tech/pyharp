@@ -3,7 +3,7 @@ from __future__ import annotations  # for type hints (PEP 563)
 import struct
 from typing import List, Union
 
-from pyharp.base import MessageType, PayloadType
+from pyharp import MessageType, PayloadType
 
 
 class HarpMessage:

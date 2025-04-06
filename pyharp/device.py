@@ -7,7 +7,7 @@ from typing import List, Optional, Union
 
 import serial
 
-from pyharp.base import CommonRegisters, DeviceMode, PayloadType
+from pyharp import CommonRegisters, DeviceMode, MessageType, PayloadType
 from pyharp.device_names import device_names
 from pyharp.harp_serial import HarpSerial
 from pyharp.messages import ReadHarpMessage, ReplyHarpMessage, WriteHarpMessage
