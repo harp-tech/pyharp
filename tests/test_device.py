@@ -24,7 +24,9 @@ def test_read_U8() -> None:
     register: int = 38
     read_size: int = 35  # TODO: automatically calculate this!
 
-    reply: ReplyHarpMessage = device.read_u8(register)
+    reply: ReplyHarpMessage = device.send(
+        HarpMessage.create(MessageType.READ, register, PayloadType.U8).frame
+    )
     assert reply is not None
     # assert reply.payload_as_int() == write_value
 
@@ -45,7 +47,11 @@ def test_U8() -> None:
     # assert reply[11] == 0  # what is the default register value?!
 
     # write 65 on register 38
-    reply: ReplyHarpMessage = device.write_u8(register, write_value)
+    reply: ReplyHarpMessage = device.send(
+        HarpMessage.create(
+            MessageType.WRITE, register, PayloadType.U8, write_value
+        ).frame
+    )
     assert reply is not None
 
     # read register 38

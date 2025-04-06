@@ -13,7 +13,9 @@ pip install pyharp
 ## Quick Start
 
 ```python
+from pyharp import MessageType, PayloadType
 from pyharp.device import Device
+from pyharp.messages import HarpMessage
 
 # Connect to a device
 device = Device("/dev/ttyUSB0")
@@ -25,10 +27,10 @@ device.info()
 register_address = 32
 
 # Read from register
-value = device.read_u8(register_address)
+value = device.send(HarpMessage.create(MessageType.READ, register_address, PayloadType.U8).frame)
 
 # Write to register
-device.write_u8(register_address, value)
+device.send(HarpMessage.create(MessageType.WRITE, register_address, PayloadType.U8, value).frame)
 
 # Disconnect when done
 device.disconnect()
@@ -37,7 +39,9 @@ device.disconnect()
 or using the `with` statement:
 
 ```python
+from pyharp import MessageType, PayloadType
 from pyharp.device import Device
+from pyharp.messages import HarpMessage
 
 with Device("/dev/ttyUSB0") as device:
     # Get device information
@@ -47,10 +51,10 @@ with Device("/dev/ttyUSB0") as device:
     register_address = 32
 
     # Read from register
-    value = device.read_u8(register_address)
+    value = device.send(HarpMessage.create(MessageType.READ, register_address, PayloadType.U8).frame)
 
     # Write to register
-    device.write_u8(register_address, value)
+    device.send(HarpMessage.create(MessageType.WRITE, register_address, PayloadType.U8, value).frame)
 ```
 
 ## for Linux

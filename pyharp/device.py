@@ -3,14 +3,14 @@ from __future__ import annotations  # enable subscriptable type hints for lists.
 import logging
 import queue
 from pathlib import Path
-from typing import List, Optional, Union
+from typing import Optional, Union
 
 import serial
 
 from pyharp import CommonRegisters, DeviceMode, MessageType, PayloadType
 from pyharp.device_names import device_names
 from pyharp.harp_serial import HarpSerial
-from pyharp.messages import ReadHarpMessage, ReplyHarpMessage, WriteHarpMessage
+from pyharp.messages import HarpMessage, ReplyHarpMessage
 
 
 class Device:
@@ -151,7 +151,9 @@ class Device:
             the current device mode
         """
         address = CommonRegisters.OPERATION_CTRL
-        reply = self.read_u8(address)
+        reply = self.send(
+            HarpMessage.create(MessageType.READ, address, PayloadType.U8).frame
+        )
         return DeviceMode(reply.payload_as_int() & 0x03)
 
     def dump_registers(self) -> list:
@@ -165,10 +167,16 @@ class Device:
             the list containing the reply Harp messages for all the device's registers
         """
         address = CommonRegisters.OPERATION_CTRL
-        reg_value = self.read_u8(address).payload_as_int()
+        reg_value = self.send(
+            HarpMessage.create(MessageType.READ, address, PayloadType.U8).frame
+        ).payload_as_int()
         # Assert DUMP bit
         reg_value |= 0x08
-        self.write_u8(address, reg_value)
+        self.send(
+            HarpMessage.create(
+                MessageType.WRITE, address, PayloadType.U8, reg_value
+            ).frame
+        )
 
         # Receive the contents of all registers as Harp Read Reply Messages
         replies = []
@@ -197,14 +205,20 @@ class Device:
         address = CommonRegisters.OPERATION_CTRL
 
         # Read register first
-        reg_value = self.read_u8(address).payload_as_int()
+        reg_value = self.send(
+            HarpMessage.create(MessageType.READ, address, PayloadType.U8).frame
+        ).payload_as_int()
 
         # Clear old operation mode
         reg_value &= ~0x03
 
         # Set new operation mode
         reg_value |= mode
-        reply = self.write_u8(address, reg_value)
+        reply = self.send(
+            HarpMessage.create(
+                MessageType.WRITE, address, PayloadType.U8, reg_value
+            ).frame
+        )
 
         return reply
 
@@ -220,9 +234,15 @@ class Device:
         address = CommonRegisters.OPERATION_CTRL
 
         # Read register first
-        reg_value = self.read_u8(address).payload_as_int()
+        reg_value = self.send(
+            HarpMessage.create(MessageType.READ, address, PayloadType.U8).frame
+        ).payload_as_int()
         reg_value |= 1 << 5
-        reply = self.write_u8(address, reg_value)
+        reply = self.send(
+            HarpMessage.create(
+                MessageType.WRITE, address, PayloadType.U8, reg_value
+            ).frame
+        )
 
         return reply
 
@@ -238,9 +258,15 @@ class Device:
         address = CommonRegisters.OPERATION_CTRL
 
         # Read register first
-        reg_value = self.read_u8(address).payload_as_int()
+        reg_value = self.send(
+            HarpMessage.create(MessageType.READ, address, PayloadType.U8).frame
+        ).payload_as_int()
         reg_value &= ~(1 << 5)
-        reply = self.write_u8(address, reg_value)
+        reply = self.send(
+            HarpMessage.create(
+                MessageType.WRITE, address, PayloadType.U8, reg_value
+            ).frame
+        )
 
         return reply
 
@@ -256,9 +282,15 @@ class Device:
         address = CommonRegisters.OPERATION_CTRL
 
         # Read register first
-        reg_value = self.read_u8(address).payload_as_int()
+        reg_value = self.send(
+            HarpMessage.create(MessageType.READ, address, PayloadType.U8).frame
+        ).payload_as_int()
         reg_value |= 1 << 7
-        reply = self.write_u8(address, reg_value)
+        reply = self.send(
+            HarpMessage.create(
+                MessageType.WRITE, address, PayloadType.U8, reg_value
+            ).frame
+        )
 
         return reply
 
@@ -274,9 +306,15 @@ class Device:
         address = CommonRegisters.OPERATION_CTRL
 
         # Read register first
-        reg_value = self.read_u8(address).payload[0]
+        reg_value = self.send(
+            HarpMessage.create(MessageType.READ, address, PayloadType.U8).frame
+        ).payload[0]
         reg_value &= ~(1 << 7)
-        reply = self.write_u8(address, reg_value)
+        reply = self.send(
+            HarpMessage.create(
+                MessageType.WRITE, address, PayloadType.U8, reg_value
+            ).frame
+        )
 
         return reply
 
@@ -291,7 +329,11 @@ class Device:
         """
         address = CommonRegisters.RESET_DEV
         reset_value = 0x01
-        reply = self.write_u8(address, reset_value)
+        reply = self.send(
+            HarpMessage.create(
+                MessageType.WRITE, address, PayloadType.U8, reset_value
+            ).frame
+        )
 
         return reply
 
@@ -372,447 +414,6 @@ class Device:
         """
         return self._ser.event_q.qsize()
 
-    def read_u8(self, address: int, dump: bool = True) -> ReplyHarpMessage:
-        """
-        Reads the value of a register of type U8.
-
-        Parameters
-        ----------
-        address : int
-            the register to be read
-        dump : bool, optional
-            indicates whether the reply message should be dumped or not
-
-        Returns
-        -------
-        ReplyHarpMessage
-            the reply to the Harp message that will contain the value read from the register
-        """
-        return self.send(
-            ReadHarpMessage(payload_type=PayloadType.U8, address=address).frame, dump
-        )
-
-    def read_s8(self, address: int, dump: bool = True) -> ReplyHarpMessage:
-        """
-        Reads the value of a register of type S8.
-
-        Parameters
-        ----------
-        address : int
-            the register to be read
-        dump : bool, optional
-            indicates whether the reply message should be dumped or not
-
-        Returns
-        -------
-        ReplyHarpMessage
-            the reply to the Harp message that will contain the value read from the register
-        """
-        return self.send(
-            ReadHarpMessage(payload_type=PayloadType.S8, address=address).frame, dump
-        )
-
-    def read_u16(self, address: int, dump: bool = True) -> ReplyHarpMessage:
-        """
-        Reads the value of a register of type U16.
-
-        Parameters
-        ----------
-        address : int
-            the register to be read
-        dump : bool, optional
-            indicates whether the reply message should be dumped or not
-
-        Returns
-        -------
-        ReplyHarpMessage
-            the reply to the Harp message that will contain the value read from the register
-        """
-        return self.send(
-            ReadHarpMessage(payload_type=PayloadType.U16, address=address).frame, dump
-        )
-
-    def read_s16(self, address: int, dump: bool = True) -> ReplyHarpMessage:
-        """
-        Reads the value of a register of type S16.
-
-        Parameters
-        ----------
-        address : int
-            the register to be read
-        dump : bool, optional
-            indicates whether the reply message should be dumped or not
-
-        Returns
-        -------
-        ReplyHarpMessage
-            the reply to the Harp message that will contain the value read from the register
-        """
-        return self.send(
-            ReadHarpMessage(payload_type=PayloadType.S16, address=address).frame, dump
-        )
-
-    def read_u32(self, address: int, dump: bool = True) -> ReplyHarpMessage:
-        """
-        Reads the value of a register of type U32.
-
-        Parameters
-        ----------
-        address : int
-            the register to be read
-        dump : bool, optional
-            indicates whether the reply message should be dumped or not
-
-        Returns
-        -------
-        ReplyHarpMessage
-            the reply to the Harp message that will contain the value read from the register
-        """
-        return self.send(
-            ReadHarpMessage(payload_type=PayloadType.U32, address=address).frame, dump
-        )
-
-    def read_s32(self, address: int, dump: bool = True) -> ReplyHarpMessage:
-        """
-        Reads the value of a register of type S32.
-
-        Parameters
-        ----------
-        address : int
-            the register to be read
-        dump : bool, optional
-            indicates whether the reply message should be dumped or not
-
-        Returns
-        -------
-        ReplyHarpMessage
-            the reply to the Harp message that will contain the value read from the register
-        """
-        return self.send(
-            ReadHarpMessage(payload_type=PayloadType.S32, address=address).frame, dump
-        )
-
-    def read_u64(self, address: int, dump: bool = True) -> ReplyHarpMessage:
-        """
-        Reads the value of a register of type U64.
-
-        Parameters
-        ----------
-        address : int
-            the register to be read
-        dump : bool, optional
-            indicates whether the reply message should be dumped or not
-
-        Returns
-        -------
-        ReplyHarpMessage
-            the reply to the Harp message that will contain the value read from the register
-        """
-        return self.send(
-            ReadHarpMessage(payload_type=PayloadType.U64, address=address).frame, dump
-        )
-
-    def read_s64(self, address: int, dump: bool = True) -> ReplyHarpMessage:
-        """
-        Reads the value of a register of type S64.
-
-        Parameters
-        ----------
-        address : int
-            the register to be read
-        dump : bool, optional
-            indicates whether the reply message should be dumped or not
-
-        Returns
-        -------
-        ReplyHarpMessage
-            the reply to the Harp message that will contain the value read from the register
-        """
-        return self.send(
-            ReadHarpMessage(payload_type=PayloadType.S64, address=address).frame, dump
-        )
-
-    def read_float(self, address: int, dump: bool = True) -> ReplyHarpMessage:
-        """
-        Reads the value of a register of type Float.
-
-        Parameters
-        ----------
-        address : int
-            the register to be read
-        dump : bool, optional
-            indicates whether the reply message should be dumped or not
-
-        Returns
-        -------
-        ReplyHarpMessage
-            the reply to the Harp message that will contain the value read from the register
-        """
-        return self.send(
-            ReadHarpMessage(payload_type=PayloadType.Float, address=address).frame, dump
-        )
-
-    def write_u8(
-        self, address: int, value: int | List[int], dump: bool = True
-    ) -> ReplyHarpMessage:
-        """
-        Writes the value of a register of type U8.
-
-        Parameters
-        ----------
-        address : int
-            the register to be written on
-        value: int | List[int]
-            the value to be written to the register
-        dump : bool, optional
-            indicates whether the reply message should be dumped or not
-
-        Returns
-        -------
-        ReplyHarpMessage
-            the reply to the Harp message
-        """
-        return self.send(
-            WriteHarpMessage(
-                payload_type=PayloadType.U8,
-                address=address,
-                value=value,
-            ).frame,
-            dump=dump,
-        )
-
-    def write_s8(
-        self, address: int, value: int | List[int], dump: bool = True
-    ) -> ReplyHarpMessage:
-        """
-        Writes the value of a register of type S8.
-
-        Parameters
-        ----------
-        address : int
-            the register to be written on
-        value: int | List[int]
-            the value to be written to the register
-        dump : bool, optional
-            indicates whether the reply message should be dumped or not
-
-        Returns
-        -------
-        ReplyHarpMessage
-            the reply to the Harp message
-        """
-        return self.send(
-            WriteHarpMessage(
-                payload_type=PayloadType.S8,
-                address=address,
-                value=value,
-            ).frame,
-            dump=dump,
-        )
-
-    def write_u16(
-        self, address: int, value: int | List[int], dump: bool = True
-    ) -> ReplyHarpMessage:
-        """
-        Writes the value of a register of type U16.
-
-        Parameters
-        ----------
-        address : int
-            the register to be written on
-        value: int | List[int]
-            the value to be written to the register
-        dump : bool, optional
-            indicates whether the reply message should be dumped or not
-
-        Returns
-        -------
-        ReplyHarpMessage
-            the reply to the Harp message
-        """
-        return self.send(
-            WriteHarpMessage(
-                payload_type=PayloadType.U16,
-                address=address,
-                value=value,
-            ).frame,
-            dump=dump,
-        )
-
-    def write_s16(
-        self, address: int, value: int | List[int], dump: bool = True
-    ) -> ReplyHarpMessage:
-        """
-        Writes the value of a register of type S16.
-
-        Parameters
-        ----------
-        address : int
-            the register to be written on
-        value: int | List[int]
-            the value to be written to the register
-        dump : bool, optional
-            indicates whether the reply message should be dumped or not
-
-        Returns
-        -------
-        ReplyHarpMessage
-            the reply to the Harp message
-        """
-        return self.send(
-            WriteHarpMessage(
-                payload_type=PayloadType.S16,
-                address=address,
-                value=value,
-            ).frame,
-            dump=dump,
-        )
-
-    def write_u32(
-        self, address: int, value: int | List[int], dump: bool = True
-    ) -> ReplyHarpMessage:
-        """
-        Writes the value of a register of type U32.
-
-        Parameters
-        ----------
-        address : int
-            the register to be written on
-        value: int | List[int]
-            the value to be written to the register
-        dump : bool, optional
-            indicates whether the reply message should be dumped or not
-
-        Returns
-        -------
-        ReplyHarpMessage
-            the reply to the Harp message
-        """
-        return self.send(
-            WriteHarpMessage(
-                payload_type=PayloadType.U32,
-                address=address,
-                value=value,
-            ).frame,
-            dump=dump,
-        )
-
-    def write_s32(
-        self, address: int, value: int | List[int], dump: bool = True
-    ) -> ReplyHarpMessage:
-        """
-        Writes the value of a register of type S32.
-
-        Parameters
-        ----------
-        address : int
-            the register to be written on
-        value: int | List[int]
-            the value to be written to the register
-        dump : bool, optional
-            indicates whether the reply message should be dumped or not
-
-        Returns
-        -------
-        ReplyHarpMessage
-            the reply to the Harp message
-        """
-        return self.send(
-            WriteHarpMessage(
-                payload_type=PayloadType.S32,
-                address=address,
-                value=value,
-            ).frame,
-            dump=dump,
-        )
-
-    def write_u64(
-        self, address: int, value: int | List[int], dump: bool = True
-    ) -> ReplyHarpMessage:
-        """
-        Writes the value of a register of type U64.
-
-        Parameters
-        ----------
-        address : int
-            the register to be written on
-        value: int | List[int]
-            the value to be written to the register
-        dump : bool, optional
-            indicates whether the reply message should be dumped or not
-
-        Returns
-        -------
-        ReplyHarpMessage
-            the reply to the Harp message
-        """
-        return self.send(
-            WriteHarpMessage(
-                payload_type=PayloadType.U64,
-                address=address,
-                value=value,
-            ).frame,
-            dump=dump,
-        )
-
-    def write_s64(
-        self, address: int, value: int | List[int], dump: bool = True
-    ) -> ReplyHarpMessage:
-        """
-        Writes the value of a register of type S64.
-
-        Parameters
-        ----------
-        address : int
-            the register to be written on
-        value: int | List[int]
-            the value to be written to the register
-        dump : bool, optional
-            indicates whether the reply message should be dumped or not
-
-        Returns
-        -------
-        ReplyHarpMessage
-            the reply to the Harp message
-        """
-        return self.send(
-            WriteHarpMessage(
-                payload_type=PayloadType.S64,
-                address=address,
-                value=value,
-            ).frame,
-            dump=dump,
-        )
-
-    def write_float(
-        self, address: int, value: float | List[float], dump: bool = True
-    ) -> ReplyHarpMessage:
-        """
-        Writes the value of a register of type Float.
-
-        Parameters
-        ----------
-        address : int
-            the register to be written on
-        value: int | List[int]
-            the value to be written to the register
-        dump : bool, optional
-            indicates whether the reply message should be dumped or not
-
-        Returns
-        -------
-        ReplyHarpMessage
-            the reply to the Harp message
-        """
-        return self.send(
-            WriteHarpMessage(
-                payload_type=PayloadType.Float,
-                address=address,
-                value=value,
-            ).frame,
-            dump=dump,
-        )
-
     def _read_who_am_i(self) -> int:
         """
         Reads the value stored in the `WHO_AM_I` register.
@@ -824,7 +425,10 @@ class Device:
         """
         address = CommonRegisters.WHO_AM_I
 
-        reply: ReplyHarpMessage = self.read_u16(address, dump=False)
+        reply: ReplyHarpMessage = self.send(
+            HarpMessage.create(MessageType.READ, address, PayloadType.U16).frame,
+            dump=False,
+        )
 
         return reply.payload_as_int()
 
@@ -850,7 +454,10 @@ class Device:
         """
         address = CommonRegisters.HW_VERSION_H
 
-        reply: ReplyHarpMessage = self.read_u8(address, dump=False)
+        reply: ReplyHarpMessage = self.send(
+            HarpMessage.create(MessageType.READ, address, PayloadType.U8).frame,
+            dump=False,
+        )
 
         return reply.payload_as_int()
 
@@ -865,7 +472,10 @@ class Device:
         """
         address = CommonRegisters.HW_VERSION_L
 
-        reply: ReplyHarpMessage = self.read_u8(address, dump=False)
+        reply: ReplyHarpMessage = self.send(
+            HarpMessage.create(MessageType.READ, address, PayloadType.U8).frame,
+            dump=False,
+        )
 
         return reply.payload_as_int()
 
@@ -880,7 +490,10 @@ class Device:
         """
         address = CommonRegisters.ASSEMBLY_VERSION
 
-        reply: ReplyHarpMessage = self.read_u8(address, dump=False)
+        reply: ReplyHarpMessage = self.send(
+            HarpMessage.create(MessageType.READ, address, PayloadType.U8).frame,
+            dump=False,
+        )
 
         return reply.payload_as_int()
 
@@ -895,7 +508,10 @@ class Device:
         """
         address = CommonRegisters.HARP_VERSION_H
 
-        reply: ReplyHarpMessage = self.read_u8(address, dump=False)
+        reply: ReplyHarpMessage = self.send(
+            HarpMessage.create(MessageType.READ, address, PayloadType.U8).frame,
+            dump=False,
+        )
 
         return reply.payload_as_int()
 
@@ -910,7 +526,10 @@ class Device:
         """
         address = CommonRegisters.HARP_VERSION_L
 
-        reply: ReplyHarpMessage = self.read_u8(address, dump=False)
+        reply: ReplyHarpMessage = self.send(
+            HarpMessage.create(MessageType.READ, address, PayloadType.U8).frame,
+            dump=False,
+        )
 
         return reply.payload_as_int()
 
@@ -925,7 +544,10 @@ class Device:
         """
         address = CommonRegisters.FIRMWARE_VERSION_H
 
-        reply: ReplyHarpMessage = self.read_u8(address, dump=False)
+        reply: ReplyHarpMessage = self.send(
+            HarpMessage.create(MessageType.READ, address, PayloadType.U8).frame,
+            dump=False,
+        )
 
         return reply.payload_as_int()
 
@@ -940,7 +562,10 @@ class Device:
         """
         address = CommonRegisters.FIRMWARE_VERSION_L
 
-        reply: ReplyHarpMessage = self.read_u8(address, dump=False)
+        reply: ReplyHarpMessage = self.send(
+            HarpMessage.create(MessageType.READ, address, PayloadType.U8).frame,
+            dump=False,
+        )
 
         return reply.payload_as_int()
 
@@ -955,7 +580,10 @@ class Device:
         """
         address = CommonRegisters.DEVICE_NAME
 
-        reply: ReplyHarpMessage = self.read_u8(address, dump=False)
+        reply: ReplyHarpMessage = self.send(
+            HarpMessage.create(MessageType.READ, address, PayloadType.U8).frame,
+            dump=False,
+        )
 
         return reply.payload_as_string()
 
@@ -970,7 +598,10 @@ class Device:
         """
         address = CommonRegisters.SERIAL_NUMBER
 
-        reply: ReplyHarpMessage = self.read_u8(address, dump=False)
+        reply: ReplyHarpMessage = self.send(
+            HarpMessage.create(MessageType.READ, address, PayloadType.U8).frame,
+            dump=False,
+        )
 
         if reply.has_error():
             return 0
