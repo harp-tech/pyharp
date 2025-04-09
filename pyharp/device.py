@@ -2,6 +2,7 @@ from __future__ import annotations  # enable subscriptable type hints for lists.
 
 import logging
 import queue
+from io import BufferedWriter
 from pathlib import Path
 from typing import Optional, Union
 
@@ -57,6 +58,7 @@ class Device:
 
     _ser: HarpSerial
     _dump_file_path: Path
+    _dump_file: Optional[BufferedWriter]
     _read_timeout_s: float
 
     _TIMEOUT_S: float = 1.0
@@ -79,9 +81,8 @@ class Device:
         """
         self.log = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
         self._serial_port = serial_port
-        if dump_file_path is None:
-            self._dump_file_path = None
-        else:
+        self._dump_file_path = dump_file_path
+        if dump_file_path is not None:
             self._dump_file_path = Path() / dump_file_path
         self._read_timeout_s = read_timeout_s
 
@@ -135,10 +136,19 @@ class Device:
             rtscts=True,
         )
 
+        # open file if it is defined
+        if self._dump_file_path is not None:
+            self._dump_file = open(self._dump_file_path, "ab")
+
     def disconnect(self) -> None:
         """
         Disconnects from the Harp device.
         """
+        # close file if it exists
+        if self._dump_file:
+            self._dump_file.close()
+            self._dump_file = None
+
         self._ser.close()
 
     def _read_device_mode(self) -> DeviceMode:
@@ -358,7 +368,7 @@ class Device:
         # TODO: handle case where read is None
         reply: ReplyHarpMessage = self._read()
 
-        if dump and self._dump_file_path is not None:
+        if dump:
             self._dump_reply(reply.frame)
 
         return reply
@@ -381,10 +391,8 @@ class Device:
         """
         Dumps the reply to a Harp message in the dump file in case it exists.
         """
-        # TODO: try to handle a None _dump_file_path in a different way
-        assert self._dump_file_path is not None
-        with self._dump_file_path.open(mode="ab") as f:
-            f.write(reply)
+        if self._dump_file:
+            self._dump_file.write(reply)
 
     def get_events(self) -> list[ReplyHarpMessage]:
         """
