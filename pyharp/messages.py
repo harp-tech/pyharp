@@ -3,12 +3,29 @@ from __future__ import annotations  # for type hints (PEP 563)
 import struct
 from typing import List, Union
 
-from pyharp.base import MessageType, PayloadType
+from pyharp import MessageType, PayloadType
 
 
 class HarpMessage:
     """
-    https://github.com/harp-tech/protocol/blob/main/BinaryProtocol-8bit.md
+    The `HarpMessage` class implements the Harp message as described in the [protocol](https://harp-tech.org/protocol/BinaryProtocol-8bit.html).
+
+    Attributes
+    ----------
+    frame : bytearray
+        the bytearray containing the whole Harp message
+    message_type : MessageType
+        the message type
+    length : int
+        the length parameter of the Harp message
+    address : int
+        the address of the register to which the Harp message refers to
+    port : int
+        indicates the origin or destination of the Harp message in case the device is a hub of Harp devices. The value 255 points to the device itself (default value).
+    payload_type : PayloadType
+        the payload type
+    checksum : int
+        the sum of all bytes contained in the Harp message
     """
 
     DEFAULT_PORT: int = 255
@@ -18,6 +35,14 @@ class HarpMessage:
         self._frame = bytearray()
 
     def calculate_checksum(self) -> int:
+        """
+        Calculates the checksum of the Harp message.
+
+        Returns
+        -------
+        int
+            the value of the checksum
+        """
         checksum: int = 0
         for i in self.frame:
             checksum += i
@@ -25,41 +50,150 @@ class HarpMessage:
 
     @property
     def frame(self) -> bytearray:
+        """
+        The bytearray containing the whole Harp message.
+
+        Returns
+        -------
+        bytearray
+            the bytearray containing the whole Harp message
+        """
         return self._frame
 
     @property
     def message_type(self) -> MessageType:
+        """
+        The message type.
+
+        Returns
+        -------
+        MessageType
+            the message type
+        """
         return MessageType(self._frame[0])
 
     @property
     def length(self) -> int:
+        """
+        The length parameter of the Harp message.
+
+        Returns
+        -------
+        int
+            the length parameter of the Harp message
+        """
         return self._frame[1]
 
     @property
     def address(self) -> int:
+        """
+        The address of the register to which the Harp message refers to.
+
+        Returns
+        -------
+        int
+            the address of the register to which the Harp message refers to
+        """
         return self._frame[2]
 
     @property
     def port(self) -> int:
+        """
+        Indicates the origin or destination of the Harp message in case the device is a hub of Harp devices. The value 255 points to the device itself (default value).
+
+        Returns
+        -------
+        int
+            the port value
+        """
         return self._frame[3]
 
     @property
     def payload_type(self) -> PayloadType:
+        """
+        The payload type.
+
+        Returns
+        -------
+        PayloadType
+            the payload type
+        """
         return PayloadType(self._frame[4])
 
     @property
     def checksum(self) -> int:
+        """
+        The sum of all bytes contained in the Harp message.
+
+        Returns
+        -------
+        int
+            the sum of all bytes contained in the Harp message
+        """
         return self._frame[-1]
 
     @staticmethod
     def parse(frame: bytearray) -> ReplyHarpMessage:
+        """
+        Parses a bytearray to a (reply) Harp message.
+
+        Parameters
+        ----------
+        frame : bytearray
+            the bytearray will be parsed into a (reply) Harp message
+
+        Returns
+        -------
+        ReplyHarpMessage
+            the Harp message object parsed from the original bytearray
+        """
         return ReplyHarpMessage(frame)
 
+    @staticmethod
+    def create(
+        message_type: MessageType,
+        address: int,
+        payload_type: PayloadType,
+        value: int | list[int] | float | list[float] = None,
+    ) -> HarpMessage:
+        """
+        Creates a Harp message.
 
-# A Response Message from a harp device.
+        Parameters
+        ----------
+        message_type : MessageType
+            the message type. It can only be of type READ or WRITE
+        address : int
+            the address of the register that the message will interact with
+        payload_type : PayloadType
+            the payload type
+        value: int | list[int] | float | list[float], optional
+            the payload of the message. If message_type == MessageType.WRITE, the value cannot be None
+        """
+        if message_type == MessageType.READ:
+            return ReadHarpMessage(payload_type, address)
+        elif message_type == MessageType.WRITE and value is not None:
+            return WriteHarpMessage(payload_type, address, value)
+        elif message_type != MessageType.READ and message_type != MessageType.WRITE:
+            raise Exception(
+                "The only valid message types are MessageType.READ and MessageType.Write!"
+            )
+        else:
+            raise Exception(
+                "The value cannot be None is message type is equal to MessageType.WRITE!"
+            )
+
+
 class ReplyHarpMessage(HarpMessage):
     """
-    A Response Message from a harp device.
+    A response message from a Harp device.
+
+    Attributes
+    ----------
+    payload : Union[int, list[int]]
+        the message payload formatted as the appropriate type
+    timestamp : float
+        the Harp timestamp at which the message was sent
     """
 
     def __init__(
@@ -67,32 +201,48 @@ class ReplyHarpMessage(HarpMessage):
         frame: bytearray,
     ):
         """
-
-        :param frame: the serialized message frame.
+        Parameters
+        ----------
+        frame : bytearray
+            the Harp message in bytearray format
         """
 
         self._frame = frame
-        # retrieve all content from 11 (where payload starts) until the checksum (not inclusive)
+        # Retrieve all content from 11 (where payload starts) until the checksum (not inclusive)
         self._raw_payload = frame[11:-1]
-        self._payload = self._parse_payload(
-            self._raw_payload
-        )  # payload formatted as list[payload type]
+
+        # Format payload as list[PayloadType]
+        self._payload = self._parse_payload(self._raw_payload)
 
         # Assign timestamp after _payload since @properties all rely on self._payload.
         self._timestamp = (
             int.from_bytes(frame[5:9], byteorder="little", signed=False)
             + int.from_bytes(frame[9:11], byteorder="little", signed=False) * 32e-6
         )
+
         # Timestamp is junk if it's not present.
-        if not (self.payload_type.value & PayloadType.Timestamp.value):
+        if not (self.payload_type & PayloadType.Timestamp):
             self._timestamp = None
 
-    def _parse_payload(self, raw_payload) -> list[int]:
-        """return the payload as a list of ints after parsing it from the raw payload."""
-        is_signed = True if (self.payload_type.value & 0x80) else False
-        is_float = True if (self.payload_type.value & 0x40) else False
-        bytes_per_word = self.payload_type.value & 0x07
-        payload_len = len(raw_payload)  # payload length in bytes.
+    # TODO: handle the case of the payload being of type float
+    def _parse_payload(self, raw_payload: bytearray) -> list[int]:
+        """
+        Returns the payload as a list of ints after parsing it from the raw payload.
+
+        Parameters
+        ----------
+        raw_payload : bytearray
+            the bytearray containing the raw payload
+
+        Returns
+        -------
+        list[int]
+            the list of ints containing the payload
+        """
+        is_signed = True if (self.payload_type & 0x80) else False
+        is_float = True if (self.payload_type & 0x40) else False
+        bytes_per_word = self.payload_type & 0x07
+        payload_len = len(raw_payload)
 
         word_chunks = [
             raw_payload[i : i + bytes_per_word]
@@ -103,21 +253,35 @@ class ReplyHarpMessage(HarpMessage):
                 int.from_bytes(chunk, byteorder="little", signed=is_signed)
                 for chunk in word_chunks
             ]
-        else:  # handle float case.
+        else:  # TODO: handle float case
             return [struct.unpack("<f", chunk)[0] for chunk in word_chunks]
 
-    def __repr__(self):
-        """Print debug representation of a reply message."""
+    def __repr__(self) -> str:
+        """
+        Prints debug representation of the reply message.
+
+        Returns
+        -------
+        str
+            the debug representation of the reply message
+        """
         return self.__str__() + f"\r\nRaw Frame: {self.frame}"
 
-    def __str__(self):
-        """Print friendly representation of a reply message."""
+    def __str__(self) -> str:
+        """
+        Prints friendly representation of the reply message.
+
+        Returns
+        -------
+        str
+            the representation of the reply message
+        """
         payload_str = ""
         format_str = ""
         if self.payload_type in [PayloadType.Float, PayloadType.TimestampedFloat]:
             format_str = ".6f"
         else:
-            bytes_per_word = self.payload_type.value & 0x07
+            bytes_per_word = self.payload_type & 0x07
             format_str = f"0{bytes_per_word}b"
 
         payload_str = "".join(f"{item:{format_str}} " for item in self.payload)
@@ -134,43 +298,97 @@ class ReplyHarpMessage(HarpMessage):
             + f"Checksum: {self.checksum}"
         )
 
+    # TODO: handle float case
     @property
     def payload(self) -> Union[int, list[int]]:
-        """return the payload formatted as the appropriate type."""
+        """
+        The message payload formatted as the appropriate type.
+
+        Returns
+        -------
+        Union[int, list[int]]
+            the message payload formatted as the appropriate type
+        """
         return self._payload
 
     @property
     def timestamp(self) -> float:
+        """
+        The Harp timestamp at which the message was sent.
+
+        Returns
+        -------
+        float
+            the Harp timestamp at which the message was sent
+        """
         return self._timestamp
 
+    # TODO: does this function makes sense since self.payload() already exists?
     def payload_as_int(self) -> int:
+        """
+        Returns the payload as an int.
+
+        Returns
+        -------
+        int
+            the payload parsed as an int
+        """
         return self.payload[0]
 
     def payload_as_string(self) -> str:
+        """
+        Returns the payload as a str.
+
+        Returns
+        -------
+        str
+            the payload parsed as a str
+        """
         return self._raw_payload.decode("utf-8")
 
+    # TODO: handle float case and/or delete functional altogether
     def payload_as_float(self) -> float:
-        return self.payload[0]  # already parsed.
+        """
+        Returns the payload as a float.
+
+        Returns
+        -------
+        float
+            the payload parsed as a float
+        """
+        return self.payload[0]
 
 
-# A Read Request Message sent to a harp device.
 class ReadHarpMessage(HarpMessage):
+    """
+    A read Harp message sent to a Harp device.
+    """
+
     MESSAGE_TYPE: int = MessageType.READ
 
     def __init__(self, payload_type: PayloadType, address: int):
         self._frame = bytearray()
 
-        self._frame.append(self.MESSAGE_TYPE.value)
+        self._frame.append(self.MESSAGE_TYPE)
 
         length: int = 4
         self._frame.append(length)
         self._frame.append(address)
         self._frame.append(self.DEFAULT_PORT)
-        self._frame.append(payload_type.value)
+        self._frame.append(payload_type)
         self._frame.append(self.calculate_checksum())
 
 
 class WriteHarpMessage(HarpMessage):
+    """
+    A write Harp message sent to a Harp device.
+
+    Attributes
+    ----------
+    payload : Union[int, list[int]]
+        the payload sent in the write Harp message
+    """
+
     BASE_LENGTH: int = 5
     BASE_LENGTH: int = 4
     MESSAGE_TYPE: int = MessageType.WRITE
@@ -231,17 +449,26 @@ class WriteHarpMessage(HarpMessage):
                 payload += val.to_bytes(byte_size, byteorder="little", signed=signed)
 
         # Build the frame
-        self._frame.append(self.MESSAGE_TYPE.value)
+        self._frame.append(self.MESSAGE_TYPE)
         # Length is BASE_LENGTH + payload size
         self._frame.append(self.BASE_LENGTH + len(payload))
         self._frame.append(address)
         self._frame.append(self.DEFAULT_PORT)
-        self._frame.append(payload_type.value)
+        self._frame.append(payload_type)
         self._frame += payload
         self._frame.append(self.calculate_checksum())
 
+    # TODO: handle float and array cases
     @property
     def payload(self) -> Union[int, list[int]]:
+        """
+        The payload sent in the write Harp message.
+
+        Returns
+        -------
+        Union[int, list[int]]
+            the payload sent in the write Harp message
+        """
         match self.payload_type:
             case PayloadType.U8:
                 return self._frame[5]

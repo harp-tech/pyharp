@@ -1,0 +1,9 @@
+:root  > * {
+  --md-primary-fg-color:        #009DE1;
+  --md-primary-fg-color--light: #009DE1;
+  --md-primary-fg-color--dark:  #009DE1;
+}
+
+.md-nav__title {
+    display: none;
+}
