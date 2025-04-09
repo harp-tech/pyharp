@@ -5,7 +5,7 @@ from threading import Event, Thread
 from serial import SerialException
 
 from pyharp import MessageType, PayloadType
-from pyharp.device import Device, DeviceMode
+from pyharp.device import Device, OperationMode
 from pyharp.messages import HarpMessage
 
 SERIAL_PORT = (
@@ -39,7 +39,7 @@ def main():
     if not device.WHO_AM_I == 1140:
         raise SerialException("This is not a Harp Olfactometer.")
 
-    device.set_mode(DeviceMode.Active)
+    device.set_mode(OperationMode.ACTIVE)
 
     # Enable flow
     device.send(HarpMessage.WriteU8(32, 0x01).frame)

@@ -148,8 +148,23 @@ class CommonRegisters(IntEnum):
     SERIAL_NUMBER = 0x0D
 
 
-class DeviceMode(IntEnum):
-    Standby = 0
-    Active = 1
-    Reserved = 2
-    Speed = 3
+class OperationMode(IntEnum):
+    """
+    An enumeration with the operation modes of a Harp device. More information on the operation modes can be found [here](https://harp-tech.org/protocol/Device.html#r_operation_ctrl-u16--operation-mode-configuration).
+
+    Attributes
+    ----------
+    STANDBY : int
+        the value that corresponds to the Standby operation mode (0). The device has all the Events turned off.
+    ACTIVE : int
+        the value that corresponds to the Active operation mode (1). The device turns ON the Events detection. Only the enabled Events will be operating.
+    RESERVED : int
+        the value that corresponds to the Reserved operation mode (2)
+    SPEED : int
+        the value that corresponds to the Speed operation mode (3). The device enters Speed Mode.
+    """
+
+    STANDBY = 0
+    ACTIVE = 1
+    RESERVED = 2
+    SPEED = 3

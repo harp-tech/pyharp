@@ -8,7 +8,7 @@ from typing import Optional, Union
 
 import serial
 
-from pyharp import CommonRegisters, DeviceMode, MessageType, PayloadType
+from pyharp import CommonRegisters, MessageType, OperationMode, PayloadType
 from pyharp.device_names import device_names
 from pyharp.harp_serial import HarpSerial
 from pyharp.messages import HarpMessage, ReplyHarpMessage
@@ -151,7 +151,7 @@ class Device:
 
         self._ser.close()
 
-    def _read_device_mode(self) -> DeviceMode:
+    def _read_device_mode(self) -> OperationMode:
         """
         Reads the current operation mode of the Harp device.
 
@@ -164,7 +164,7 @@ class Device:
         reply = self.send(
             HarpMessage.create(MessageType.READ, address, PayloadType.U8).frame
         )
-        return DeviceMode(reply.payload_as_int() & 0x03)
+        return OperationMode(reply.payload_as_int() & 0x03)
 
     def dump_registers(self) -> list:
         """
@@ -198,7 +198,7 @@ class Device:
                 break
         return replies
 
-    def set_mode(self, mode: DeviceMode) -> ReplyHarpMessage:
+    def set_mode(self, mode: OperationMode) -> ReplyHarpMessage:
         """
         Sets the operation mode of the device.
 
