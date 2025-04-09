@@ -347,7 +347,9 @@ class Device:
 
         return reply
 
-    def send(self, message_bytes: bytearray, dump: bool = True) -> ReplyHarpMessage:
+    def send(
+        self, message_bytes: bytearray, dump: bool = True
+    ) -> Optional[ReplyHarpMessage]:
         """
         Sends a Harp message.
 
@@ -360,13 +362,12 @@ class Device:
 
         Returns
         -------
-        ReplyHarpMessage
-            the reply to the Harp message
+        Optional[ReplyHarpMessage]
+            the reply to the Harp message or None if no reply is given
         """
         self._ser.write(message_bytes)
 
-        # TODO: handle case where read is None
-        reply: ReplyHarpMessage = self._read()
+        reply = self._read()
 
         if dump:
             self._dump_reply(reply.frame)
