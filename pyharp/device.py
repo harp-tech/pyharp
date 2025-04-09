@@ -232,14 +232,19 @@ class Device:
 
         return reply
 
-    def enable_status_led(self) -> ReplyHarpMessage:
+    def alive_en(self, enable: bool) -> bool:
         """
-        Enables the device's status led.
+        Sets the ALIVE_EN bit of the device.
+
+        Parameters
+        ----------
+        enable : bool
+            If True, enables the ALIVE_EN bit. If False, disables it.
 
         Returns
         -------
-        ReplyHarpMessage
-            the reply to the Harp message
+        bool
+            True if the operation was successful, False otherwise.
         """
         address = CommonRegisters.OPERATION_CTRL
 
@@ -247,7 +252,12 @@ class Device:
         reg_value = self.send(
             HarpMessage.create(MessageType.READ, address, PayloadType.U8).frame
         ).payload_as_int()
-        reg_value |= 1 << 5
+
+        if enable:
+            reg_value |= 1 << 7
+        else:
+            reg_value &= ~(1 << 7)
+
         reply = self.send(
             HarpMessage.create(
                 MessageType.WRITE, address, PayloadType.U8, reg_value
@@ -256,14 +266,19 @@ class Device:
 
         return reply
 
-    def disable_status_led(self) -> ReplyHarpMessage:
+    def op_led_en(self, enable: bool) -> bool:
         """
-        Disables the device's status led.
+        Sets the operation LED of the device.
+
+        Parameters
+        ----------
+        enable : bool
+            If True, enables the operation LED. If False, disables it.
 
         Returns
         -------
-        ReplyHarpMessage
-            the reply to the Harp message
+        bool
+            True if the operation was successful, False otherwise.
         """
         address = CommonRegisters.OPERATION_CTRL
 
@@ -271,7 +286,12 @@ class Device:
         reg_value = self.send(
             HarpMessage.create(MessageType.READ, address, PayloadType.U8).frame
         ).payload_as_int()
-        reg_value &= ~(1 << 5)
+
+        if enable:
+            reg_value |= 1 << 6
+        else:
+            reg_value &= ~(1 << 6)
+
         reply = self.send(
             HarpMessage.create(
                 MessageType.WRITE, address, PayloadType.U8, reg_value
@@ -280,14 +300,19 @@ class Device:
 
         return reply
 
-    def enable_alive_en(self) -> ReplyHarpMessage:
+    def status_led(self, enable: bool) -> bool:
         """
-        Enables the ALIVE_EN bit so that the device sends an event each second. More information on the ALIVE_EN bit can be found [here](https://harp-tech.org/protocol/Device.html#r_operation_ctrl-u16--operation-mode-configuration).
+        Sets the status led of the device.
+
+        Parameters
+        ----------
+        enable : bool
+            If True, enables the status led. If False, disables it.
 
         Returns
         -------
-        ReplyHarpMessage
-            the reply to the Harp message
+        bool
+            True if the operation was successful, False otherwise.
         """
         address = CommonRegisters.OPERATION_CTRL
 
@@ -295,7 +320,12 @@ class Device:
         reg_value = self.send(
             HarpMessage.create(MessageType.READ, address, PayloadType.U8).frame
         ).payload_as_int()
-        reg_value |= 1 << 7
+
+        if enable:
+            reg_value |= 1 << 5
+        else:
+            reg_value &= ~(1 << 5)
+
         reply = self.send(
             HarpMessage.create(
                 MessageType.WRITE, address, PayloadType.U8, reg_value
@@ -304,22 +334,32 @@ class Device:
 
         return reply
 
-    def disable_alive_en(self) -> ReplyHarpMessage:
+    def mute_reply(self, enable: bool) -> bool:
         """
-        Disables the ALIVE_EN bit so that the device does not send an event each second. More information on the ALIVE_EN bit can be found [here](https://harp-tech.org/protocol/Device.html#r_operation_ctrl-u16--operation-mode-configuration).
+        Sets the MUTE_REPLY bit of the device.
+
+        Parameters
+        ----------
+        enable : bool
+            If True, the Replies to all the Commands are muted. If False, un-mutes them.
 
         Returns
         -------
-        ReplyHarpMessage
-            the reply to the Harp message
+        bool
+            True if the operation was successful, False otherwise.
         """
         address = CommonRegisters.OPERATION_CTRL
 
         # Read register first
         reg_value = self.send(
             HarpMessage.create(MessageType.READ, address, PayloadType.U8).frame
-        ).payload[0]
-        reg_value &= ~(1 << 7)
+        ).payload_as_int()
+
+        if enable:
+            reg_value |= 1 << 4
+        else:
+            reg_value &= ~(1 << 4)
+
         reply = self.send(
             HarpMessage.create(
                 MessageType.WRITE, address, PayloadType.U8, reg_value
