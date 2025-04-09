@@ -56,6 +56,8 @@ class PayloadType(IntEnum):
         the value that corresponds to a message of type S64
     Float : PayloadType
         the value that corresponds to a message of type Float
+    Timestamp: PayloadType
+        the value that corresponds to a message of type Timestamp. This is not a valid PayloadType, but it is used to indicate that the message has a timestamp.
     TimestampedU8 : PayloadType
         the value that corresponds to a message of type TimestampedU8
     TimestampedS8 : PayloadType
@@ -85,6 +87,7 @@ class PayloadType(IntEnum):
     U64 = _isUnsigned | 8
     S64 = _isSigned | 8
     Float = _isFloat | 4
+    Timestamp = _hasTimestamp
     TimestampedU8 = _hasTimestamp | U8
     TimestampedS8 = _hasTimestamp | S8
     TimestampedU16 = _hasTimestamp | U16
