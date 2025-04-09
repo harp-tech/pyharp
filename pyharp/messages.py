@@ -298,6 +298,18 @@ class ReplyHarpMessage(HarpMessage):
             + f"Checksum: {self.checksum}"
         )
 
+    @property
+    def is_error(self) -> bool:
+        """
+        Indicates if this HarpMessage is an error message or not.
+
+        Returns
+        -------
+        bool
+            Returns True if this HarpMessage is an error message, False otherwise.
+        """
+        return self.message_type in [MessageType.READ_ERROR, MessageType.WRITE_ERROR]
+
     # TODO: handle float case
     @property
     def payload(self) -> Union[int, list[int]]:
@@ -425,7 +437,7 @@ class WriteHarpMessage(HarpMessage):
         value : int, float, List[int], or List[float], optional
             Value(s) to write - can be a single value or list of values
 
-        Notes
+        Note
         -----
         The message frame is constructed according to the HARP binary protocol.
         The length is calculated as BASE_LENGTH + payload size in bytes.

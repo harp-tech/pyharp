@@ -652,7 +652,7 @@ class Device:
             dump=False,
         )
 
-        if reply.has_error():
+        if reply.is_error():
             return 0
 
         return reply.payload_as_int()
