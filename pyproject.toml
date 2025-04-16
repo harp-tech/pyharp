@@ -29,3 +29,11 @@ build-backend = "hatchling.build"
 
 [tool.ruff.lint.pydocstyle]
 convention = "numpy"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+addopts = ["--import-mode=importlib", ]
+python_files = [
+    "tests.py",
+    "test_*.py"
+]

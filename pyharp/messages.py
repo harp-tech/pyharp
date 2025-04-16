@@ -29,6 +29,7 @@ class HarpMessage:
     """
 
     DEFAULT_PORT: int = 255
+    BASE_LENGTH: int = 4
     _frame: bytearray
 
     def __init__(self):
@@ -121,6 +122,135 @@ class HarpMessage:
         return PayloadType(self._frame[4])
 
     @property
+    def payload(self) -> Union[int, list[int]]:
+        """
+        The payload sent in the write Harp message.
+
+        Returns
+        -------
+        Union[int, list[int]]
+            the payload sent in the write Harp message
+        """
+        payload_start = self.BASE_LENGTH
+        if self.payload_type & PayloadType.Timestamp:
+            payload_start += 6
+
+        # length is payload_start + payload type size
+        match self.payload_type:
+            case PayloadType.U8 | PayloadType.TimestampedU8:
+                if self.length == payload_start + 1:
+                    return self._frame[5]
+                else:  # array case
+                    return [
+                        int.from_bytes([self._frame[i]], byteorder="little")
+                        for i in range(5, self.length + 1)
+                    ]
+
+            case PayloadType.S8 | PayloadType.TimestampedS8:
+                if self.length == payload_start + 1:
+                    return int.from_bytes(
+                        [self._frame[5]], byteorder="little", signed=True
+                    )
+                else:  # array case
+                    return [
+                        int.from_bytes(
+                            [self._frame[i]], byteorder="little", signed=True
+                        )
+                        for i in range(5, self.length + 1)
+                    ]
+
+            case PayloadType.U16 | PayloadType.TimestampedU16:
+                if self.length == payload_start + 2:
+                    return int.from_bytes(
+                        self._frame[5:7], byteorder="little", signed=False
+                    )
+                else:  # array case
+                    return [
+                        int.from_bytes(
+                            self._frame[i : i + 2], byteorder="little", signed=False
+                        )
+                        for i in range(5, self.length + 1, 2)
+                    ]
+
+            case PayloadType.S16 | PayloadType.TimestampedS16:
+                if self.length == payload_start + 2:
+                    return int.from_bytes(
+                        self._frame[5:7], byteorder="little", signed=True
+                    )
+                else:
+                    return [
+                        int.from_bytes(
+                            self._frame[i : i + 2], byteorder="little", signed=True
+                        )
+                        for i in range(5, self.length + 1, 2)
+                    ]
+
+            case PayloadType.U32 | PayloadType.TimestampedU32:
+                if self.length == payload_start + 4:
+                    return int.from_bytes(
+                        self._frame[5:9], byteorder="little", signed=False
+                    )
+                else:
+                    return [
+                        int.from_bytes(
+                            self._frame[i : i + 4], byteorder="little", signed=False
+                        )
+                        for i in range(5, self.length + 1, 4)
+                    ]
+
+            case PayloadType.S32 | PayloadType.TimestampedS32:
+                if self.length == payload_start + 4:
+                    return int.from_bytes(
+                        self._frame[5:9], byteorder="little", signed=True
+                    )
+                else:
+                    return [
+                        int.from_bytes(
+                            self._frame[i : i + 4], byteorder="little", signed=True
+                        )
+                        for i in range(5, self.length + 1, 4)
+                    ]
+
+            case PayloadType.U64 | PayloadType.TimestampedU64:
+                if self.length == payload_start + 8:
+                    return int.from_bytes(
+                        self._frame[5:13], byteorder="little", signed=False
+                    )
+                else:
+                    return [
+                        int.from_bytes(
+                            self._frame[i : i + 8], byteorder="little", signed=False
+                        )
+                        for i in range(5, self.length + 1, 8)
+                    ]
+
+            case PayloadType.S64 | PayloadType.TimestampedS64:
+                if self.length == payload_start + 8:
+                    return int.from_bytes(
+                        self._frame[5:13], byteorder="little", signed=True
+                    )
+                else:
+                    return [
+                        int.from_bytes(
+                            self._frame[i : i + 8], byteorder="little", signed=True
+                        )
+                        for i in range(5, self.length + 1, 8)
+                    ]
+
+            case PayloadType.Float | PayloadType.TimestampedFloat:
+                if self.length == payload_start + 4:
+                    return struct.unpack("<f", self._frame[5:9])[0]
+                else:
+                    return [
+                        struct.unpack("<f", self._frame[i : i + 4])[0]
+                        for i in range(5, self.length + 1, 4)
+                    ]
+
+            case _:
+                # For any other payload type, return the raw payload, excluding checksum
+                return self._frame[5:-1]
+
+    @property
     def checksum(self) -> int:
         """
         The sum of all bytes contained in the Harp message.
@@ -183,6 +313,51 @@ class HarpMessage:
                 "The value cannot be None is message type is equal to MessageType.WRITE!"
             )
 
+    def __repr__(self) -> str:
+        """
+        Prints debug representation of the reply message.
+
+        Returns
+        -------
+        str
+            the debug representation of the reply message
+        """
+        return self.__str__() + f"\r\nRaw Frame: {self.frame}"
+
+    def __str__(self) -> str:
+        """
+        Prints friendly representation of a Harp message.
+
+        Returns
+        -------
+        str
+            the representation of the Harp message
+        """
+        payload_str = ""
+        format_str = ""
+        if self.payload_type in [PayloadType.Float, PayloadType.TimestampedFloat]:
+            format_str = ".6f"
+        else:
+            bytes_per_word = self.payload_type & 0x07
+            format_str = f"0{bytes_per_word}b"
+
+        payload_str = "".join(
+            f"{item:{format_str}} "
+            for item in (self.payload if self.payload is list else [self.payload])
+        )
+
+        return (
+            f"Type: {self.message_type.name}\r\n"
+            + f"Length: {self.length}\r\n"
+            + f"Address: {self.address}\r\n"
+            + f"Port: {self.port}\r\n"
+            + f"Timestamp: {self.timestamp}\r\n"
+            + f"Payload Type: {self.payload_type.name}\r\n"
+            + f"Payload Length: {len(self.payload) if self.payload is list else 1}\r\n"
+            + f"Payload: {payload_str}\r\n"
+            + f"Checksum: {self.checksum}"
+        )
+
 
 class ReplyHarpMessage(HarpMessage):
     """
@@ -211,9 +386,6 @@ class ReplyHarpMessage(HarpMessage):
         # Retrieve all content from 11 (where payload starts) until the checksum (not inclusive)
         self._raw_payload = frame[11:-1]
 
-        # Format payload as list[PayloadType]
-        self._payload = self._parse_payload(self._raw_payload)
-
         # Assign timestamp after _payload since @properties all rely on self._payload.
         self._timestamp = (
             int.from_bytes(frame[5:9], byteorder="little", signed=False)
@@ -223,80 +395,6 @@ class ReplyHarpMessage(HarpMessage):
         # Timestamp is junk if it's not present.
         if not (self.payload_type & PayloadType.Timestamp):
             self._timestamp = None
-
-    # TODO: handle the case of the payload being of type float
-    def _parse_payload(self, raw_payload: bytearray) -> list[int]:
-        """
-        Returns the payload as a list of ints after parsing it from the raw payload.
-
-        Parameters
-        ----------
-        raw_payload : bytearray
-            the bytearray containing the raw payload
-
-        Returns
-        -------
-        list[int]
-            the list of ints containing the payload
-        """
-        is_signed = True if (self.payload_type & 0x80) else False
-        is_float = True if (self.payload_type & 0x40) else False
-        bytes_per_word = self.payload_type & 0x07
-        payload_len = len(raw_payload)
-
-        word_chunks = [
-            raw_payload[i : i + bytes_per_word]
-            for i in range(0, payload_len, bytes_per_word)
-        ]
-        if not is_float:
-            return [
-                int.from_bytes(chunk, byteorder="little", signed=is_signed)
-                for chunk in word_chunks
-            ]
-        else:  # TODO: handle float case
-            return [struct.unpack("<f", chunk)[0] for chunk in word_chunks]
-
-    def __repr__(self) -> str:
-        """
-        Prints debug representation of the reply message.
-
-        Returns
-        -------
-        str
-            the debug representation of the reply message
-        """
-        return self.__str__() + f"\r\nRaw Frame: {self.frame}"
-
-    def __str__(self) -> str:
-        """
-        Prints friendly representation of the reply message.
-
-        Returns
-        -------
-        str
-            the representation of the reply message
-        """
-        payload_str = ""
-        format_str = ""
-        if self.payload_type in [PayloadType.Float, PayloadType.TimestampedFloat]:
-            format_str = ".6f"
-        else:
-            bytes_per_word = self.payload_type & 0x07
-            format_str = f"0{bytes_per_word}b"
-
-        payload_str = "".join(f"{item:{format_str}} " for item in self.payload)
-
-        return (
-            f"Type: {self.message_type.name}\r\n"
-            + f"Length: {self.length}\r\n"
-            + f"Address: {self.address}\r\n"
-            + f"Port: {self.port}\r\n"
-            + f"Timestamp: {self.timestamp}\r\n"
-            + f"Payload Type: {self.payload_type.name}\r\n"
-            + f"Payload Length: {len(self.payload)}\r\n"
-            + f"Payload: {payload_str}\r\n"
-            + f"Checksum: {self.checksum}"
-        )
 
     @property
     def is_error(self) -> bool:
@@ -309,19 +407,6 @@ class ReplyHarpMessage(HarpMessage):
             Returns True if this HarpMessage is an error message, False otherwise.
         """
         return self.message_type in [MessageType.READ_ERROR, MessageType.WRITE_ERROR]
-
-    # TODO: handle float case
-    @property
-    def payload(self) -> Union[int, list[int]]:
-        """
-        The message payload formatted as the appropriate type.
-
-        Returns
-        -------
-        Union[int, list[int]]
-            the message payload formatted as the appropriate type
-        """
-        return self._payload
 
     @property
     def timestamp(self) -> float:
@@ -345,7 +430,7 @@ class ReplyHarpMessage(HarpMessage):
         int
             the payload parsed as an int
         """
-        return self.payload[0]
+        return self._raw_payload[0]
 
     def payload_as_string(self) -> str:
         """
@@ -401,8 +486,6 @@ class WriteHarpMessage(HarpMessage):
         the payload sent in the write Harp message
     """
 
-    BASE_LENGTH: int = 5
-    BASE_LENGTH: int = 4
     MESSAGE_TYPE: int = MessageType.WRITE
 
     # Define payload type properties
@@ -469,44 +552,3 @@ class WriteHarpMessage(HarpMessage):
         self._frame.append(payload_type)
         self._frame += payload
         self._frame.append(self.calculate_checksum())
-
-    # TODO: handle float and array cases
-    @property
-    def payload(self) -> Union[int, list[int]]:
-        """
-        The payload sent in the write Harp message.
-
-        Returns
-        -------
-        Union[int, list[int]]
-            the payload sent in the write Harp message
-        """
-        match self.payload_type:
-            case PayloadType.U8:
-                return self._frame[5]
-            case PayloadType.S8:
-                return int.from_bytes([self.frame[5]], byteorder="little", signed=True)
-            case PayloadType.U16:
-                return int.from_bytes(
-                    self._frame[5:7], byteorder="little", signed=False
-                )
-            case PayloadType.S16:
-                return int.from_bytes(self._frame[5:7], byteorder="little", signed=True)
-            case PayloadType.Float:
-                return struct.unpack("<f", self._frame[5:9])[0]
-            case PayloadType.U32:
-                return int.from_bytes(
-                    self._frame[5:9], byteorder="little", signed=False
-                )
-            case PayloadType.S32:
-                return int.from_bytes(self._frame[5:9], byteorder="little", signed=True)
-            case PayloadType.U64:
-                return int.from_bytes(
-                    self._frame[5:13], byteorder="little", signed=False
-                )
-            case PayloadType.S64:
-                return int.from_bytes(
-                    self._frame[5:13], byteorder="little", signed=True
-                )
-            case _:
-                return self._frame[5:]
