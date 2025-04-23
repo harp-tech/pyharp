@@ -1,4 +1,4 @@
-from enum import IntEnum
+from enum import IntEnum, IntFlag
 
 # Bit masks for the PayloadType
 _isUnsigned: int = 0x00
@@ -133,6 +133,10 @@ class CommonRegisters(IntEnum):
         the number of the `DEVICE_NAME` register
     SERIAL_NUMBER : int
         the number of the `SERIAL_NUMBER` register
+    R_CLOCK_CONFIG : int
+        the number of the `R_CLOCK_CONFIG` register
+    R_TIMESTAMP_OFFSET : int
+        the number of the `R_TIMESTAMP_OFFSET` register
     """
 
     WHO_AM_I = 0x00
@@ -149,6 +153,8 @@ class CommonRegisters(IntEnum):
     RESET_DEV = 0x0B
     DEVICE_NAME = 0x0C
     SERIAL_NUMBER = 0x0D
+    R_CLOCK_CONFIG = 0x0E
+    R_TIMESTAMP_OFFSET = 0x0F
 
 
 class OperationMode(IntEnum):
@@ -171,3 +177,36 @@ class OperationMode(IntEnum):
     ACTIVE = 1
     RESERVED = 2
     SPEED = 3
+
+
+class ClockConfig(IntFlag):
+    """
+    An enumeration with the clock configuration bits for the R_CLOCK_CONFIG register of a Harp device.
+    More information can be found [here](https://harp-tech.org/protocol/Device.html#r_clock_config-u8--synchronization-clock-configuration).
+
+    Attributes
+    ----------
+    CLK_REP : int
+        Bit 0 (0x01): If set to 1, the device will repeat the Harp Synchronization Clock to the Clock Output connector, if available.
+        Acts as a daisy-chain by repeating the Clock Input to the Clock Output. Setting this bit also unlocks the Harp Synchronization Clock.
+    CLK_GEN : int
+        Bit 1 (0x02): If set to 1, the device will generate Harp Synchronization Clock to the Clock Output connector, if available.
+        The Clock Input will be ignored. Read as 1 if the device is generating the Harp Synchronization Clock.
+    REP_ABLE : int
+        Bit 3 (0x08, read-only): Indicates if the device is able (1) to repeat the Harp Synchronization Clock timestamp.
+    GEN_ABLE : int
+        Bit 4 (0x10, read-only): Indicates if the device is able (1) to generate the Harp Synchronization Clock timestamp.
+    CLK_UNLOCK : int
+        Bit 6 (0x40): If set to 1, the device will unlock the timestamp register counter (R_TIMESTAMP_SECOND) and accept new timestamp values.
+        Read as 1 if the timestamp register is unlocked.
+    CLK_LOCK : int
+        Bit 7 (0x80): If set to 1, the device will lock the current timestamp register counter (R_TIMESTAMP_SECOND) and reject new timestamp values.
+        Read as 1 if the timestamp register is locked.
+    """
+
+    CLK_REP = 0x01
+    CLK_GEN = 0x02
+    REP_ABLE = 0x08
+    GEN_ABLE = 0x10
+    CLK_UNLOCK = 0x40
+    CLK_LOCK = 0x80

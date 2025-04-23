@@ -9,6 +9,7 @@ from typing import Optional, Union
 import serial
 
 from pyharp import CommonRegisters, MessageType, OperationMode, PayloadType
+from pyharp.base import ClockConfig
 from pyharp.device_names import device_names
 from pyharp.harp_serial import HarpSerial
 from pyharp.messages import HarpMessage, ReplyHarpMessage
@@ -55,6 +56,8 @@ class Device:
     FIRMWARE_VERSION_L: int
     DEVICE_NAME: str
     SERIAL_NUMBER: int
+    CLOCK_CONFIG: int
+    TIMESTAMP_OFFSET: int
 
     _ser: HarpSerial
     _dump_file_path: Path
@@ -105,6 +108,8 @@ class Device:
         self.FIRMWARE_VERSION_L = self._read_fw_version_l()
         self.DEVICE_NAME = self._read_device_name()
         self.SERIAL_NUMBER = self._read_serial_number()
+        self.CLOCK_CONFIG = self._read_clock_config()
+        self.TIMESTAMP_OFFSET = self._read_timestamp_offset()
 
     def info(self) -> None:
         """
@@ -382,6 +387,52 @@ class Device:
         reply = self.send(
             HarpMessage.create(
                 MessageType.WRITE, address, PayloadType.U8, reset_value
+            ).frame
+        )
+
+        return reply
+
+    def set_clock_config(self, clock_config: ClockConfig) -> ReplyHarpMessage:
+        """
+        Sets the clock configuration of the device.
+
+        Parameters
+        ----------
+        clock_config : ClockConfig
+            the clock configuration value
+
+        Returns
+        -------
+        ReplyHarpMessage
+            the reply to the Harp message
+        """
+        address = CommonRegisters.CLOCK_CONFIG
+        reply = self.send(
+            HarpMessage.create(
+                MessageType.WRITE, address, PayloadType.U8, clock_config
+            ).frame
+        )
+
+        return reply
+
+    def set_timestamp_offset(self, timestamp_offset: int) -> ReplyHarpMessage:
+        """
+        When the value of this register is above 0 (zero), the device's timestamp will be offset by this amount. The register is sensitive to 500 microsecond increments. This register is non-volatile.
+
+        Parameters
+        ----------
+        timestamp_offset : int
+            the timestamp offset value
+
+        Returns
+        -------
+        ReplyHarpMessage
+            the reply to the Harp message
+        """
+        address = CommonRegisters.TIMESTAMP_OFFSET
+        reply = self.send(
+            HarpMessage.create(
+                MessageType.WRITE, address, PayloadType.U8, timestamp_offset
             ).frame
         )
 
@@ -1062,6 +1113,40 @@ class Device:
 
         if reply.is_error():
             return 0
+
+        return reply.payload_as_int()
+
+    def _read_clock_config(self) -> int:
+        """
+        Reads the value stored in the `CLOCK_CONFIG` register.
+
+        Returns
+        -------
+        int
+            the value of the `CLOCK_CONFIG` register.
+        """
+        address = CommonRegisters.CLOCK_CONFIG
+
+        reply: ReplyHarpMessage = self.send(
+            HarpMessage.create(MessageType.READ, address, PayloadType.U8).frame
+        )
+
+        return reply.payload_as_int()
+
+    def _read_timestamp_offset(self) -> int:
+        """
+        Reads the value stored in the `TIMESTAMP_OFFSET` register.
+
+        Returns
+        -------
+        int
+            the value of the `TIMESTAMP_OFFSET` register.
+        """
+        address = CommonRegisters.TIMESTAMP_OFFSET
+
+        reply: ReplyHarpMessage = self.send(
+            HarpMessage.create(MessageType.READ, address, PayloadType.U8).frame
+        )
 
         return reply.payload_as_int()
 
