@@ -28,7 +28,7 @@
 #         HarpMessage.create(MessageType.READ, register, PayloadType.U8)
 #     )
 #     assert reply is not None
-#     # assert reply.payload_as_int() == write_value
+#     # assert reply.payload == write_value
 
 #     print(reply)
 #     assert device._dump_file_path.exists()

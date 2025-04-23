@@ -463,18 +463,6 @@ class ReplyHarpMessage(HarpMessage):
         """
         return self._timestamp
 
-    # TODO: does this function makes sense since self.payload() already exists?
-    def payload_as_int(self) -> int:
-        """
-        Returns the payload as an int.
-
-        Returns
-        -------
-        int
-            the payload parsed as an int
-        """
-        return self._raw_payload[0]
-
     def payload_as_string(self) -> str:
         """
         Returns the payload as a str.
@@ -485,18 +473,6 @@ class ReplyHarpMessage(HarpMessage):
             the payload parsed as a str
         """
         return self._raw_payload.decode("utf-8").rstrip("\x00")
-
-    # TODO: handle float case and/or delete functional altogether
-    def payload_as_float(self) -> float:
-        """
-        Returns the payload as a float.
-
-        Returns
-        -------
-        float
-            the payload parsed as a float
-        """
-        return self.payload[0]
 
 
 class ReadHarpMessage(HarpMessage):

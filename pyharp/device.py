@@ -930,7 +930,7 @@ class Device:
             HarpMessage.create(MessageType.READ, address, PayloadType.U16)
         )
 
-        return reply.payload_as_int()
+        return reply.payload
 
     def _read_default_device_name(self) -> str:
         """
@@ -958,7 +958,7 @@ class Device:
             HarpMessage.create(MessageType.READ, address, PayloadType.U8)
         )
 
-        return reply.payload_as_int()
+        return reply.payload
 
     def _read_hw_version_l(self) -> int:
         """
@@ -975,7 +975,7 @@ class Device:
             HarpMessage.create(MessageType.READ, address, PayloadType.U8)
         )
 
-        return reply.payload_as_int()
+        return reply.payload
 
     def _read_assembly_version(self) -> int:
         """
@@ -992,7 +992,7 @@ class Device:
             HarpMessage.create(MessageType.READ, address, PayloadType.U8)
         )
 
-        return reply.payload_as_int()
+        return reply.payload
 
     def _read_harp_version_h(self) -> int:
         """
@@ -1009,7 +1009,7 @@ class Device:
             HarpMessage.create(MessageType.READ, address, PayloadType.U8)
         )
 
-        return reply.payload_as_int()
+        return reply.payload
 
     def _read_harp_version_l(self) -> int:
         """
@@ -1026,7 +1026,7 @@ class Device:
             HarpMessage.create(MessageType.READ, address, PayloadType.U8)
         )
 
-        return reply.payload_as_int()
+        return reply.payload
 
     def _read_fw_version_h(self) -> int:
         """
@@ -1043,7 +1043,7 @@ class Device:
             HarpMessage.create(MessageType.READ, address, PayloadType.U8)
         )
 
-        return reply.payload_as_int()
+        return reply.payload
 
     def _read_fw_version_l(self) -> int:
         """
@@ -1060,7 +1060,7 @@ class Device:
             HarpMessage.create(MessageType.READ, address, PayloadType.U8)
         )
 
-        return reply.payload_as_int()
+        return reply.payload
 
     def _read_device_name(self) -> str:
         """
@@ -1097,7 +1097,7 @@ class Device:
         if reply.is_error():
             return 0
 
-        return reply.payload_as_int()
+        return reply.payload
 
     def _read_clock_config(self) -> int:
         """
@@ -1114,7 +1114,7 @@ class Device:
             HarpMessage.create(MessageType.READ, address, PayloadType.U8)
         )
 
-        return reply.payload_as_int()
+        return reply.payload
 
     def _read_timestamp_offset(self) -> int:
         """
@@ -1131,7 +1131,7 @@ class Device:
             HarpMessage.create(MessageType.READ, address, PayloadType.U8)
         )
 
-        return reply.payload_as_int()
+        return reply.payload
 
     def __enter__(self):
         """
