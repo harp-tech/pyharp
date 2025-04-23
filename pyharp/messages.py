@@ -484,7 +484,7 @@ class ReplyHarpMessage(HarpMessage):
         str
             the payload parsed as a str
         """
-        return self._raw_payload.decode("utf-8")
+        return self._raw_payload.decode("utf-8").rstrip("\x00")
 
     # TODO: handle float case and/or delete functional altogether
     def payload_as_float(self) -> float:
