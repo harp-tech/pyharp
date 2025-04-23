@@ -387,9 +387,7 @@ class Device:
 
         return reply
 
-    def send(
-        self, message_bytes: bytearray, dump: bool = True
-    ) -> Optional[ReplyHarpMessage]:
+    def send(self, message_bytes: bytearray) -> Optional[ReplyHarpMessage]:
         """
         Sends a Harp message.
 
@@ -397,8 +395,6 @@ class Device:
         ----------
         message_bytes : bytearray
             the bytearray containing the message to be sent to the device
-        dump : bool, optional
-            indicates whether the reply message should be dumped or not
 
         Returns
         -------
@@ -409,8 +405,7 @@ class Device:
 
         reply = self._read()
 
-        if dump:
-            self._dump_reply(reply.frame)
+        self._dump_reply(reply.frame)
 
         return reply
 
@@ -898,8 +893,7 @@ class Device:
         address = CommonRegisters.WHO_AM_I
 
         reply: ReplyHarpMessage = self.send(
-            HarpMessage.create(MessageType.READ, address, PayloadType.U16).frame,
-            dump=False,
+            HarpMessage.create(MessageType.READ, address, PayloadType.U16).frame
         )
 
         return reply.payload_as_int()
@@ -927,8 +921,7 @@ class Device:
         address = CommonRegisters.HW_VERSION_H
 
         reply: ReplyHarpMessage = self.send(
-            HarpMessage.create(MessageType.READ, address, PayloadType.U8).frame,
-            dump=False,
+            HarpMessage.create(MessageType.READ, address, PayloadType.U8).frame
         )
 
         return reply.payload_as_int()
@@ -945,8 +938,7 @@ class Device:
         address = CommonRegisters.HW_VERSION_L
 
         reply: ReplyHarpMessage = self.send(
-            HarpMessage.create(MessageType.READ, address, PayloadType.U8).frame,
-            dump=False,
+            HarpMessage.create(MessageType.READ, address, PayloadType.U8).frame
         )
 
         return reply.payload_as_int()
@@ -963,8 +955,7 @@ class Device:
         address = CommonRegisters.ASSEMBLY_VERSION
 
         reply: ReplyHarpMessage = self.send(
-            HarpMessage.create(MessageType.READ, address, PayloadType.U8).frame,
-            dump=False,
+            HarpMessage.create(MessageType.READ, address, PayloadType.U8).frame
         )
 
         return reply.payload_as_int()
@@ -981,8 +972,7 @@ class Device:
         address = CommonRegisters.HARP_VERSION_H
 
         reply: ReplyHarpMessage = self.send(
-            HarpMessage.create(MessageType.READ, address, PayloadType.U8).frame,
-            dump=False,
+            HarpMessage.create(MessageType.READ, address, PayloadType.U8).frame
         )
 
         return reply.payload_as_int()
@@ -999,8 +989,7 @@ class Device:
         address = CommonRegisters.HARP_VERSION_L
 
         reply: ReplyHarpMessage = self.send(
-            HarpMessage.create(MessageType.READ, address, PayloadType.U8).frame,
-            dump=False,
+            HarpMessage.create(MessageType.READ, address, PayloadType.U8).frame
         )
 
         return reply.payload_as_int()
@@ -1017,8 +1006,7 @@ class Device:
         address = CommonRegisters.FIRMWARE_VERSION_H
 
         reply: ReplyHarpMessage = self.send(
-            HarpMessage.create(MessageType.READ, address, PayloadType.U8).frame,
-            dump=False,
+            HarpMessage.create(MessageType.READ, address, PayloadType.U8).frame
         )
 
         return reply.payload_as_int()
@@ -1035,8 +1023,7 @@ class Device:
         address = CommonRegisters.FIRMWARE_VERSION_L
 
         reply: ReplyHarpMessage = self.send(
-            HarpMessage.create(MessageType.READ, address, PayloadType.U8).frame,
-            dump=False,
+            HarpMessage.create(MessageType.READ, address, PayloadType.U8).frame
         )
 
         return reply.payload_as_int()
@@ -1053,8 +1040,7 @@ class Device:
         address = CommonRegisters.DEVICE_NAME
 
         reply: ReplyHarpMessage = self.send(
-            HarpMessage.create(MessageType.READ, address, PayloadType.U8).frame,
-            dump=False,
+            HarpMessage.create(MessageType.READ, address, PayloadType.U8).frame
         )
 
         return reply.payload_as_string()
@@ -1071,8 +1057,7 @@ class Device:
         address = CommonRegisters.SERIAL_NUMBER
 
         reply: ReplyHarpMessage = self.send(
-            HarpMessage.create(MessageType.READ, address, PayloadType.U8).frame,
-            dump=False,
+            HarpMessage.create(MessageType.READ, address, PayloadType.U8).frame
         )
 
         if reply.is_error():
