@@ -178,6 +178,69 @@ class OperationMode(IntEnum):
     RESERVED = 2
     SPEED = 3
 
+class OperationCtrl(IntFlag):
+    """
+    An enumeration with the operation control bits of a Harp device. More information on the operation control bits can be found [here](https://harp-tech.org/protocol/Device.html#r_operation_ctrl-u16--operation-mode-configuration).
+
+    Attributes
+    ----------
+    OP_MODE : int
+        Bits 1:0 (0x03): Operation mode of the device.
+            0: Standby Mode (all Events off, mandatory)
+            1: Active Mode (Events detection enabled, mandatory)
+            2: Reserved
+            3: Speed Mode (device enters Speed Mode, optional; only responds to Speed Mode commands)
+    DUMP : int
+        Bit 3 (0x08): When set to 1, the device adds the content of all registers to the streaming buffer as Read messages. Always read as 0.
+    MUTE_RPL : int
+        Bit 4 (0x10): If set to 1, replies to all commands are muted (not sent by the device).
+    VISUALEN : int
+        Bit 5 (0x20): If set to 1, visual indications (e.g., LEDs) operate. If 0, all visual indications are turned off.
+    OPLEDEN : int
+        Bit 6 (0x40): If set to 1, the LED indicates the selected Operation Mode (see LED feedback table in documentation).
+    ALIVE_EN : int
+        Bit 7 (0x80): If set to 1, the device sends an Event Message with the R_TIMESTAMP_SECONDS content each second (heartbeat).
+    """
+
+    OP_MODE = 3 << 0
+    DUMP = 1 << 3
+    MUTE_RPL = 1 << 4
+    VISUALEN = 1 << 5
+    OPLEDEN = 1 << 6
+    ALIVE_EN = 1 << 7
+
+
+class ResetMode(IntEnum):
+    """
+    An enumeration with the reset modes and actions for the R_RESET_DEV register of a Harp device.
+    More information on the reset modes can be found [here](https://harp-tech.org/protocol/Device.html#r_reset_dev-u8--reset-device-and-save-non-volatile-registers).
+
+    Attributes
+    ----------
+    RST_DEF : int
+        Bit 0 (0x01): If set, resets the device and restores all registers (Common and Application) to default values.
+        EEPROM is erased and defaults become the permanent boot option.
+    RST_EE : int
+        Bit 1 (0x02): If set, resets the device and restores all registers (Common and Application) from non-volatile memory (EEPROM).
+        EEPROM values remain the permanent boot option.
+    SAVE : int
+        Bit 3 (0x08): If set, saves all non-volatile registers (Common and Application) to EEPROM and reboots.
+        EEPROM becomes the permanent boot option.
+    NAME_TO_DEFAULT : int
+        Bit 4 (0x10): If set, reboots the device with the default name.
+    BOOT_DEF : int
+        Bit 6 (0x40, read-only): Indicates the device booted with default register values.
+    BOOT_EE : int
+        Bit 7 (0x80, read-only): Indicates the device booted with register values saved on the EEPROM.
+    """
+
+    RST_DEF = 0x01
+    RST_EE = 0x02
+    SAVE = 0x08
+    NAME_TO_DEFAULT = 0x10
+    BOOT_DEF = 0x40
+    BOOT_EE = 0x80
+
 
 class ClockConfig(IntFlag):
     """

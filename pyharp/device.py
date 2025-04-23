@@ -9,7 +9,7 @@ from typing import Optional, Union
 import serial
 
 from pyharp import CommonRegisters, MessageType, OperationMode, PayloadType
-from pyharp.base import ClockConfig
+from pyharp.base import ClockConfig, OperationCtrl, ResetMode
 from pyharp.device_names import device_names
 from pyharp.harp_serial import HarpSerial
 from pyharp.messages import HarpMessage, ReplyHarpMessage
@@ -169,7 +169,7 @@ class Device:
         reply = self.send(
             HarpMessage.create(MessageType.READ, address, PayloadType.U8).frame
         )
-        return OperationMode(reply.payload_as_int() & 0x03)
+        return OperationMode(reply.payload_as_int() & OperationCtrl.OP_MODE)
 
     def dump_registers(self) -> list:
         """
@@ -186,7 +186,7 @@ class Device:
             HarpMessage.create(MessageType.READ, address, PayloadType.U8).frame
         ).payload_as_int()
         # Assert DUMP bit
-        reg_value |= 0x08
+        reg_value |= OperationCtrl.DUMP
         self.send(
             HarpMessage.create(
                 MessageType.WRITE, address, PayloadType.U8, reg_value
@@ -225,7 +225,7 @@ class Device:
         ).payload_as_int()
 
         # Clear old operation mode
-        reg_value &= ~0x03
+        reg_value &= ~OperationCtrl.OP_MODE
 
         # Set new operation mode
         reg_value |= mode
@@ -259,9 +259,9 @@ class Device:
         ).payload_as_int()
 
         if enable:
-            reg_value |= 1 << 7
+            reg_value |= OperationCtrl.ALIVE_EN
         else:
-            reg_value &= ~(1 << 7)
+            reg_value &= ~OperationCtrl.ALIVE_EN
 
         reply = self.send(
             HarpMessage.create(
@@ -293,9 +293,9 @@ class Device:
         ).payload_as_int()
 
         if enable:
-            reg_value |= 1 << 6
+            reg_value |= OperationCtrl.OPLEDEN
         else:
-            reg_value &= ~(1 << 6)
+            reg_value &= ~OperationCtrl.OPLEDEN
 
         reply = self.send(
             HarpMessage.create(
@@ -327,9 +327,9 @@ class Device:
         ).payload_as_int()
 
         if enable:
-            reg_value |= 1 << 5
+            reg_value |= OperationCtrl.STATUS_LED
         else:
-            reg_value &= ~(1 << 5)
+            reg_value &= ~OperationCtrl.STATUS_LED
 
         reply = self.send(
             HarpMessage.create(
@@ -361,9 +361,9 @@ class Device:
         ).payload_as_int()
 
         if enable:
-            reg_value |= 1 << 4
+            reg_value |= OperationCtrl.MUTE_RPL
         else:
-            reg_value &= ~(1 << 4)
+            reg_value &= ~OperationCtrl.MUTE_RPL
 
         reply = self.send(
             HarpMessage.create(
@@ -373,7 +373,9 @@ class Device:
 
         return reply
 
-    def reset_device(self) -> ReplyHarpMessage:
+    def reset_device(
+        self, reset_mode: ResetMode = ResetMode.RST_DEF
+    ) -> ReplyHarpMessage:
         """
         Resets the device and reboots with all the registers with the default values. Beware that the EEPROM will be erased. More information on the reset device register can be found [here](https://harp-tech.org/protocol/Device.html#r_reset_dev-u8--reset-device-and-save-non-volatile-registers).
 
@@ -383,10 +385,9 @@ class Device:
             the reply to the Harp message
         """
         address = CommonRegisters.RESET_DEV
-        reset_value = 0x01
         reply = self.send(
             HarpMessage.create(
-                MessageType.WRITE, address, PayloadType.U8, reset_value
+                MessageType.WRITE, address, PayloadType.U8, reset_mode
             ).frame
         )
 
