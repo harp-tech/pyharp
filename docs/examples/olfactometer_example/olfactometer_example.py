@@ -42,7 +42,7 @@ def main():
     device.set_mode(OperationMode.ACTIVE)
 
     # Enable flow
-    device.send(HarpMessage.WriteU8(32, 0x01).frame)
+    device.send(HarpMessage.create(MessageType.WRITE, 32, PayloadType.U8, 0x01))
 
     # Initialize thread for events
     events_thread = Thread(
@@ -58,59 +58,51 @@ def main():
     device.send(
         HarpMessage.create(
             MessageType.WRITE, 42, PayloadType.Float, int(random.random() * 100)
-        ).frame
+        )
     )
     device.send(
         HarpMessage.create(
             MessageType.WRITE, 43, PayloadType.Float, int(random.random() * 100)
-        ).frame
+        )
     )
     device.send(
         HarpMessage.create(
             MessageType.WRITE, 44, PayloadType.Float, int(random.random() * 100)
-        ).frame
+        )
     )
     device.send(
         HarpMessage.create(
             MessageType.WRITE, 45, PayloadType.Float, int(random.random() * 100)
-        ).frame
+        )
     )
 
     # Open every odor valve, one at a time every 5 seconds
-    device.send(
-        HarpMessage.create(MessageType.WRITE, 68, PayloadType.Float, 0x01).frame
-    )
+    device.send(HarpMessage.create(MessageType.WRITE, 68, PayloadType.Float, 0x01))
+
     time.sleep(5)
-    device.send(
-        HarpMessage.create(MessageType.WRITE, 69, PayloadType.Float, 0x01).frame
-    )
-    device.send(
-        HarpMessage.create(MessageType.WRITE, 68, PayloadType.Float, 0x02).frame
-    )
+
+    device.send(HarpMessage.create(MessageType.WRITE, 69, PayloadType.Float, 0x01))
+    device.send(HarpMessage.create(MessageType.WRITE, 68, PayloadType.Float, 0x02))
+
     time.sleep(5)
-    device.send(
-        HarpMessage.create(MessageType.WRITE, 69, PayloadType.Float, 0x02).frame
-    )
-    device.send(
-        HarpMessage.create(MessageType.WRITE, 68, PayloadType.Float, 0x04).frame
-    )
+
+    device.send(HarpMessage.create(MessageType.WRITE, 69, PayloadType.Float, 0x02))
+    device.send(HarpMessage.create(MessageType.WRITE, 68, PayloadType.Float, 0x04))
+
     time.sleep(5)
-    device.send(
-        HarpMessage.create(MessageType.WRITE, 69, PayloadType.Float, 0x04).frame
-    )
-    device.send(
-        HarpMessage.create(MessageType.WRITE, 68, PayloadType.Float, 0x08).frame
-    )
+
+    device.send(HarpMessage.create(MessageType.WRITE, 69, PayloadType.Float, 0x04))
+    device.send(HarpMessage.create(MessageType.WRITE, 68, PayloadType.Float, 0x08))
+
     time.sleep(5)
-    device.send(
-        HarpMessage.create(MessageType.WRITE, 69, PayloadType.Float, 0x08).frame
-    )
+
+    device.send(HarpMessage.create(MessageType.WRITE, 69, PayloadType.Float, 0x08))
+
     time.sleep(5)
 
     # Disable flow
-    device.send(
-        HarpMessage.create(MessageType.WRITE, 32, PayloadType.Float, 0x00).frame
-    )
+    device.send(HarpMessage.create(MessageType.WRITE, 32, PayloadType.Float, 0x00))
+
     time.sleep(1)
 
     stop_flag.set()
