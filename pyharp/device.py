@@ -61,7 +61,7 @@ class Device:
 
     _ser: HarpSerial
     _dump_file_path: Path
-    _dump_file: Optional[BufferedWriter]
+    _dump_file: Optional[BufferedWriter] = None
     _read_timeout_s: float
 
     _TIMEOUT_S: float = 1.0
@@ -1094,7 +1094,7 @@ class Device:
             HarpMessage.create(MessageType.READ, address, PayloadType.U8)
         )
 
-        if reply.is_error():
+        if reply.is_error:
             return 0
 
         return reply.payload

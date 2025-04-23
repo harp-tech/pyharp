@@ -30,11 +30,8 @@ class HarpMessage:
 
     DEFAULT_PORT: int = 255
     BASE_LENGTH: int = 4
-    _frame: bytearray
-
-    def __init__(self):
-        self._frame = bytearray()
-        self._port = self.DEFAULT_PORT
+    _frame: bytearray = bytearray()
+    _port: int = DEFAULT_PORT
 
     def calculate_checksum(self) -> int:
         """
