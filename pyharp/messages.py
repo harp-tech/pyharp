@@ -34,6 +34,7 @@ class HarpMessage:
 
     def __init__(self):
         self._frame = bytearray()
+        self._port = self.DEFAULT_PORT
 
     def calculate_checksum(self) -> int:
         """
@@ -108,6 +109,18 @@ class HarpMessage:
             the port value
         """
         return self._frame[3]
+
+    @port.setter
+    def port(self, value: int) -> None:
+        """
+        Sets the port value.
+
+        Parameters
+        ----------
+        value : int
+            the port value to set
+        """
+        self._port = value
 
     @property
     def payload_type(self) -> PayloadType:
@@ -471,7 +484,7 @@ class ReadHarpMessage(HarpMessage):
         length: int = 4
         self._frame.append(length)
         self._frame.append(address)
-        self._frame.append(self.DEFAULT_PORT)
+        self._frame.append(self._port)
         self._frame.append(payload_type)
         self._frame.append(self.calculate_checksum())
 
@@ -548,7 +561,7 @@ class WriteHarpMessage(HarpMessage):
         # Length is BASE_LENGTH + payload size
         self._frame.append(self.BASE_LENGTH + len(payload))
         self._frame.append(address)
-        self._frame.append(self.DEFAULT_PORT)
+        self._frame.append(self._port)
         self._frame.append(payload_type)
         self._frame += payload
         self._frame.append(self.calculate_checksum())
