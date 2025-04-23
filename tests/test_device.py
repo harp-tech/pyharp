@@ -57,7 +57,7 @@
 #     # read register 38
 #     reply = device.read_u8(register)
 #     assert reply is not None
-#     assert reply.payload_as_int() == write_value
+#     assert reply.payload == write_value
 
 #     device.disconnect()
 

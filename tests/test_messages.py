@@ -452,10 +452,10 @@ def test_harp_message_parse() -> None:
     frame = bytearray(
         [
             MessageType.READ,
-            5,
+            11,
             42,
             255,
-            PayloadType.U8,
+            PayloadType.TimestampedU8,
             0,
             0,
             0,
@@ -475,7 +475,7 @@ def test_harp_message_parse() -> None:
     assert isinstance(message, ReplyHarpMessage)
     assert message.message_type == MessageType.READ
     assert message.address == 42
-    assert message.payload_as_int() == 123
+    assert message.payload == 123
 
 
 def test_timestamp_handling() -> None:

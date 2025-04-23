@@ -133,10 +133,10 @@ class CommonRegisters(IntEnum):
         the number of the `DEVICE_NAME` register
     SERIAL_NUMBER : int
         the number of the `SERIAL_NUMBER` register
-    R_CLOCK_CONFIG : int
-        the number of the `R_CLOCK_CONFIG` register
-    R_TIMESTAMP_OFFSET : int
-        the number of the `R_TIMESTAMP_OFFSET` register
+    CLOCK_CONFIG : int
+        the number of the `CLOCK_CONFIG` register
+    TIMESTAMP_OFFSET : int
+        the number of the `TIMESTAMP_OFFSET` register
     """
 
     WHO_AM_I = 0x00
@@ -153,8 +153,8 @@ class CommonRegisters(IntEnum):
     RESET_DEV = 0x0B
     DEVICE_NAME = 0x0C
     SERIAL_NUMBER = 0x0D
-    R_CLOCK_CONFIG = 0x0E
-    R_TIMESTAMP_OFFSET = 0x0F
+    CLOCK_CONFIG = 0x0E
+    TIMESTAMP_OFFSET = 0x0F
 
 
 class OperationMode(IntEnum):
