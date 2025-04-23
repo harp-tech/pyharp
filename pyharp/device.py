@@ -463,6 +463,429 @@ class Device:
         """
         return self._ser.event_q.qsize()
 
+    def read_u8(self, address: int) -> ReplyHarpMessage:
+        """
+        Reads the value of a register of type U8.
+
+        Parameters
+        ----------
+        address : int
+            the register to be read
+
+        Returns
+        -------
+        ReplyHarpMessage
+            the reply to the Harp message that will contain the value read from the register
+        """
+        return self.send(
+            HarpMessage.create(
+                message_type=MessageType.READ,
+                address=address,
+                payload_type=PayloadType.U8,
+            ).frame
+        )
+
+    def read_s8(self, address: int) -> ReplyHarpMessage:
+        """
+        Reads the value of a register of type S8.
+
+        Parameters
+        ----------
+        address : int
+            the register to be read
+
+        Returns
+        -------
+        ReplyHarpMessage
+            the reply to the Harp message that will contain the value read from the register
+        """
+        return self.send(
+            HarpMessage.create(
+                message_type=MessageType.READ,
+                address=address,
+                payload_type=PayloadType.S8,
+            ).frame
+        )
+
+    def read_u16(self, address: int) -> ReplyHarpMessage:
+        """
+        Reads the value of a register of type U16.
+
+        Parameters
+        ----------
+        address : int
+            the register to be read
+
+        Returns
+        -------
+        ReplyHarpMessage
+            the reply to the Harp message that will contain the value read from the register
+        """
+        return self.send(
+            HarpMessage.create(
+                message_type=MessageType.READ,
+                address=address,
+                payload_type=PayloadType.U16,
+            ).frame
+        )
+
+    def read_s16(self, address: int) -> ReplyHarpMessage:
+        """
+        Reads the value of a register of type S16.
+
+        Parameters
+        ----------
+        address : int
+            the register to be read
+
+        Returns
+        -------
+        ReplyHarpMessage
+            the reply to the Harp message that will contain the value read from the register
+        """
+        return self.send(
+            HarpMessage.create(
+                message_type=MessageType.READ,
+                address=address,
+                payload_type=PayloadType.S16,
+            ).frame
+        )
+
+    def read_u32(self, address: int) -> ReplyHarpMessage:
+        """
+        Reads the value of a register of type U32.
+
+        Parameters
+        ----------
+        address : int
+            the register to be read
+
+        Returns
+        -------
+        ReplyHarpMessage
+            the reply to the Harp message that will contain the value read from the register
+        """
+        return self.send(
+            HarpMessage.create(
+                message_type=MessageType.READ,
+                address=address,
+                payload_type=PayloadType.U32,
+            ).frame
+        )
+
+    def read_s32(self, address: int) -> ReplyHarpMessage:
+        """
+        Reads the value of a register of type S32.
+
+        Parameters
+        ----------
+        address : int
+            the register to be read
+
+        Returns
+        -------
+        ReplyHarpMessage
+            the reply to the Harp message that will contain the value read from the register
+        """
+        return self.send(
+            HarpMessage.create(
+                message_type=MessageType.READ,
+                address=address,
+                payload_type=PayloadType.S32,
+            ).frame
+        )
+
+    def read_u64(self, address: int) -> ReplyHarpMessage:
+        """
+        Reads the value of a register of type U64.
+
+        Parameters
+        ----------
+        address : int
+            the register to be read
+
+        Returns
+        -------
+        ReplyHarpMessage
+            the reply to the Harp message that will contain the value read from the register
+        """
+        return self.send(
+            HarpMessage.create(
+                message_type=MessageType.READ,
+                address=address,
+                payload_type=PayloadType.U64,
+            ).frame
+        )
+
+    def read_s64(self, address: int) -> ReplyHarpMessage:
+        """
+        Reads the value of a register of type S64.
+
+        Parameters
+        ----------
+        address : int
+            the register to be read
+
+        Returns
+        -------
+        ReplyHarpMessage
+            the reply to the Harp message that will contain the value read from the register
+        """
+        return self.send(
+            HarpMessage.create(
+                message_type=MessageType.READ,
+                address=address,
+                payload_type=PayloadType.S64,
+            ).frame
+        )
+
+    def read_float(self, address: int) -> ReplyHarpMessage:
+        """
+        Reads the value of a register of type Float.
+
+        Parameters
+        ----------
+        address : int
+            the register to be read
+
+        Returns
+        -------
+        ReplyHarpMessage
+            the reply to the Harp message that will contain the value read from the register
+        """
+        return self.send(
+            HarpMessage.create(
+                message_type=MessageType.READ,
+                address=address,
+                payload_type=PayloadType.Float,
+            ).frame
+        )
+
+    def write_u8(self, address: int, value: int | list[int]) -> ReplyHarpMessage:
+        """
+        Writes the value of a register of type U8.
+
+        Parameters
+        ----------
+        address : int
+            the register to be written on
+        value: int | list[int]
+            the value to be written to the register
+
+        Returns
+        -------
+        ReplyHarpMessage
+            the reply to the Harp message
+        """
+        return self.send(
+            HarpMessage.create(
+                message_type=MessageType.WRITE,
+                address=address,
+                payload_type=PayloadType.U8,
+                value=value,
+            ).frame
+        )
+
+    def write_s8(self, address: int, value: int | list[int]) -> ReplyHarpMessage:
+        """
+        Writes the value of a register of type S8.
+
+        Parameters
+        ----------
+        address : int
+            the register to be written on
+        value: int | list[int]
+            the value to be written to the register
+
+        Returns
+        -------
+        ReplyHarpMessage
+            the reply to the Harp message
+        """
+        return self.send(
+            HarpMessage.create(
+                message_type=MessageType.WRITE,
+                address=address,
+                payload_type=PayloadType.S8,
+                value=value,
+            ).frame
+        )
+
+    def write_u16(self, address: int, value: int | list[int]) -> ReplyHarpMessage:
+        """
+        Writes the value of a register of type U16.
+
+        Parameters
+        ----------
+        address : int
+            the register to be written on
+        value: int | list[int]
+            the value to be written to the register
+
+        Returns
+        -------
+        ReplyHarpMessage
+            the reply to the Harp message
+        """
+        return self.send(
+            HarpMessage.create(
+                message_type=MessageType.WRITE,
+                address=address,
+                payload_type=PayloadType.U16,
+                value=value,
+            ).frame
+        )
+
+    def write_s16(self, address: int, value: int | list[int]) -> ReplyHarpMessage:
+        """
+        Writes the value of a register of type S16.
+
+        Parameters
+        ----------
+        address : int
+            the register to be written on
+        value: int | list[int]
+            the value to be written to the register
+
+        Returns
+        -------
+        ReplyHarpMessage
+            the reply to the Harp message
+        """
+        return self.send(
+            HarpMessage.create(
+                message_type=MessageType.WRITE,
+                address=address,
+                payload_type=PayloadType.S16,
+                value=value,
+            ).frame
+        )
+
+    def write_u32(self, address: int, value: int | list[int]) -> ReplyHarpMessage:
+        """
+        Writes the value of a register of type U32.
+
+        Parameters
+        ----------
+        address : int
+            the register to be written on
+        value: int | list[int]
+            the value to be written to the register
+
+        Returns
+        -------
+        ReplyHarpMessage
+            the reply to the Harp message
+        """
+        return self.send(
+            HarpMessage.create(
+                message_type=MessageType.WRITE,
+                address=address,
+                payload_type=PayloadType.U32,
+                value=value,
+            ).frame
+        )
+
+    def write_s32(self, address: int, value: int | list[int]) -> ReplyHarpMessage:
+        """
+        Writes the value of a register of type S32.
+
+        Parameters
+        ----------
+        address : int
+            the register to be written on
+        value: int | list[int]
+            the value to be written to the register
+
+        Returns
+        -------
+        ReplyHarpMessage
+            the reply to the Harp message
+        """
+        return self.send(
+            HarpMessage.create(
+                message_type=MessageType.WRITE,
+                address=address,
+                payload_type=PayloadType.S32,
+                value=value,
+            ).frame
+        )
+
+    def write_u64(self, address: int, value: int | list[int]) -> ReplyHarpMessage:
+        """
+        Writes the value of a register of type U64.
+
+        Parameters
+        ----------
+        address : int
+            the register to be written on
+        value: int | list[int]
+            the value to be written to the register
+
+        Returns
+        -------
+        ReplyHarpMessage
+            the reply to the Harp message
+        """
+        return self.send(
+            HarpMessage.create(
+                message_type=MessageType.WRITE,
+                address=address,
+                payload_type=PayloadType.U64,
+                value=value,
+            ).frame
+        )
+
+    def write_s64(self, address: int, value: int | list[int]) -> ReplyHarpMessage:
+        """
+        Writes the value of a register of type S64.
+
+        Parameters
+        ----------
+        address : int
+            the register to be written on
+        value: int | list[int]
+            the value to be written to the register
+
+        Returns
+        -------
+        ReplyHarpMessage
+            the reply to the Harp message
+        """
+        return self.send(
+            HarpMessage.create(
+                message_type=MessageType.WRITE,
+                address=address,
+                payload_type=PayloadType.S64,
+                value=value,
+            ).frame
+        )
+
+    def write_float(self, address: int, value: float | list[float]) -> ReplyHarpMessage:
+        """
+        Writes the value of a register of type Float.
+
+        Parameters
+        ----------
+        address : int
+            the register to be written on
+        value: int | list[int]
+            the value to be written to the register
+
+        Returns
+        -------
+        ReplyHarpMessage
+            the reply to the Harp message
+        """
+        return self.send(
+            HarpMessage.create(
+                message_type=MessageType.WRITE,
+                address=address,
+                payload_type=PayloadType.Float,
+                value=value,
+            ).frame
+        )
+
     def _read_who_am_i(self) -> int:
         """
         Reads the value stored in the `WHO_AM_I` register.
