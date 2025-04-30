@@ -438,6 +438,8 @@ class Device:
         self._ser.write(message.frame)
 
         reply = self._read()
+        if reply is None:
+            return None
 
         self._dump_reply(reply.frame)
 
