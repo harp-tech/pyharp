@@ -383,15 +383,24 @@ class HarpMessage:
 
         payload_str = "".join(
             f"{item:{format_str}} "
-            for item in (self.payload if self.payload is list else [self.payload])
+            for item in (
+                self.payload if isinstance(self.payload, list) else [self.payload]
+            )
         )
+
+        # Check if the object has a 'timestamp' property and it's not None
+        timestamp_line = ""
+        if hasattr(self, "timestamp"):
+            ts = getattr(self, "timestamp")
+            if ts is not None:
+                timestamp_line = f"Timestamp: {ts}\r\n"
 
         return (
             f"Type: {self.message_type.name}\r\n"
             + f"Length: {self.length}\r\n"
             + f"Address: {self.address}\r\n"
             + f"Port: {self.port}\r\n"
-            + f"Timestamp: {self.timestamp}\r\n"
+            + timestamp_line
             + f"Payload Type: {self.payload_type.name}\r\n"
             + f"Payload Length: {len(self.payload) if self.payload is list else 1}\r\n"
             + f"Payload: {payload_str}\r\n"
