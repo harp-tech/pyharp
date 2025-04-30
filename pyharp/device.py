@@ -435,11 +435,11 @@ class Device:
         Optional[ReplyHarpMessage]
             the reply to the Harp message or None if no reply is given
         """
-        self._ser.write(message)
+        self._ser.write(message.frame)
 
         reply = self._read()
 
-        self._dump_reply(reply)
+        self._dump_reply(reply.frame)
 
         return reply
 
