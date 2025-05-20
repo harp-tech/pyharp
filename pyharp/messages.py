@@ -350,7 +350,7 @@ class HarpMessage:
             )
         else:
             raise Exception(
-                "The value cannot be None is message type is equal to MessageType.WRITE!"
+                "The value cannot be None if the message type is equal to MessageType.WRITE!"
             )
 
     def __repr__(self) -> str:
