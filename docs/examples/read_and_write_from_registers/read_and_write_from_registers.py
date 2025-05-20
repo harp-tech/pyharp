@@ -1,8 +1,8 @@
 from serial import SerialException
 
-from pyharp import MessageType, PayloadType
-from pyharp.device import Device
-from pyharp.messages import HarpMessage
+from pyharp.protocol import MessageType, PayloadType
+from pyharp.protocol.device import Device
+from pyharp.protocol.messages import HarpMessage
 
 SERIAL_PORT = (
     "/dev/ttyUSB0"  # or "COMx" in Windows ("x" is the number of the serial port)
