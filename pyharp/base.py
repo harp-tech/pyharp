@@ -178,6 +178,7 @@ class OperationMode(IntEnum):
     RESERVED = 2
     SPEED = 3
 
+
 class OperationCtrl(IntFlag):
     """
     An enumeration with the operation control bits of a Harp device. More information on the operation control bits can be found [here](https://harp-tech.org/protocol/Device.html#r_operation_ctrl-u16--operation-mode-configuration).

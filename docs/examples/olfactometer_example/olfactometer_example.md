@@ -1,6 +1,6 @@
 # Olfactometer Example
 
-This example shows how to interface with the [Harp Olfactometer](https://github.com/harp-tech/device.olfactometer). 
+This example shows how to interface with the [Harp Olfactometer](https://github.com/harp-tech/device.olfactometer).
 
 In this example, the flows for the different channels are enabled to random flow values, then every odor valve is opened, one at a time every 5 seconds, and finally the flow is disabled before closing the connection with the device. During this time, the actual flows in every channel are being printed out in the terminal.
 
