@@ -6,6 +6,7 @@ plugins:
   - search
   - autorefs
   - codeinclude
+  - monorepo
   - mkdocstrings:
       handlers:
         python:
@@ -18,7 +19,7 @@ plugins:
       repository: fchampalimaud/pyharp
       branch: main
   - git-authors
-            
+
 
 markdown_extensions:
   - abbr
@@ -84,6 +85,7 @@ nav:
     - Core: api/core.md
     - Device: api/device.md
     - Messages: api/messages.md
+  - Devices: '*include ./pyharp.devices/*/mkdocs.yml'
 
 extra_css:
 - stylesheets/extra.css
