@@ -1,6 +1,6 @@
 from serial import SerialException
 
-from pyharp.devices.device import Device
+from pyharp.communication.device import Device
 from pyharp.protocol import MessageType, PayloadType
 from pyharp.protocol.messages import HarpMessage
 
