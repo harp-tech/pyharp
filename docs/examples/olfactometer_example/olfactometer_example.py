@@ -4,8 +4,8 @@ from threading import Event, Thread
 
 from serial import SerialException
 
+from pyharp.communication.device import Device, OperationMode
 from pyharp.protocol import MessageType, PayloadType
-from pyharp.protocol.device import Device, OperationMode
 from pyharp.protocol.messages import HarpMessage
 
 SERIAL_PORT = (

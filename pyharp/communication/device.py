@@ -8,6 +8,7 @@ from typing import Optional, Union
 
 import serial
 
+from pyharp.communication import HarpSerial
 from pyharp.protocol import (
     ClockConfig,
     CommonRegisters,
@@ -18,7 +19,6 @@ from pyharp.protocol import (
     ResetMode,
 )
 from pyharp.protocol.device_names import device_names
-from pyharp.protocol.harp_serial import HarpSerial
 from pyharp.protocol.messages import HarpMessage, ReplyHarpMessage
 
 
@@ -140,7 +140,6 @@ class Device:
         """
         self._ser = HarpSerial(
             self._serial_port,  # "/dev/tty.usbserial-A106C8O9"
-            use_buffered_protocol=False,
             baudrate=1000000,
             timeout=self._TIMEOUT_S,
             parity=serial.PARITY_NONE,
