@@ -1,1 +1,1 @@
-::: pyharp.device.Device
+::: pyharp.communication.Device
