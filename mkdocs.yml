@@ -82,7 +82,7 @@ nav:
     - Read and Write from Registers: examples/read_and_write_from_registers/read_and_write_from_registers.md
     - Olfactometer Example: examples/olfactometer_example/olfactometer_example.md
   - API:
-    - Core: api/core.md
+    - Protocol: api/protocol.md
     - Device: api/device.md
     - Messages: api/messages.md
   - Devices: '*include ./pyharp.devices/*/mkdocs.yml'
