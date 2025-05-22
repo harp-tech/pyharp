@@ -4,9 +4,9 @@ from enum import Enum
 
 from serial.serialutil import SerialException
 
-from pyharp.base import PayloadType
-from pyharp.device import Device
-from pyharp.messages import ReadHarpMessage, ReplyHarpMessage, WriteHarpMessage
+from pyharp.protocol import PayloadType
+from pyharp.protocol.device import Device
+from pyharp.protocol.messages import ReadHarpMessage, ReplyHarpMessage, WriteHarpMessage
 
 # These definitions are from app_regs.h in the firmware.
 # Type, Base Address, "Description."
