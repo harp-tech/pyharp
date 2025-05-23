@@ -8,7 +8,7 @@ from typing import Optional, Union
 
 import serial
 
-from pyharp.communication import HarpSerial
+from pyharp.communication.harp_serial import HarpSerial
 from pyharp.protocol import (
     ClockConfig,
     CommonRegisters,
