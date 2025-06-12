@@ -19,6 +19,7 @@ from pyharp.messages import HarpMessage
 
 # Connect to a device
 device = Device("/dev/ttyUSB0")
+#device = Device("COM3")  # for Windows
 
 # Get device information
 device.info()

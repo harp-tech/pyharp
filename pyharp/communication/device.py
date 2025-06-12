@@ -434,7 +434,7 @@ class Device:
 
         Parameters
         ----------
-        message_bytes : HarpMessage
+        message : HarpMessage
             the HarpMessage containing the message to be sent to the device
 
         Returns

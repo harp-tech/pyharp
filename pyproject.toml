@@ -1,14 +1,20 @@
 [project]
-name = "pyharp"
-version = "0.1.0"
+name = "harp-protocol"
+version = "0.2.0a1"
 description = "Library for data acquisition and control of devices implementing the Harp protocol."
-authors = [{ name= "Filipe Carvalho", email="filipe@open-ephys.org"}]
+authors = [{ name= "Hardware and Software Platform, Champalimaud Foundation", email="software@research.fchampalimaud.org"}]
 license = "MIT"
 readme = 'README.md'
-requires-python = ">=3.11"
+keywords = ['python', 'harp']
+requires-python = ">=3.9,<4.0"
 dependencies = [
     "pyserial>=3.5",
 ]
+
+[project.urls]
+Repository = "https://github.com/fchampalimaud/pyharp/"
+"Bug Tracker" = "https://github.com/fchampalimaud/pyharp/issues"
+Documentation = "https://fchampalimaud.github.io/pyharp/"
 
 [dependency-groups]
 dev = [
@@ -44,3 +50,9 @@ python_files = [
     "tests.py",
     "test_*.py"
 ]
+
+[[tool.uv.index]]
+name = "testpypi"
+url = "https://test.pypi.org/simple/"
+publish-url = "https://test.pypi.org/legacy/"
+explicit = true
