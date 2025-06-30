@@ -7,6 +7,7 @@ plugins:
   - autorefs
   - codeinclude
   - monorepo
+  - include-markdown
   - mkdocstrings:
       handlers:
         python:
