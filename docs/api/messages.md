@@ -1,4 +1,4 @@
-::: pyharp.protocol.messages.HarpMessage
-::: pyharp.protocol.messages.ReplyHarpMessage
-::: pyharp.protocol.messages.ReadHarpMessage
-::: pyharp.protocol.messages.WriteHarpMessage
+::: harp.protocol.messages.HarpMessage
+::: harp.protocol.messages.ReplyHarpMessage
+::: harp.protocol.messages.ReadHarpMessage
+::: harp.protocol.messages.WriteHarpMessage

@@ -1,7 +1,7 @@
-::: pyharp.protocol.MessageType
-::: pyharp.protocol.PayloadType
-::: pyharp.protocol.CommonRegisters
-::: pyharp.protocol.OperationMode
-::: pyharp.protocol.OperationCtrl
-::: pyharp.protocol.ResetMode
-::: pyharp.protocol.ClockConfig
+::: harp.protocol.MessageType
+::: harp.protocol.PayloadType
+::: harp.protocol.CommonRegisters
+::: harp.protocol.OperationMode
+::: harp.protocol.OperationCtrl
+::: harp.protocol.ResetMode
+::: harp.protocol.ClockConfig

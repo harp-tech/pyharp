@@ -36,8 +36,8 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 include = [
-    "pyharp",
-    "pyharp/**/*",
+    "harp",
+    "harp/**/*",
 ]
 
 [tool.ruff.lint.pydocstyle]

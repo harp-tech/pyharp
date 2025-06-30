@@ -1,6 +1,6 @@
 from collections import defaultdict
 
-# This file contains the device names for the current version of the pyHarp library.
+# This file contains the device names for the current version of the harp library.
 # These names were extracted from https://github.com/harp-tech/protocol/blob/main/whoami.yml
 # commit used: https://github.com/harp-tech/protocol/commit/3e2a228
 

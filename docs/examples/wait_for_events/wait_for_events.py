@@ -1,5 +1,5 @@
-from pyharp.communication.device import Device
-from pyharp.protocol import OperationMode
+from harp.communication.device import Device
+from harp.protocol import OperationMode
 
 SERIAL_PORT = (
     "/dev/ttyUSB0"  # or "COMx" in Windows ("x" is the number of the serial port)

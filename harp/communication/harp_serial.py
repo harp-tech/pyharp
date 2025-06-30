@@ -7,7 +7,7 @@ from typing import Union
 import serial
 import serial.threaded
 
-from pyharp.protocol.messages import HarpMessage, MessageType
+from harp.protocol.messages import HarpMessage, MessageType
 
 
 class HarpSerialProtocol(serial.threaded.Protocol):

@@ -8,8 +8,8 @@ from typing import Optional, Union
 
 import serial
 
-from pyharp.communication.harp_serial import HarpSerial
-from pyharp.protocol import (
+from harp.communication.harp_serial import HarpSerial
+from harp.protocol import (
     ClockConfig,
     CommonRegisters,
     MessageType,
@@ -18,8 +18,8 @@ from pyharp.protocol import (
     PayloadType,
     ResetMode,
 )
-from pyharp.protocol.device_names import device_names
-from pyharp.protocol.messages import HarpMessage, ReplyHarpMessage
+from harp.protocol.device_names import device_names
+from harp.protocol.messages import HarpMessage, ReplyHarpMessage
 
 
 class Device:

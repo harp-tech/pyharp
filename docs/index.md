@@ -1,21 +1,21 @@
-# pyharp
+# harp
 
 Python implementation of the Harp protocol for hardware control and data acquisition.
 
 ## Installation
 
 ```bash
-uv add pyharp
+uv add harp-protocol
 # or
-pip install pyharp
+pip install harp-protocol
 ```
 
 ## Quick Start
 
 ```python
-from pyharp import MessageType, PayloadType
-from pyharp.device import Device
-from pyharp.messages import HarpMessage
+from harp import MessageType, PayloadType
+from harp.device import Device
+from harp.messages import HarpMessage
 
 # Connect to a device
 device = Device("/dev/ttyUSB0")
@@ -39,9 +39,9 @@ device.disconnect()
 or using the `with` statement:
 
 ```python
-from pyharp import MessageType, PayloadType
-from pyharp.device import Device
-from pyharp.messages import HarpMessage
+from harp import MessageType, PayloadType
+from harp.device import Device
+from harp.messages import HarpMessage
 
 with Device("/dev/ttyUSB0") as device:
     # Get device information

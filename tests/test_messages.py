@@ -1,7 +1,7 @@
 import pytest
 
-from pyharp.protocol import CommonRegisters, MessageType, PayloadType
-from pyharp.protocol.messages import (
+from harp.protocol import CommonRegisters, MessageType, PayloadType
+from harp.protocol.messages import (
     HarpMessage,
     ReadHarpMessage,
     ReplyHarpMessage,

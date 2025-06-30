@@ -4,9 +4,9 @@ from threading import Event, Thread
 
 from serial import SerialException
 
-from pyharp.communication.device import Device, OperationMode
-from pyharp.protocol import MessageType, PayloadType
-from pyharp.protocol.messages import HarpMessage
+from harp.communication.device import Device, OperationMode
+from harp.protocol import MessageType, PayloadType
+from harp.protocol.messages import HarpMessage
 
 SERIAL_PORT = (
     "/dev/ttyUSB0"  # or "COMx" in Windows ("x" is the number of the serial port)

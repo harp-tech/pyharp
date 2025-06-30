@@ -1,6 +1,6 @@
 # Examples
 
-This section contains some examples to help you get started with `pyharp`.
+This section contains some examples to help you get started with `harp`.
 
 Here's the complete list of available examples:
 

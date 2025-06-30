@@ -84,7 +84,7 @@ nav:
     - Protocol: api/protocol.md
     - Device: api/device.md
     - Messages: api/messages.md
-  - Devices: '*include ./pyharp.devices/*/mkdocs.yml'
+  - Devices: '*include ./harp.devices/*/mkdocs.yml'
 
 extra_css:
 - stylesheets/extra.css
