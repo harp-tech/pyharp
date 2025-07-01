@@ -16,6 +16,8 @@ plugins:
             show_root_heading: true
             show_submodules: true
             show_source: false
+            extensions:
+              - griffe_fieldz
   - git-committers:
       repository: fchampalimaud/pyharp
       branch: main

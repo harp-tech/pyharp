@@ -225,6 +225,18 @@ wheels = [
 ]
 
 [[package]]
+name = "fieldz"
+version = "0.1.2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/90/62/698c5cc2e7d4c8c89e63033e2e9d3c74902a1bf28782712eacb0653097ce/fieldz-0.1.2.tar.gz", hash = "sha256:0448ed5dacb13eaa49da0db786e87fae298fbd2652d26c510e5d7aea6b6bebf4", size = 17277, upload-time = "2025-06-30T18:06:40.881Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/6d/8c/8958392cade27a272daf45d09a08473073dedeccad94b097dfeb898d969f/fieldz-0.1.2-py3-none-any.whl", hash = "sha256:e25884d2821a2d5638ef8d4d8bce5d1039359cfcb46d0f93df8cb1f7c2eb3a2e", size = 17878, upload-time = "2025-06-30T18:06:39.322Z" },
+]
+
+[[package]]
 name = "ghp-import"
 version = "2.1.0"
 source = { registry = "https://pypi.org/simple" }
@@ -273,6 +285,19 @@ wheels = [
 ]
 
 [[package]]
+name = "griffe-fieldz"
+version = "0.2.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "fieldz" },
+    { name = "griffe" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/95/95/5c47b6c54d106c76aad9b51177401ad4215a0de910c6853b689a2c6d07da/griffe_fieldz-0.2.1.tar.gz", hash = "sha256:7371693cdd045ac95aaebd16a81586d8dfa72c30e2d4519e0dde0d80f8ef0dc7", size = 8148, upload-time = "2025-01-12T20:55:09.063Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/6f/fc/c059d128d77a369f54a3753162a38cd7668e5b4d14464672001a50cf2e9d/griffe_fieldz-0.2.1-py3-none-any.whl", hash = "sha256:04ae78b487c832a38b0495f971784d513da413b867c51e429f39d74f76d4f941", size = 5691, upload-time = "2025-01-12T20:55:07.634Z" },
+]
+
+[[package]]
 name = "harp-protocol"
 version = "0.2.0a2"
 source = { editable = "." }
@@ -282,6 +307,7 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "griffe-fieldz" },
     { name = "mkdocs" },
     { name = "mkdocs-codeinclude-plugin" },
     { name = "mkdocs-git-authors-plugin" },
@@ -300,13 +326,14 @@ requires-dist = [{ name = "pyserial", specifier = ">=3.5" }]
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "griffe-fieldz", specifier = ">=0.2.1" },
     { name = "mkdocs", specifier = ">=1.6.1" },
     { name = "mkdocs-codeinclude-plugin", specifier = ">=0.2.1" },
     { name = "mkdocs-git-authors-plugin", specifier = ">=0.9.4" },
     { name = "mkdocs-git-committers-plugin-2", specifier = ">=2.5.0" },
     { name = "mkdocs-include-markdown-plugin", specifier = ">=7.1.6" },
     { name = "mkdocs-material", specifier = ">=9.6.9" },
-    { name = "mkdocs-monorepo-plugin", specifier = ">=1.1.0" },
+    { name = "mkdocs-monorepo-plugin", specifier = ">=1.1.2" },
     { name = "mkdocstrings-python", specifier = ">=1.16.6" },
     { name = "pytest", specifier = ">=8.3.5" },
     { name = "pytest-cov", specifier = ">=6.1.1" },
@@ -583,15 +610,15 @@ wheels = [
 
 [[package]]
 name = "mkdocs-monorepo-plugin"
-version = "1.1.0"
+version = "1.1.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "mkdocs" },
     { name = "python-slugify" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/f7/6c/5b2a34fd63fe20724e2edf1879e977b40453efe40e1c385a05f38b420664/mkdocs-monorepo-plugin-1.1.0.tar.gz", hash = "sha256:ccc566e166aac5ae7fade498c15c4a337a4892d238629b51aba8ef3fc7099034", size = 13435, upload-time = "2024-01-04T14:29:15.892Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/d4/6a/a75245020e44beb9d7c806158f8a2cda37597711409d40c5a37c70078a7e/mkdocs-monorepo-plugin-1.1.2.tar.gz", hash = "sha256:09200bcf837ad35070e6da973aa0cb682e69ed6e16f254a30584550c6d2d8ebb", size = 13723, upload-time = "2025-06-05T19:09:45.042Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/d3/33/4cc6c70223aee511244f8fe7706df70d1cd253d1446ab466c73f9dfbaab5/mkdocs_monorepo_plugin-1.1.0-py3-none-any.whl", hash = "sha256:7bbfd9756a7fdecf64d6105dad96cce7e7bb5f0d6cfc2bfda31a1919c77cc3b9", size = 14312, upload-time = "2024-01-04T14:29:14.09Z" },
+    { url = "https://files.pythonhosted.org/packages/57/26/4f4c19457d1d4e6d571a3b092921b7a0ce9477d18d997755ac615d72b96b/mkdocs_monorepo_plugin-1.1.2-py3-none-any.whl", hash = "sha256:4b917bc224b89e34e1736bb31ad5ae9deb0a907da879e03bb9454b41fb8b1cac", size = 14539, upload-time = "2025-06-05T19:09:43.74Z" },
 ]
 
 [[package]]
