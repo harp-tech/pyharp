@@ -1,6 +1,7 @@
 site_name: pyharp
 repo_url: "https://github.com/fchampalimaud/pyharp"
 # repo_name: "pyharp"
+copyright: Copyright &copy; 2025, Hardware and Software Platform, Champalimaud Foundation
 
 plugins:
   - search
@@ -29,9 +30,6 @@ markdown_extensions:
   - attr_list
   - admonition
   - pymdownx.details
-  - pymdownx.emoji:
-      emoji_index: !!python/name:material.extensions.emoji.twemoji
-      emoji_generator: !!python/name:material.extensions.emoji.to_svg
   - pymdownx.highlight:
       anchor_linenums: true
       line_spans: __span
@@ -55,6 +53,7 @@ theme:
     # - navigation.sections
     - navigation.indexes
     - navigation.expand
+    - navigation.footer
   palette:
     - media: "(prefers-color-scheme)"
       toggle:
@@ -87,7 +86,12 @@ nav:
     - Protocol: api/protocol.md
     - Device: api/device.md
     - Messages: api/messages.md
-  - Devices: '*include ./harp.devices/*/mkdocs.yml'
+  - Devices: '*include ../harp.devices/*/mkdocs.yml'
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/fchampalimaud/pyharp
 
 extra_css:
 - stylesheets/extra.css
