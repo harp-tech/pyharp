@@ -25,11 +25,11 @@ class MessageType(IntEnum):
         The value that corresponds to a Write Error Harp message (10). Messages of this type are only meant to be send by the device
     """
 
-    READ: int = 1
-    WRITE: int = 2
-    EVENT: int = 3
-    READ_ERROR: int = 9
-    WRITE_ERROR: int = 10
+    READ = 1
+    WRITE = 2
+    EVENT = 3
+    READ_ERROR = 9
+    WRITE_ERROR = 10
 
 
 class PayloadType(IntEnum):
