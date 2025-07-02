@@ -33,6 +33,7 @@ current_device_names = {
     1236: "AnalogInput",
     1248: "RgbArray",
     1280: "SoundCard",
+    1282: "CurrentDriver",
     1296: "SyringePump",
     1400: "LicketySplit",
     1401: "SniffDetector",
