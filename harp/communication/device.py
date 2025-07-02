@@ -29,27 +29,27 @@ class Device:
     Attributes
     ----------
     WHO_AM_I : int
-        the device ID number. A list of devices can be found [here](https://github.com/harp-tech/protocol/blob/main/whoami.md)
+        The device ID number. A list of devices can be found [here](https://github.com/harp-tech/protocol/blob/main/whoami.md)
     DEFAULT_DEVICE_NAME : str
-        the device name, i.e. "Behavior". This name is derived by cross-referencing the `WHO_AM_I` identifier with the corresponding device name in the `device_names` dictionary
+        The device name, i.e. "Behavior". This name is derived by cross-referencing the `WHO_AM_I` identifier with the corresponding device name in the `device_names` dictionary
     HW_VERSION_H : int
-        the major hardware version
+        The major hardware version
     HW_VERSION_L : int
-        the minor hardware version
+        The minor hardware version
     ASSEMBLY_VERSION : int
-        the version of the assembled components
+        The version of the assembled components
     HARP_VERSION_H : int
-        the major Harp core version
+        The major Harp core version
     HARP_VERSION_L : int
-        the minor Harp core version
+        The minor Harp core version
     FIRMWARE_VERSION_H : int
-        the major firmware version
+        The major firmware version
     FIRMWARE_VERSION_L : int
-        the minor firmware version
+        The minor firmware version
     DEVICE_NAME : str
-        the device name stored in the Harp device
+        The device name stored in the Harp device
     SERIAL_NUMBER : int, optional
-        the serial number of the device
+        The serial number of the device
     """
 
     WHO_AM_I: int
@@ -83,9 +83,9 @@ class Device:
         Parameters
         ----------
         serial_port : str
-            the serial port used to establish the connection with the Harp device. It must be denoted as `/dev/ttyUSBx` in Linux and `COMx` in Windows, where `x` is the number of the serial port
+            The serial port used to establish the connection with the Harp device. It must be denoted as `/dev/ttyUSBx` in Linux and `COMx` in Windows, where `x` is the number of the serial port
         dump_file_path: str, optional
-            the binary file to which all Harp messages will be written
+            The binary file to which all Harp messages will be written
         read_timeout_s: float, optional
             _TODO_
         """
@@ -170,7 +170,7 @@ class Device:
         Returns
         -------
         DeviceMode
-            the current device mode
+            The current device mode
         """
         address = CommonRegisters.OPERATION_CTRL
         reply = self.send(HarpMessage.create(MessageType.READ, address, PayloadType.U8))
@@ -184,7 +184,7 @@ class Device:
         Returns
         -------
         list
-            the list containing the reply Harp messages for all the device's registers
+            The list containing the reply Harp messages for all the device's registers
         """
         address = CommonRegisters.OPERATION_CTRL
         reg_value = self.send(
@@ -213,12 +213,12 @@ class Device:
         Parameters
         ----------
         mode : DeviceMode
-            the new device mode value
+            The new device mode value
 
         Returns
         -------
         ReplyHarpMessage
-            the reply to the Harp message
+            The reply to the Harp message
         """
         address = CommonRegisters.OPERATION_CTRL
 
@@ -245,12 +245,12 @@ class Device:
         Parameters
         ----------
         enable : bool
-            If True, enables the ALIVE_EN bit. If False, disables it.
+            If True, enables the ALIVE_EN bit. If False, disables it
 
         Returns
         -------
         bool
-            True if the operation was successful, False otherwise.
+            True if the operation was successful, False otherwise
         """
         address = CommonRegisters.OPERATION_CTRL
 
@@ -277,12 +277,12 @@ class Device:
         Parameters
         ----------
         enable : bool
-            If True, enables the operation LED. If False, disables it.
+            If True, enables the operation LED. If False, disables it
 
         Returns
         -------
         bool
-            True if the operation was successful, False otherwise.
+            True if the operation was successful, False otherwise
         """
         address = CommonRegisters.OPERATION_CTRL
 
@@ -309,12 +309,12 @@ class Device:
         Parameters
         ----------
         enable : bool
-            If True, enables the status led. If False, disables it.
+            If True, enables the status led. If False, disables it
 
         Returns
         -------
         bool
-            True if the operation was successful, False otherwise.
+            True if the operation was successful, False otherwise
         """
         address = CommonRegisters.OPERATION_CTRL
 
@@ -341,12 +341,12 @@ class Device:
         Parameters
         ----------
         enable : bool
-            If True, the Replies to all the Commands are muted. If False, un-mutes them.
+            If True, the Replies to all the Commands are muted. If False, un-mutes them
 
         Returns
         -------
         bool
-            True if the operation was successful, False otherwise.
+            True if the operation was successful, False otherwise
         """
         address = CommonRegisters.OPERATION_CTRL
 
@@ -375,7 +375,7 @@ class Device:
         Returns
         -------
         ReplyHarpMessage
-            the reply to the Harp message
+            The reply to the Harp message
         """
         address = CommonRegisters.RESET_DEV
         reply = self.send(
@@ -391,12 +391,12 @@ class Device:
         Parameters
         ----------
         clock_config : ClockConfig
-            the clock configuration value
+            The clock configuration value
 
         Returns
         -------
         ReplyHarpMessage
-            the reply to the Harp message
+            The reply to the Harp message
         """
         address = CommonRegisters.CLOCK_CONFIG
         reply = self.send(
@@ -412,12 +412,12 @@ class Device:
         Parameters
         ----------
         timestamp_offset : int
-            the timestamp offset value
+            The timestamp offset value
 
         Returns
         -------
         ReplyHarpMessage
-            the reply to the Harp message
+            The reply to the Harp message
         """
         address = CommonRegisters.TIMESTAMP_OFFSET
         reply = self.send(
@@ -435,12 +435,12 @@ class Device:
         Parameters
         ----------
         message : HarpMessage
-            the HarpMessage containing the message to be sent to the device
+            The HarpMessage containing the message to be sent to the device
 
         Returns
         -------
         Optional[ReplyHarpMessage]
-            the reply to the Harp message or None if no reply is given
+            The reply to the Harp message or None if no reply is given
         """
         self._ser.write(message.frame)
 
@@ -459,7 +459,7 @@ class Device:
         Returns
         -------
         Union[ReplyHarpMessage, None]
-            the incoming Harp message in case it exists
+            The incoming Harp message in case it exists
         """
         try:
             return self._ser.msg_q.get(block=True, timeout=self._read_timeout_s)
@@ -480,7 +480,7 @@ class Device:
         Returns
         -------
         list
-            the list containing every Harp event message that were on the queue
+            The list containing every Harp event message that were on the queue
         """
         msgs = []
         while True:
@@ -497,7 +497,7 @@ class Device:
         Returns
         -------
         int
-            the number of events in the event queue
+            The number of events in the event queue
         """
         return self._ser.event_q.qsize()
 
@@ -508,12 +508,12 @@ class Device:
         Parameters
         ----------
         address : int
-            the register to be read
+            The register to be read
 
         Returns
         -------
         ReplyHarpMessage
-            the reply to the Harp message that will contain the value read from the register
+            The reply to the Harp message that will contain the value read from the register
         """
         return self.send(
             HarpMessage.create(
@@ -530,12 +530,12 @@ class Device:
         Parameters
         ----------
         address : int
-            the register to be read
+            The register to be read
 
         Returns
         -------
         ReplyHarpMessage
-            the reply to the Harp message that will contain the value read from the register
+            The reply to the Harp message that will contain the value read from the register
         """
         return self.send(
             HarpMessage.create(
@@ -552,12 +552,12 @@ class Device:
         Parameters
         ----------
         address : int
-            the register to be read
+            The register to be read
 
         Returns
         -------
         ReplyHarpMessage
-            the reply to the Harp message that will contain the value read from the register
+            The reply to the Harp message that will contain the value read from the register
         """
         return self.send(
             HarpMessage.create(
@@ -574,12 +574,12 @@ class Device:
         Parameters
         ----------
         address : int
-            the register to be read
+            The register to be read
 
         Returns
         -------
         ReplyHarpMessage
-            the reply to the Harp message that will contain the value read from the register
+            The reply to the Harp message that will contain the value read from the register
         """
         return self.send(
             HarpMessage.create(
@@ -596,12 +596,12 @@ class Device:
         Parameters
         ----------
         address : int
-            the register to be read
+            The register to be read
 
         Returns
         -------
         ReplyHarpMessage
-            the reply to the Harp message that will contain the value read from the register
+            The reply to the Harp message that will contain the value read from the register
         """
         return self.send(
             HarpMessage.create(
@@ -618,12 +618,12 @@ class Device:
         Parameters
         ----------
         address : int
-            the register to be read
+            The register to be read
 
         Returns
         -------
         ReplyHarpMessage
-            the reply to the Harp message that will contain the value read from the register
+            The reply to the Harp message that will contain the value read from the register
         """
         return self.send(
             HarpMessage.create(
@@ -640,12 +640,12 @@ class Device:
         Parameters
         ----------
         address : int
-            the register to be read
+            The register to be read
 
         Returns
         -------
         ReplyHarpMessage
-            the reply to the Harp message that will contain the value read from the register
+            The reply to the Harp message that will contain the value read from the register
         """
         return self.send(
             HarpMessage.create(
@@ -662,12 +662,12 @@ class Device:
         Parameters
         ----------
         address : int
-            the register to be read
+            The register to be read
 
         Returns
         -------
         ReplyHarpMessage
-            the reply to the Harp message that will contain the value read from the register
+            The reply to the Harp message that will contain the value read from the register
         """
         return self.send(
             HarpMessage.create(
@@ -684,12 +684,12 @@ class Device:
         Parameters
         ----------
         address : int
-            the register to be read
+            The register to be read
 
         Returns
         -------
         ReplyHarpMessage
-            the reply to the Harp message that will contain the value read from the register
+            The reply to the Harp message that will contain the value read from the register
         """
         return self.send(
             HarpMessage.create(
@@ -706,14 +706,14 @@ class Device:
         Parameters
         ----------
         address : int
-            the register to be written on
+            The register to be written on
         value: int | list[int]
-            the value to be written to the register
+            The value to be written to the register
 
         Returns
         -------
         ReplyHarpMessage
-            the reply to the Harp message
+            The reply to the Harp message
         """
         return self.send(
             HarpMessage.create(
@@ -731,14 +731,14 @@ class Device:
         Parameters
         ----------
         address : int
-            the register to be written on
+            The register to be written on
         value: int | list[int]
-            the value to be written to the register
+            The value to be written to the register
 
         Returns
         -------
         ReplyHarpMessage
-            the reply to the Harp message
+            The reply to the Harp message
         """
         return self.send(
             HarpMessage.create(
@@ -756,14 +756,14 @@ class Device:
         Parameters
         ----------
         address : int
-            the register to be written on
+            The register to be written on
         value: int | list[int]
-            the value to be written to the register
+            The value to be written to the register
 
         Returns
         -------
         ReplyHarpMessage
-            the reply to the Harp message
+            The reply to the Harp message
         """
         return self.send(
             HarpMessage.create(
@@ -781,14 +781,14 @@ class Device:
         Parameters
         ----------
         address : int
-            the register to be written on
+            The register to be written on
         value: int | list[int]
-            the value to be written to the register
+            The value to be written to the register
 
         Returns
         -------
         ReplyHarpMessage
-            the reply to the Harp message
+            The reply to the Harp message
         """
         return self.send(
             HarpMessage.create(
@@ -806,14 +806,14 @@ class Device:
         Parameters
         ----------
         address : int
-            the register to be written on
+            The register to be written on
         value: int | list[int]
-            the value to be written to the register
+            The value to be written to the register
 
         Returns
         -------
         ReplyHarpMessage
-            the reply to the Harp message
+            The reply to the Harp message
         """
         return self.send(
             HarpMessage.create(
@@ -831,14 +831,14 @@ class Device:
         Parameters
         ----------
         address : int
-            the register to be written on
+            The register to be written on
         value: int | list[int]
-            the value to be written to the register
+            The value to be written to the register
 
         Returns
         -------
         ReplyHarpMessage
-            the reply to the Harp message
+            The reply to the Harp message
         """
         return self.send(
             HarpMessage.create(
@@ -856,14 +856,14 @@ class Device:
         Parameters
         ----------
         address : int
-            the register to be written on
+            The register to be written on
         value: int | list[int]
-            the value to be written to the register
+            The value to be written to the register
 
         Returns
         -------
         ReplyHarpMessage
-            the reply to the Harp message
+            The reply to the Harp message
         """
         return self.send(
             HarpMessage.create(
@@ -881,14 +881,14 @@ class Device:
         Parameters
         ----------
         address : int
-            the register to be written on
+            The register to be written on
         value: int | list[int]
-            the value to be written to the register
+            The value to be written to the register
 
         Returns
         -------
         ReplyHarpMessage
-            the reply to the Harp message
+            The reply to the Harp message
         """
         return self.send(
             HarpMessage.create(
@@ -906,14 +906,14 @@ class Device:
         Parameters
         ----------
         address : int
-            the register to be written on
+            The register to be written on
         value: int | list[int]
-            the value to be written to the register
+            The value to be written to the register
 
         Returns
         -------
         ReplyHarpMessage
-            the reply to the Harp message
+            The reply to the Harp message
         """
         return self.send(
             HarpMessage.create(
@@ -931,7 +931,7 @@ class Device:
         Returns
         -------
         int
-            the value of the `WHO_AM_I` register.
+            The value of the `WHO_AM_I` register
         """
         address = CommonRegisters.WHO_AM_I
 
@@ -948,7 +948,7 @@ class Device:
         Returns
         -------
         str
-            the default device name.
+            The default device name
         """
         return device_names.get(self.WHO_AM_I, "Unknown device")
 
@@ -959,7 +959,7 @@ class Device:
         Returns
         -------
         int
-            the value of the `HW_VERSION_H` register.
+            The value of the `HW_VERSION_H` register
         """
         address = CommonRegisters.HW_VERSION_H
 
@@ -976,7 +976,7 @@ class Device:
         Returns
         -------
         int
-            the value of the `HW_VERSION_L` register.
+            The value of the `HW_VERSION_L` register
         """
         address = CommonRegisters.HW_VERSION_L
 
@@ -993,7 +993,7 @@ class Device:
         Returns
         -------
         int
-            the value of the `ASSEMBLY_VERSION` register.
+            The value of the `ASSEMBLY_VERSION` register
         """
         address = CommonRegisters.ASSEMBLY_VERSION
 
@@ -1010,7 +1010,7 @@ class Device:
         Returns
         -------
         int
-            the value of the `HARP_VERSION_H` register.
+            The value of the `HARP_VERSION_H` register
         """
         address = CommonRegisters.HARP_VERSION_H
 
@@ -1027,7 +1027,7 @@ class Device:
         Returns
         -------
         int
-            the value of the `HARP_VERSION_L` register.
+            The value of the `HARP_VERSION_L` register
         """
         address = CommonRegisters.HARP_VERSION_L
 
@@ -1044,7 +1044,7 @@ class Device:
         Returns
         -------
         int
-            the value of the `FW_VERSION_H` register.
+            The value of the `FW_VERSION_H` register
         """
         address = CommonRegisters.FIRMWARE_VERSION_H
 
@@ -1061,7 +1061,7 @@ class Device:
         Returns
         -------
         int
-            the value of the `FW_VERSION_L` register.
+            The value of the `FW_VERSION_L` register
         """
         address = CommonRegisters.FIRMWARE_VERSION_L
 
@@ -1078,7 +1078,7 @@ class Device:
         Returns
         -------
         int
-            the value of the `DEVICE_NAME` register.
+            The value of the `DEVICE_NAME` register
         """
         address = CommonRegisters.DEVICE_NAME
 
@@ -1095,7 +1095,7 @@ class Device:
         Returns
         -------
         int
-            the value of the `SERIAL_NUMBER` register.
+            The value of the `SERIAL_NUMBER` register
         """
         address = CommonRegisters.SERIAL_NUMBER
 
@@ -1115,7 +1115,7 @@ class Device:
         Returns
         -------
         int
-            the value of the `CLOCK_CONFIG` register.
+            The value of the `CLOCK_CONFIG` register
         """
         address = CommonRegisters.CLOCK_CONFIG
 
@@ -1132,7 +1132,7 @@ class Device:
         Returns
         -------
         int
-            the value of the `TIMESTAMP_OFFSET` register.
+            The value of the `TIMESTAMP_OFFSET` register
         """
         address = CommonRegisters.TIMESTAMP_OFFSET
 

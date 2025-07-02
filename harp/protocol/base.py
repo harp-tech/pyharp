@@ -14,15 +14,15 @@ class MessageType(IntEnum):
     Attributes
     ----------
     READ : int
-        the value that corresponds to a Read Harp message (1)
+        The value that corresponds to a Read Harp message (1)
     WRITE : int
-        the value that corresponds to a Write Harp message (2)
+        The value that corresponds to a Write Harp message (2)
     EVENT : int
-        the value that corresponds to an Event Harp message (3). Messages of this type are only meant to be send by the device
+        The value that corresponds to an Event Harp message (3). Messages of this type are only meant to be send by the device
     READ_ERROR : int
-        the value that corresponds to a Read Error Harp message (9). Messages of this type are only meant to be send by the device
+        The value that corresponds to a Read Error Harp message (9). Messages of this type are only meant to be send by the device
     WRITE_ERROR : int
-        the value that corresponds to a Write Error Harp message (10). Messages of this type are only meant to be send by the device
+        The value that corresponds to a Write Error Harp message (10). Messages of this type are only meant to be send by the device
     """
 
     READ: int = 1
@@ -38,44 +38,44 @@ class PayloadType(IntEnum):
 
     Attributes
     ----------
-    U8 : PayloadType
-        the value that corresponds to a message of type U8
-    S8 : PayloadType
-        the value that corresponds to a message of type S8
-    U16 : PayloadType
-        the value that corresponds to a message of type U16
-    S16 : PayloadType
-        the value that corresponds to a message of type S16
-    U32 : PayloadType
-        the value that corresponds to a message of type U32
-    S32 : PayloadType
-        the value that corresponds to a message of type S32
-    U64 : PayloadType
-        the value that corresponds to a message of type U64
-    S64 : PayloadType
-        the value that corresponds to a message of type S64
-    Float : PayloadType
-        the value that corresponds to a message of type Float
-    Timestamp: PayloadType
-        the value that corresponds to a message of type Timestamp. This is not a valid PayloadType, but it is used to indicate that the message has a timestamp.
-    TimestampedU8 : PayloadType
-        the value that corresponds to a message of type TimestampedU8
-    TimestampedS8 : PayloadType
-        the value that corresponds to a message of type TimestampedS8
-    TimestampedU16 : PayloadType
-        the value that corresponds to a message of type TimestampedU16
-    TimestampedS16 : PayloadType
-        the value that corresponds to a message of type TimestampedS16
-    TimestampedU32 : PayloadType
-        the value that corresponds to a message of type TimestampedU32
-    TimestampedS32 : PayloadType
-        the value that corresponds to a message of type TimestampedS32
-    TimestampedU64 : PayloadType
-        the value that corresponds to a message of type TimestampedU64
-    TimestampedS64 : PayloadType
-        the value that corresponds to a message of type TimestampedS64
-    TimestampedFloat : PayloadType
-        the value that corresponds to a message of type TimestampedFloat
+    U8 : int
+        The value that corresponds to a message of type U8
+    S8 : int
+        The value that corresponds to a message of type S8
+    U16 : int
+        The value that corresponds to a message of type U16
+    S16 : int
+        The value that corresponds to a message of type S16
+    U32 : int
+        The value that corresponds to a message of type U32
+    S32 : int
+        The value that corresponds to a message of type S32
+    U64 : int
+        The value that corresponds to a message of type U64
+    S64 : int
+        The value that corresponds to a message of type S64
+    Float : int
+        The value that corresponds to a message of type Float
+    Timestamp: int
+        The value that corresponds to a message of type Timestamp. This is not a valid PayloadType, but it is used to indicate that the message has a timestamp.
+    TimestampedU8 : int
+        The value that corresponds to a message of type TimestampedU8
+    TimestampedS8 : int
+        The value that corresponds to a message of type TimestampedS8
+    TimestampedU16 : int
+        The value that corresponds to a message of type TimestampedU16
+    TimestampedS16 : int
+        The value that corresponds to a message of type TimestampedS16
+    TimestampedU32 : int
+        The value that corresponds to a message of type TimestampedU32
+    TimestampedS32 : int
+        The value that corresponds to a message of type TimestampedS32
+    TimestampedU64 : int
+        The value that corresponds to a message of type TimestampedU64
+    TimestampedS64 : int
+        The value that corresponds to a message of type TimestampedS64
+    TimestampedFloat : int
+        The value that corresponds to a message of type TimestampedFloat
     """
 
     U8 = _isUnsigned | 1
@@ -106,37 +106,37 @@ class CommonRegisters(IntEnum):
     Attributes
     ----------
     WHO_AM_I : int
-        the number of the `WHO_AM_I` register
+        The number of the `WHO_AM_I` register
     HW_VERSION_H : int
-        the number of the `HW_VERSION_H` register
+        The number of the `HW_VERSION_H` register
     HW_VERSION_L : int
-        the number of the `HW_VERSION_L` register
+        The number of the `HW_VERSION_L` register
     ASSEMBLY_VERSION : int
-        the number of the `ASSEMBLY_VERSION` register
+        The number of the `ASSEMBLY_VERSION` register
     HARP_VERSION_H : int
-        the number of the `HARP_VERSION_H` register
+        The number of the `HARP_VERSION_H` register
     HARP_VERSION_L : int
-        the number of the `HARP_VERSION_L` register
+        The number of the `HARP_VERSION_L` register
     FIRMWARE_VERSION_H : int
-        the number of the `FIRMWARE_VERSION_H` register
+        The number of the `FIRMWARE_VERSION_H` register
     FIRMWARE_VERSION_L : int
-        the number of the `FIRMWARE_VERSION_L` register
+        The number of the `FIRMWARE_VERSION_L` register
     TIMESTAMP_SECOND : int
-        the number of the `TIMESTAMP_SECOND` register
+        The number of the `TIMESTAMP_SECOND` register
     TIMESTAMP_MICRO : int
-        the number of the `TIMESTAMP_MICRO` register
+        The number of the `TIMESTAMP_MICRO` register
     OPERATION_CTRL : int
-        the number of the `OPERATION_CTRL` register
+        The number of the `OPERATION_CTRL` register
     RESET_DEV : int
-        the number of the `RESET_DEV` register
+        The number of the `RESET_DEV` register
     DEVICE_NAME : int
-        the number of the `DEVICE_NAME` register
+        The number of the `DEVICE_NAME` register
     SERIAL_NUMBER : int
-        the number of the `SERIAL_NUMBER` register
+        The number of the `SERIAL_NUMBER` register
     CLOCK_CONFIG : int
-        the number of the `CLOCK_CONFIG` register
+        The number of the `CLOCK_CONFIG` register
     TIMESTAMP_OFFSET : int
-        the number of the `TIMESTAMP_OFFSET` register
+        The number of the `TIMESTAMP_OFFSET` register
     """
 
     WHO_AM_I = 0x00
@@ -164,13 +164,13 @@ class OperationMode(IntEnum):
     Attributes
     ----------
     STANDBY : int
-        the value that corresponds to the Standby operation mode (0). The device has all the Events turned off.
+        The value that corresponds to the Standby operation mode (0). The device has all the Events turned off
     ACTIVE : int
-        the value that corresponds to the Active operation mode (1). The device turns ON the Events detection. Only the enabled Events will be operating.
+        The value that corresponds to the Active operation mode (1). The device turns ON the Events detection. Only the enabled Events will be operating
     RESERVED : int
-        the value that corresponds to the Reserved operation mode (2)
+        The value that corresponds to the Reserved operation mode (2)
     SPEED : int
-        the value that corresponds to the Speed operation mode (3). The device enters Speed Mode.
+        The value that corresponds to the Speed operation mode (3). The device enters Speed Mode
     """
 
     STANDBY = 0
@@ -192,15 +192,15 @@ class OperationCtrl(IntFlag):
             2: Reserved
             3: Speed Mode (device enters Speed Mode, optional; only responds to Speed Mode commands)
     DUMP : int
-        Bit 3 (0x08): When set to 1, the device adds the content of all registers to the streaming buffer as Read messages. Always read as 0.
+        Bit 3 (0x08): When set to 1, the device adds the content of all registers to the streaming buffer as Read messages. Always read as 0
     MUTE_RPL : int
-        Bit 4 (0x10): If set to 1, replies to all commands are muted (not sent by the device).
+        Bit 4 (0x10): If set to 1, replies to all commands are muted (not sent by the device)
     VISUALEN : int
-        Bit 5 (0x20): If set to 1, visual indications (e.g., LEDs) operate. If 0, all visual indications are turned off.
+        Bit 5 (0x20): If set to 1, visual indications (e.g., LEDs) operate. If 0, all visual indications are turned off
     OPLEDEN : int
-        Bit 6 (0x40): If set to 1, the LED indicates the selected Operation Mode (see LED feedback table in documentation).
+        Bit 6 (0x40): If set to 1, the LED indicates the selected Operation Mode (see LED feedback table in documentation)
     ALIVE_EN : int
-        Bit 7 (0x80): If set to 1, the device sends an Event Message with the R_TIMESTAMP_SECONDS content each second (heartbeat).
+        Bit 7 (0x80): If set to 1, the device sends an Event Message with the R_TIMESTAMP_SECONDS content each second (heartbeat)
     """
 
     OP_MODE = 3 << 0
@@ -220,19 +220,19 @@ class ResetMode(IntEnum):
     ----------
     RST_DEF : int
         Bit 0 (0x01): If set, resets the device and restores all registers (Common and Application) to default values.
-        EEPROM is erased and defaults become the permanent boot option.
+        EEPROM is erased and defaults become the permanent boot option
     RST_EE : int
         Bit 1 (0x02): If set, resets the device and restores all registers (Common and Application) from non-volatile memory (EEPROM).
-        EEPROM values remain the permanent boot option.
+        EEPROM values remain the permanent boot option
     SAVE : int
         Bit 3 (0x08): If set, saves all non-volatile registers (Common and Application) to EEPROM and reboots.
-        EEPROM becomes the permanent boot option.
+        EEPROM becomes the permanent boot option
     NAME_TO_DEFAULT : int
-        Bit 4 (0x10): If set, reboots the device with the default name.
+        Bit 4 (0x10): If set, reboots the device with the default name
     BOOT_DEF : int
-        Bit 6 (0x40, read-only): Indicates the device booted with default register values.
+        Bit 6 (0x40, read-only): Indicates the device booted with default register values
     BOOT_EE : int
-        Bit 7 (0x80, read-only): Indicates the device booted with register values saved on the EEPROM.
+        Bit 7 (0x80, read-only): Indicates the device booted with register values saved on the EEPROM
     """
 
     RST_DEF = 0x01
@@ -252,20 +252,20 @@ class ClockConfig(IntFlag):
     ----------
     CLK_REP : int
         Bit 0 (0x01): If set to 1, the device will repeat the Harp Synchronization Clock to the Clock Output connector, if available.
-        Acts as a daisy-chain by repeating the Clock Input to the Clock Output. Setting this bit also unlocks the Harp Synchronization Clock.
+        Acts as a daisy-chain by repeating the Clock Input to the Clock Output. Setting this bit also unlocks the Harp Synchronization Clock
     CLK_GEN : int
         Bit 1 (0x02): If set to 1, the device will generate Harp Synchronization Clock to the Clock Output connector, if available.
-        The Clock Input will be ignored. Read as 1 if the device is generating the Harp Synchronization Clock.
+        The Clock Input will be ignored. Read as 1 if the device is generating the Harp Synchronization Clock
     REP_ABLE : int
-        Bit 3 (0x08, read-only): Indicates if the device is able (1) to repeat the Harp Synchronization Clock timestamp.
+        Bit 3 (0x08, read-only): Indicates if the device is able (1) to repeat the Harp Synchronization Clock timestamp
     GEN_ABLE : int
-        Bit 4 (0x10, read-only): Indicates if the device is able (1) to generate the Harp Synchronization Clock timestamp.
+        Bit 4 (0x10, read-only): Indicates if the device is able (1) to generate the Harp Synchronization Clock timestamp
     CLK_UNLOCK : int
         Bit 6 (0x40): If set to 1, the device will unlock the timestamp register counter (R_TIMESTAMP_SECOND) and accept new timestamp values.
-        Read as 1 if the timestamp register is unlocked.
+        Read as 1 if the timestamp register is unlocked
     CLK_LOCK : int
         Bit 7 (0x80): If set to 1, the device will lock the current timestamp register counter (R_TIMESTAMP_SECOND) and reject new timestamp values.
-        Read as 1 if the timestamp register is locked.
+        Read as 1 if the timestamp register is locked
     """
 
     CLK_REP = 0x01

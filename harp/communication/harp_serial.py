@@ -22,7 +22,7 @@ class HarpSerialProtocol(serial.threaded.Protocol):
         Parameters
         ----------
         read_q : queue.Queue
-            the queue to where the data received will be put
+            The queue to where the data received will be put
         """
         self._read_q = read_q
         self._buffer = bytearray()
@@ -46,7 +46,7 @@ class HarpSerialProtocol(serial.threaded.Protocol):
         Parameters
         ----------
         data : bytes
-            the data received from the serial communication
+            The data received from the serial communication
         """
         self._buffer.extend(data)
         while True:
@@ -83,9 +83,9 @@ class HarpSerial:
     Attributes
     ----------
     msg_q : queue.Queue
-        the queue containing the Harp messages that are not of the type `MessageType.EVENT`
+        The queue containing the Harp messages that are not of the type `MessageType.EVENT`
     event_q : queue.Queue
-        the queue containing the Harp messages of `MessageType.EVENT`
+        The queue containing the Harp messages of `MessageType.EVENT`
     """
 
     msg_q: queue.Queue
@@ -96,7 +96,7 @@ class HarpSerial:
         Parameters
         ----------
         serial_port : str
-            the serial port used to establish the connection with the Harp device. It must be denoted as `/dev/ttyUSBx` in Linux and `COMx` in Windows, where `x` is the number of the serial port
+            The serial port used to establish the connection with the Harp device. It must be denoted as `/dev/ttyUSBx` in Linux and `COMx` in Windows, where `x` is the number of the serial port
         """
         # Connect to the Harp device
         self._ser = serial.Serial(serial_port, **kwargs)

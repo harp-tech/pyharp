@@ -13,19 +13,19 @@ class HarpMessage:
     Attributes
     ----------
     frame : bytearray
-        the bytearray containing the whole Harp message
+        The bytearray containing the whole Harp message
     message_type : MessageType
-        the message type
+        The message type
     length : int
-        the length parameter of the Harp message
+        The length parameter of the Harp message
     address : int
-        the address of the register to which the Harp message refers to
+        The address of the register to which the Harp message refers to
     port : int
-        indicates the origin or destination of the Harp message in case the device is a hub of Harp devices. The value 255 points to the device itself (default value).
+        Indicates the origin or destination of the Harp message in case the device is a hub of Harp devices. The value 255 points to the device itself (default value).
     payload_type : PayloadType
-        the payload type
+        The payload type
     checksum : int
-        the sum of all bytes contained in the Harp message
+        The sum of all bytes contained in the Harp message
     """
 
     DEFAULT_PORT: int = 255
@@ -40,7 +40,7 @@ class HarpMessage:
         Returns
         -------
         int
-            the value of the checksum
+            The value of the checksum
         """
         checksum: int = 0
         for i in self.frame:
@@ -55,7 +55,7 @@ class HarpMessage:
         Returns
         -------
         bytearray
-            the bytearray containing the whole Harp message
+            The bytearray containing the whole Harp message
         """
         return self._frame
 
@@ -67,7 +67,7 @@ class HarpMessage:
         Returns
         -------
         MessageType
-            the message type
+            The message type
         """
         return MessageType(self._frame[0])
 
@@ -79,7 +79,7 @@ class HarpMessage:
         Returns
         -------
         int
-            the length parameter of the Harp message
+            The length parameter of the Harp message
         """
         return self._frame[1]
 
@@ -91,7 +91,7 @@ class HarpMessage:
         Returns
         -------
         int
-            the address of the register to which the Harp message refers to
+            The address of the register to which the Harp message refers to
         """
         return self._frame[2]
 
@@ -103,7 +103,7 @@ class HarpMessage:
         Returns
         -------
         int
-            the port value
+            The port value
         """
         return self._frame[3]
 
@@ -115,7 +115,7 @@ class HarpMessage:
         Parameters
         ----------
         value : int
-            the port value to set
+            The port value to set
         """
         self._port = value
 
@@ -127,7 +127,7 @@ class HarpMessage:
         Returns
         -------
         PayloadType
-            the payload type
+            The payload type
         """
         return PayloadType(self._frame[4])
 
@@ -139,7 +139,7 @@ class HarpMessage:
         Returns
         -------
         Union[int, list[int]]
-            the payload sent in the write Harp message
+            The payload sent in the write Harp message
         """
         payload_start = self.BASE_LENGTH
         if self.payload_type & PayloadType.Timestamp:
@@ -298,7 +298,7 @@ class HarpMessage:
         Returns
         -------
         int
-            the sum of all bytes contained in the Harp message
+            The sum of all bytes contained in the Harp message
         """
         return self._frame[-1]
 
@@ -310,12 +310,12 @@ class HarpMessage:
         Parameters
         ----------
         frame : bytearray
-            the bytearray will be parsed into a (reply) Harp message
+            The bytearray will be parsed into a (reply) Harp message
 
         Returns
         -------
         ReplyHarpMessage
-            the Harp message object parsed from the original bytearray
+            The Harp message object parsed from the original bytearray
         """
         return ReplyHarpMessage(frame)
 
@@ -332,13 +332,13 @@ class HarpMessage:
         Parameters
         ----------
         message_type : MessageType
-            the message type. It can only be of type READ or WRITE
+            The message type. It can only be of type READ or WRITE
         address : int
-            the address of the register that the message will interact with
+            The address of the register that the message will interact with
         payload_type : PayloadType
-            the payload type
+            The payload type
         value: int | list[int] | float | list[float], optional
-            the payload of the message. If message_type == MessageType.WRITE, the value cannot be None
+            The payload of the message. If message_type == MessageType.WRITE, the value cannot be None
         """
         if message_type == MessageType.READ:
             return ReadHarpMessage(payload_type, address)
@@ -360,7 +360,7 @@ class HarpMessage:
         Returns
         -------
         str
-            the debug representation of the reply message
+            The debug representation of the reply message
         """
         return self.__str__() + f"\r\nRaw Frame: {self.frame}"
 
@@ -371,7 +371,7 @@ class HarpMessage:
         Returns
         -------
         str
-            the representation of the Harp message
+            The representation of the Harp message
         """
         payload_str = ""
         format_str = ""
@@ -415,9 +415,9 @@ class ReplyHarpMessage(HarpMessage):
     Attributes
     ----------
     payload : Union[int, list[int]]
-        the message payload formatted as the appropriate type
+        The message payload formatted as the appropriate type
     timestamp : float
-        the Harp timestamp at which the message was sent
+        The Harp timestamp at which the message was sent
     """
 
     def __init__(
@@ -428,7 +428,7 @@ class ReplyHarpMessage(HarpMessage):
         Parameters
         ----------
         frame : bytearray
-            the Harp message in bytearray format
+            The Harp message in bytearray format
         """
 
         self._frame = frame
@@ -465,7 +465,7 @@ class ReplyHarpMessage(HarpMessage):
         Returns
         -------
         float
-            the Harp timestamp at which the message was sent
+            The Harp timestamp at which the message was sent
         """
         return self._timestamp
 
@@ -476,7 +476,7 @@ class ReplyHarpMessage(HarpMessage):
         Returns
         -------
         str
-            the payload parsed as a str
+            The payload parsed as a str
         """
         return self._raw_payload.decode("utf-8").rstrip("\x00")
 
@@ -508,7 +508,7 @@ class WriteHarpMessage(HarpMessage):
     Attributes
     ----------
     payload : Union[int, list[int]]
-        the payload sent in the write Harp message
+        The payload sent in the write Harp message
     """
 
     MESSAGE_TYPE: int = MessageType.WRITE
