@@ -86,7 +86,7 @@ nav:
     - Wait for Events: examples/wait_for_events/wait_for_events.md
     - Read and Write from Registers: examples/read_and_write_from_registers/read_and_write_from_registers.md
     - Olfactometer Example: examples/olfactometer_example/olfactometer_example.md
-  - Devices: '*include ../harp.devices/*/mkdocs.yml'
+  - Devices: '*include ./harp.devices/*/mkdocs.yml'
 
 extra:
   social:
