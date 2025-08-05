@@ -7,8 +7,6 @@ from pathlib import Path
 from typing import Optional, Union
 
 import serial
-
-from harp.communication.harp_serial import HarpSerial
 from harp.protocol import (
     ClockConfig,
     CommonRegisters,
@@ -20,6 +18,7 @@ from harp.protocol import (
 )
 from harp.protocol.device_names import device_names
 from harp.protocol.messages import HarpMessage, ReplyHarpMessage
+from harp.serial.harp_serial import HarpSerial
 
 
 class Device:
@@ -67,7 +66,7 @@ class Device:
     TIMESTAMP_OFFSET: int
 
     _ser: HarpSerial
-    _dump_file_path: Path
+    _dump_file_path: Optional[Path]
     _dump_file: Optional[BufferedWriter] = None
     _read_timeout_s: float
 
