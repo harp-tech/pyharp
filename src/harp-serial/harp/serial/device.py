@@ -7,7 +7,6 @@ from io import BufferedWriter
 from pathlib import Path
 from typing import Optional
 
-import serial
 from harp.protocol import (
     ClockConfig,
     CommonRegisters,
@@ -21,6 +20,8 @@ from harp.protocol.device_names import device_names
 from harp.protocol.exceptions import HarpTimeoutError
 from harp.protocol.messages import HarpMessage, ReplyHarpMessage
 from harp.serial.harp_serial import HarpSerial
+
+import serial
 
 
 class TimeoutStrategy(Enum):
@@ -100,7 +101,7 @@ class Device:
         """
         self.log = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
         self._serial_port = serial_port
-        self._dump_file_path = dump_file_path
+        self._dump_file_path = None
         if dump_file_path is not None:
             self._dump_file_path = Path() / dump_file_path
         self._read_timeout_s = read_timeout_s
@@ -1152,7 +1153,7 @@ class Device:
         """
         address = CommonRegisters.WHO_AM_I
 
-        reply: ReplyHarpMessage = self.send(
+        reply = self.send(
             HarpMessage.create(MessageType.READ, address, PayloadType.U16)
         )
 
@@ -1180,9 +1181,7 @@ class Device:
         """
         address = CommonRegisters.HW_VERSION_H
 
-        reply: ReplyHarpMessage = self.send(
-            HarpMessage.create(MessageType.READ, address, PayloadType.U8)
-        )
+        reply = self.send(HarpMessage.create(MessageType.READ, address, PayloadType.U8))
 
         return reply.payload
 
@@ -1197,9 +1196,7 @@ class Device:
         """
         address = CommonRegisters.HW_VERSION_L
 
-        reply: ReplyHarpMessage = self.send(
-            HarpMessage.create(MessageType.READ, address, PayloadType.U8)
-        )
+        reply = self.send(HarpMessage.create(MessageType.READ, address, PayloadType.U8))
 
         return reply.payload
 
@@ -1214,9 +1211,7 @@ class Device:
         """
         address = CommonRegisters.ASSEMBLY_VERSION
 
-        reply: ReplyHarpMessage = self.send(
-            HarpMessage.create(MessageType.READ, address, PayloadType.U8)
-        )
+        reply = self.send(HarpMessage.create(MessageType.READ, address, PayloadType.U8))
 
         return reply.payload
 
@@ -1231,9 +1226,7 @@ class Device:
         """
         address = CommonRegisters.HARP_VERSION_H
 
-        reply: ReplyHarpMessage = self.send(
-            HarpMessage.create(MessageType.READ, address, PayloadType.U8)
-        )
+        reply = self.send(HarpMessage.create(MessageType.READ, address, PayloadType.U8))
 
         return reply.payload
 
@@ -1248,9 +1241,7 @@ class Device:
         """
         address = CommonRegisters.HARP_VERSION_L
 
-        reply: ReplyHarpMessage = self.send(
-            HarpMessage.create(MessageType.READ, address, PayloadType.U8)
-        )
+        reply = self.send(HarpMessage.create(MessageType.READ, address, PayloadType.U8))
 
         return reply.payload
 
@@ -1265,9 +1256,7 @@ class Device:
         """
         address = CommonRegisters.FIRMWARE_VERSION_H
 
-        reply: ReplyHarpMessage = self.send(
-            HarpMessage.create(MessageType.READ, address, PayloadType.U8)
-        )
+        reply = self.send(HarpMessage.create(MessageType.READ, address, PayloadType.U8))
 
         return reply.payload
 
@@ -1282,9 +1271,7 @@ class Device:
         """
         address = CommonRegisters.FIRMWARE_VERSION_L
 
-        reply: ReplyHarpMessage = self.send(
-            HarpMessage.create(MessageType.READ, address, PayloadType.U8)
-        )
+        reply = self.send(HarpMessage.create(MessageType.READ, address, PayloadType.U8))
 
         return reply.payload
 
@@ -1299,9 +1286,7 @@ class Device:
         """
         address = CommonRegisters.DEVICE_NAME
 
-        reply: ReplyHarpMessage = self.send(
-            HarpMessage.create(MessageType.READ, address, PayloadType.U8)
-        )
+        reply = self.send(HarpMessage.create(MessageType.READ, address, PayloadType.U8))
 
         return reply.payload_as_string()
 
@@ -1316,9 +1301,7 @@ class Device:
         """
         address = CommonRegisters.SERIAL_NUMBER
 
-        reply: ReplyHarpMessage = self.send(
-            HarpMessage.create(MessageType.READ, address, PayloadType.U8)
-        )
+        reply = self.send(HarpMessage.create(MessageType.READ, address, PayloadType.U8))
 
         if reply.is_error:
             return 0
@@ -1336,9 +1319,7 @@ class Device:
         """
         address = CommonRegisters.CLOCK_CONFIG
 
-        reply: ReplyHarpMessage = self.send(
-            HarpMessage.create(MessageType.READ, address, PayloadType.U8)
-        )
+        reply = self.send(HarpMessage.create(MessageType.READ, address, PayloadType.U8))
 
         return reply.payload
 
@@ -1353,9 +1334,7 @@ class Device:
         """
         address = CommonRegisters.TIMESTAMP_OFFSET
 
-        reply: ReplyHarpMessage = self.send(
-            HarpMessage.create(MessageType.READ, address, PayloadType.U8)
-        )
+        reply = self.send(HarpMessage.create(MessageType.READ, address, PayloadType.U8))
 
         return reply.payload
 
