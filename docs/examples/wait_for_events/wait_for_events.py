@@ -1,5 +1,5 @@
-from harp.communication.device import Device
 from harp.protocol import OperationMode
+from harp.serial.device import Device
 
 SERIAL_PORT = (
     "/dev/ttyUSB0"  # or "COMx" in Windows ("x" is the number of the serial port)

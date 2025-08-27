@@ -1,8 +1,7 @@
-from serial import SerialException
-
-from harp.communication.device import Device
 from harp.protocol import MessageType, PayloadType
 from harp.protocol.messages import HarpMessage
+from harp.serial.device import Device
+from serial import SerialException
 
 SERIAL_PORT = (
     "/dev/ttyUSB0"  # or "COMx" in Windows ("x" is the number of the serial port)
