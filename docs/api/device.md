@@ -1,1 +1,1 @@
-::: harp.communication.Device
+::: harp.serial.Device
