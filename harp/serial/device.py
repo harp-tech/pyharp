@@ -301,7 +301,7 @@ class Device:
 
         return reply
 
-    def status_led(self, enable: bool) -> bool:
+    def visual_en(self, enable: bool) -> bool:
         """
         Sets the status led of the device.
 
@@ -323,9 +323,9 @@ class Device:
         ).payload
 
         if enable:
-            reg_value |= OperationCtrl.STATUS_LED
+            reg_value |= OperationCtrl.VISUALEN
         else:
-            reg_value &= ~OperationCtrl.STATUS_LED
+            reg_value &= ~OperationCtrl.VISUALEN
 
         reply = self.send(
             HarpMessage.create(MessageType.WRITE, address, PayloadType.U8, reg_value)
