@@ -24,3 +24,11 @@ class HarpReadException(HarpException):
         super().__init__(f"Error reading from register {register}: {message}")
         self.register = register
         self.message = message
+
+
+class HarpTimeoutError(HarpException):
+    """Raised when no reply is received within the configured timeout."""
+
+    def __init__(self, timeout_s: float):
+        super().__init__(f"No reply received within {timeout_s} seconds.")
+        self.timeout_s = timeout_s

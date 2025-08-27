@@ -2,9 +2,10 @@ from __future__ import annotations  # enable subscriptable type hints for lists.
 
 import logging
 import queue
+from enum import Enum
 from io import BufferedWriter
 from pathlib import Path
-from typing import Optional, Union
+from typing import Optional
 
 import serial
 from harp.protocol import (
@@ -17,8 +18,16 @@ from harp.protocol import (
     ResetMode,
 )
 from harp.protocol.device_names import device_names
+from harp.protocol.exceptions import HarpTimeoutError
 from harp.protocol.messages import HarpMessage, ReplyHarpMessage
 from harp.serial.harp_serial import HarpSerial
+
+
+class TimeoutStrategy(Enum):
+    RAISE = "raise"  # Raise HarpTimeoutError
+    RETURN_NONE = "return_none"  # Return None
+    LOG_AND_RAISE = "log_and_raise"
+    LOG_AND_NONE = "log_and_none"
 
 
 class Device:
@@ -77,6 +86,7 @@ class Device:
         serial_port: str,
         dump_file_path: Optional[str] = None,
         read_timeout_s: float = 1,
+        timeout_strategy: TimeoutStrategy = TimeoutStrategy.RAISE,
     ):
         """
         Parameters
@@ -94,6 +104,7 @@ class Device:
         if dump_file_path is not None:
             self._dump_file_path = Path() / dump_file_path
         self._read_timeout_s = read_timeout_s
+        self._timeout_strategy = timeout_strategy
 
         # Connect to the Harp device and load the data stored in the device's common registers
         self.connect()
@@ -427,43 +438,76 @@ class Device:
 
         return reply
 
-    def send(self, message: HarpMessage) -> Optional[ReplyHarpMessage]:
+    def send(
+        self,
+        message: HarpMessage,
+        *,
+        expect_reply: bool = True,
+        timeout_strategy: TimeoutStrategy | None = None,
+    ) -> ReplyHarpMessage | None:
         """
-        Sends a Harp message.
+        Sends a Harp message and (optionally) waits for a reply.
 
         Parameters
         ----------
         message : HarpMessage
-            The HarpMessage containing the message to be sent to the device
+            The HarpMessage to be sent to the device
+        expect_reply : bool, optional
+            If False, do not wait for a reply (fire-and-forget)
+        timeout_strategy : TimeoutStrategy | None
+            Override the device-level timeout strategy for this call
 
         Returns
         -------
-        Optional[ReplyHarpMessage]
-            The reply to the Harp message or None if no reply is given
+        ReplyHarpMessage | None
+            Reply (or None when allowed by the timeout strategy or expect_reply=False)
+
+        Raises
+        -------
+        HarpTimeoutError
+            If no reply is received and the effective strategy requires raising
         """
         self._ser.write(message.frame)
 
-        reply = self._read()
-        if reply is None:
+        if not expect_reply:
+            return None
+
+        strategy = timeout_strategy or self._timeout_strategy
+
+        try:
+            reply = self._read()
+        except TimeoutError:
+            hte = HarpTimeoutError(self._read_timeout_s)
+            if strategy in (
+                TimeoutStrategy.LOG_AND_RAISE,
+                TimeoutStrategy.LOG_AND_NONE,
+            ):
+                self.log.warning(str(hte))
+            if strategy in (TimeoutStrategy.RAISE, TimeoutStrategy.LOG_AND_RAISE):
+                raise hte
             return None
 
         self._dump_reply(reply.frame)
-
         return reply
 
-    def _read(self) -> Union[ReplyHarpMessage, None]:
+    def _read(self) -> ReplyHarpMessage:
         """
         Reads an incoming serial message in a blocking way.
 
         Returns
         -------
-        Union[ReplyHarpMessage, None]
+        ReplyHarpMessage
             The incoming Harp message in case it exists
+
+        Raises
+        -------
+        TimeoutError
+            If no reply is received within the timeout period
         """
         try:
             return self._ser.msg_q.get(block=True, timeout=self._read_timeout_s)
         except queue.Empty:
-            return None
+            raise TimeoutError("No reply received within the timeout period.")
 
     def _dump_reply(self, reply: bytes):
         """
