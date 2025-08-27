@@ -14,8 +14,8 @@ pip install harp-protocol
 
 ```python
 from harp import MessageType, PayloadType
-from harp.device import Device
-from harp.messages import HarpMessage
+from harp.serial import Device
+from harp.protocol.messages import HarpMessage
 
 # Connect to a device
 device = Device("/dev/ttyUSB0")
@@ -30,7 +30,7 @@ register_address = 32
 value = device.send(HarpMessage.create(MessageType.READ, register_address, PayloadType.U8))
 
 # Write to register
-device.send(HarpMessage.create(MessageType.WRITE, register_address, PayloadType.U8, value))
+device.send(HarpMessage.create(MessageType.WRITE, register_address, PayloadType.U8, value.payload))
 
 # Disconnect when done
 device.disconnect()
@@ -40,8 +40,8 @@ or using the `with` statement:
 
 ```python
 from harp import MessageType, PayloadType
-from harp.device import Device
-from harp.messages import HarpMessage
+from harp.serial import Device
+from harp.protocol.messages import HarpMessage
 
 with Device("/dev/ttyUSB0") as device:
     # Get device information
@@ -54,7 +54,7 @@ with Device("/dev/ttyUSB0") as device:
     value = device.send(HarpMessage.create(MessageType.READ, register_address, PayloadType.U8))
 
     # Write to register
-    device.send(HarpMessage.create(MessageType.WRITE, register_address, PayloadType.U8, value))
+    device.send(HarpMessage.create(MessageType.WRITE, register_address, PayloadType.U8, value.payload))
 ```
 
 ## for Linux
