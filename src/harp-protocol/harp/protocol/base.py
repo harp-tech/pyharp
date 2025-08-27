@@ -1,4 +1,8 @@
+from datetime import datetime
 from enum import IntEnum, IntFlag
+
+# The reference epoch for UTC harp time
+REFERENCE_EPOCH = datetime(1904, 1, 1)
 
 # Bit masks for the PayloadType
 _isUnsigned: int = 0x00
