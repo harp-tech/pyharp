@@ -1,7 +1,7 @@
 from __future__ import annotations  # for type hints (PEP 563)
 
 import struct
-from typing import List, Union
+from typing import Union, Optional
 
 from harp.protocol import MessageType, PayloadType
 
@@ -132,7 +132,7 @@ class HarpMessage:
         return PayloadType(self._frame[4])
 
     @property
-    def payload(self) -> Union[int, list[int]]:
+    def payload(self) -> Union[int, list[int], bytearray, float, list[float]]:
         """
         The payload sent in the write Harp message.
 
@@ -324,7 +324,7 @@ class HarpMessage:
         message_type: MessageType,
         address: int,
         payload_type: PayloadType,
-        value: int | list[int] | float | list[float] = None,
+        value: Optional[int | list[int] | float | list[float]] = None,
     ) -> HarpMessage:
         """
         Creates a Harp message.
@@ -531,7 +531,7 @@ class WriteHarpMessage(HarpMessage):
         self,
         payload_type: PayloadType,
         address: int,
-        value: int | float | List[int] | List[float] = None,
+        value: Optional[int | float | list[int] | list[float]] = None,
     ):
         """
         Create a WriteHarpMessage to send to a device.

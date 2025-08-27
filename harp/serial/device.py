@@ -199,7 +199,13 @@ class Device:
         address = CommonRegisters.OPERATION_CTRL
         reg_value = self.send(
             HarpMessage.create(MessageType.READ, address, PayloadType.U8)
-        ).payload
+        )
+
+        if reg_value is None:
+            return []
+
+        reg_value = reg_value.payload
+
         # Assert DUMP bit
         reg_value |= OperationCtrl.DUMP
         self.send(
@@ -216,7 +222,7 @@ class Device:
                 break
         return replies
 
-    def set_mode(self, mode: OperationMode) -> ReplyHarpMessage:
+    def set_mode(self, mode: OperationMode) -> ReplyHarpMessage | None:
         """
         Sets the operation mode of the device.
 
@@ -235,7 +241,12 @@ class Device:
         # Read register first
         reg_value = self.send(
             HarpMessage.create(MessageType.READ, address, PayloadType.U8)
-        ).payload
+        )
+
+        if reg_value is None:
+            return reg_value
+
+        reg_value = reg_value.payload
 
         # Clear old operation mode
         reg_value &= ~OperationCtrl.OP_MODE
@@ -267,7 +278,12 @@ class Device:
         # Read register first
         reg_value = self.send(
             HarpMessage.create(MessageType.READ, address, PayloadType.U8)
-        ).payload
+        )
+
+        if reg_value is None:
+            return False
+
+        reg_value = reg_value.payload
 
         if enable:
             reg_value |= OperationCtrl.ALIVE_EN
@@ -278,7 +294,10 @@ class Device:
             HarpMessage.create(MessageType.WRITE, address, PayloadType.U8, reg_value)
         )
 
-        return reply
+        if reply is None:
+            return False
+
+        return reply is not None
 
     def op_led_en(self, enable: bool) -> bool:
         """
@@ -299,7 +318,12 @@ class Device:
         # Read register first
         reg_value = self.send(
             HarpMessage.create(MessageType.READ, address, PayloadType.U8)
-        ).payload
+        )
+
+        if reg_value is None:
+            return False
+
+        reg_value = reg_value.payload
 
         if enable:
             reg_value |= OperationCtrl.OPLEDEN
@@ -310,7 +334,7 @@ class Device:
             HarpMessage.create(MessageType.WRITE, address, PayloadType.U8, reg_value)
         )
 
-        return reply
+        return reply is not None
 
     def visual_en(self, enable: bool) -> bool:
         """
@@ -331,7 +355,12 @@ class Device:
         # Read register first
         reg_value = self.send(
             HarpMessage.create(MessageType.READ, address, PayloadType.U8)
-        ).payload
+        )
+
+        if reg_value is None:
+            return False
+
+        reg_value = reg_value.payload
 
         if enable:
             reg_value |= OperationCtrl.VISUALEN
@@ -342,7 +371,7 @@ class Device:
             HarpMessage.create(MessageType.WRITE, address, PayloadType.U8, reg_value)
         )
 
-        return reply
+        return reply is not None
 
     def mute_reply(self, enable: bool) -> bool:
         """
@@ -363,7 +392,12 @@ class Device:
         # Read register first
         reg_value = self.send(
             HarpMessage.create(MessageType.READ, address, PayloadType.U8)
-        ).payload
+        )
+
+        if reg_value is None:
+            return False
+
+        reg_value = reg_value.payload
 
         if enable:
             reg_value |= OperationCtrl.MUTE_RPL
@@ -374,11 +408,11 @@ class Device:
             HarpMessage.create(MessageType.WRITE, address, PayloadType.U8, reg_value)
         )
 
-        return reply
+        return reply is not None
 
     def reset_device(
         self, reset_mode: ResetMode = ResetMode.RST_DEF
-    ) -> ReplyHarpMessage:
+    ) -> ReplyHarpMessage | None:
         """
         Resets the device and reboots with all the registers with the default values. Beware that the EEPROM will be erased. More information on the reset device register can be found [here](https://harp-tech.org/protocol/Device.html#r_reset_dev-u8--reset-device-and-save-non-volatile-registers).
 
@@ -394,7 +428,7 @@ class Device:
 
         return reply
 
-    def set_clock_config(self, clock_config: ClockConfig) -> ReplyHarpMessage:
+    def set_clock_config(self, clock_config: ClockConfig) -> ReplyHarpMessage | None:
         """
         Sets the clock configuration of the device.
 
@@ -415,7 +449,7 @@ class Device:
 
         return reply
 
-    def set_timestamp_offset(self, timestamp_offset: int) -> ReplyHarpMessage:
+    def set_timestamp_offset(self, timestamp_offset: int) -> ReplyHarpMessage | None:
         """
         When the value of this register is above 0 (zero), the device's timestamp will be offset by this amount. The register is sensitive to 500 microsecond increments. This register is non-volatile.
 
@@ -509,7 +543,7 @@ class Device:
         except queue.Empty:
             raise TimeoutError("No reply received within the timeout period.")
 
-    def _dump_reply(self, reply: bytes):
+    def _dump_reply(self, reply: bytearray):
         """
         Dumps the reply to a Harp message in the dump file in case it exists.
         """
@@ -544,7 +578,7 @@ class Device:
         """
         return self._ser.event_q.qsize()
 
-    def read_u8(self, address: int) -> ReplyHarpMessage:
+    def read_u8(self, address: int) -> ReplyHarpMessage | None:
         """
         Reads the value of a register of type U8.
 
@@ -557,8 +591,13 @@ class Device:
         -------
         ReplyHarpMessage
             The reply to the Harp message that will contain the value read from the register
+
+        Raises
+        ------
+        HarpTimeoutError
+            If no reply is received and the effective strategy requires raising
         """
-        return self.send(
+        reply = self.send(
             HarpMessage.create(
                 message_type=MessageType.READ,
                 address=address,
@@ -566,7 +605,9 @@ class Device:
             )
         )
 
-    def read_s8(self, address: int) -> ReplyHarpMessage:
+        return reply
+
+    def read_s8(self, address: int) -> ReplyHarpMessage | None:
         """
         Reads the value of a register of type S8.
 
@@ -579,8 +620,13 @@ class Device:
         -------
         ReplyHarpMessage
             The reply to the Harp message that will contain the value read from the register
+
+        Raises
+        ------
+        HarpTimeoutError
+            If no reply is received and the effective strategy requires raising
         """
-        return self.send(
+        reply = self.send(
             HarpMessage.create(
                 message_type=MessageType.READ,
                 address=address,
@@ -588,7 +634,9 @@ class Device:
             )
         )
 
-    def read_u16(self, address: int) -> ReplyHarpMessage:
+        return reply
+
+    def read_u16(self, address: int) -> ReplyHarpMessage | None:
         """
         Reads the value of a register of type U16.
 
@@ -601,8 +649,13 @@ class Device:
         -------
         ReplyHarpMessage
             The reply to the Harp message that will contain the value read from the register
+
+        Raises
+        ------
+        HarpTimeoutError
+            If no reply is received and the effective strategy requires raising
         """
-        return self.send(
+        reply = self.send(
             HarpMessage.create(
                 message_type=MessageType.READ,
                 address=address,
@@ -610,7 +663,9 @@ class Device:
             )
         )
 
-    def read_s16(self, address: int) -> ReplyHarpMessage:
+        return reply
+
+    def read_s16(self, address: int) -> ReplyHarpMessage | None:
         """
         Reads the value of a register of type S16.
 
@@ -623,8 +678,13 @@ class Device:
         -------
         ReplyHarpMessage
             The reply to the Harp message that will contain the value read from the register
+
+        Raises
+        ------
+        HarpTimeoutError
+            If no reply is received and the effective strategy requires raising
         """
-        return self.send(
+        reply = self.send(
             HarpMessage.create(
                 message_type=MessageType.READ,
                 address=address,
@@ -632,7 +692,9 @@ class Device:
             )
         )
 
-    def read_u32(self, address: int) -> ReplyHarpMessage:
+        return reply
+
+    def read_u32(self, address: int) -> ReplyHarpMessage | None:
         """
         Reads the value of a register of type U32.
 
@@ -645,8 +707,13 @@ class Device:
         -------
         ReplyHarpMessage
             The reply to the Harp message that will contain the value read from the register
+
+        Raises
+        ------
+        HarpTimeoutError
+            If no reply is received and the effective strategy requires raising
         """
-        return self.send(
+        reply = self.send(
             HarpMessage.create(
                 message_type=MessageType.READ,
                 address=address,
@@ -654,7 +721,9 @@ class Device:
             )
         )
 
-    def read_s32(self, address: int) -> ReplyHarpMessage:
+        return reply
+
+    def read_s32(self, address: int) -> ReplyHarpMessage | None:
         """
         Reads the value of a register of type S32.
 
@@ -667,8 +736,13 @@ class Device:
         -------
         ReplyHarpMessage
             The reply to the Harp message that will contain the value read from the register
+
+        Raises
+        ------
+        HarpTimeoutError
+            If no reply is received and the effective strategy requires raising
         """
-        return self.send(
+        reply = self.send(
             HarpMessage.create(
                 message_type=MessageType.READ,
                 address=address,
@@ -676,7 +750,9 @@ class Device:
             )
         )
 
-    def read_u64(self, address: int) -> ReplyHarpMessage:
+        return reply
+
+    def read_u64(self, address: int) -> ReplyHarpMessage | None:
         """
         Reads the value of a register of type U64.
 
@@ -689,8 +765,13 @@ class Device:
         -------
         ReplyHarpMessage
             The reply to the Harp message that will contain the value read from the register
+
+        Raises
+        ------
+        HarpTimeoutError
+            If no reply is received and the effective strategy requires raising
         """
-        return self.send(
+        reply = self.send(
             HarpMessage.create(
                 message_type=MessageType.READ,
                 address=address,
@@ -698,7 +779,9 @@ class Device:
             )
         )
 
-    def read_s64(self, address: int) -> ReplyHarpMessage:
+        return reply
+
+    def read_s64(self, address: int) -> ReplyHarpMessage | None:
         """
         Reads the value of a register of type S64.
 
@@ -711,8 +794,13 @@ class Device:
         -------
         ReplyHarpMessage
             The reply to the Harp message that will contain the value read from the register
+
+        Raises
+        ------
+        HarpTimeoutError
+            If no reply is received and the effective strategy requires raising
         """
-        return self.send(
+        reply = self.send(
             HarpMessage.create(
                 message_type=MessageType.READ,
                 address=address,
@@ -720,7 +808,9 @@ class Device:
             )
         )
 
-    def read_float(self, address: int) -> ReplyHarpMessage:
+        return reply
+
+    def read_float(self, address: int) -> ReplyHarpMessage | None:
         """
         Reads the value of a register of type Float.
 
@@ -733,8 +823,13 @@ class Device:
         -------
         ReplyHarpMessage
             The reply to the Harp message that will contain the value read from the register
+
+        Raises
+        ------
+        HarpTimeoutError
+            If no reply is received and the effective strategy requires raising
         """
-        return self.send(
+        reply = self.send(
             HarpMessage.create(
                 message_type=MessageType.READ,
                 address=address,
@@ -742,7 +837,9 @@ class Device:
             )
         )
 
-    def write_u8(self, address: int, value: int | list[int]) -> ReplyHarpMessage:
+        return reply
+
+    def write_u8(self, address: int, value: int | list[int]) -> ReplyHarpMessage | None:
         """
         Writes the value of a register of type U8.
 
@@ -757,8 +854,13 @@ class Device:
         -------
         ReplyHarpMessage
             The reply to the Harp message
+
+        Raises
+        ------
+        HarpTimeoutError
+            If no reply is received and the effective strategy requires raising
         """
-        return self.send(
+        reply = self.send(
             HarpMessage.create(
                 message_type=MessageType.WRITE,
                 address=address,
@@ -767,7 +869,9 @@ class Device:
             )
         )
 
-    def write_s8(self, address: int, value: int | list[int]) -> ReplyHarpMessage:
+        return reply
+
+    def write_s8(self, address: int, value: int | list[int]) -> ReplyHarpMessage | None:
         """
         Writes the value of a register of type S8.
 
@@ -782,8 +886,13 @@ class Device:
         -------
         ReplyHarpMessage
             The reply to the Harp message
+
+        Raises
+        ------
+        HarpTimeoutError
+            If no reply is received and the effective strategy requires raising
         """
-        return self.send(
+        reply = self.send(
             HarpMessage.create(
                 message_type=MessageType.WRITE,
                 address=address,
@@ -792,7 +901,11 @@ class Device:
             )
         )
 
-    def write_u16(self, address: int, value: int | list[int]) -> ReplyHarpMessage:
+        return reply
+
+    def write_u16(
+        self, address: int, value: int | list[int]
+    ) -> ReplyHarpMessage | None:
         """
         Writes the value of a register of type U16.
 
@@ -807,8 +920,13 @@ class Device:
         -------
         ReplyHarpMessage
             The reply to the Harp message
+
+        Raises
+        ------
+        HarpTimeoutError
+            If no reply is received and the effective strategy requires raising
         """
-        return self.send(
+        reply = self.send(
             HarpMessage.create(
                 message_type=MessageType.WRITE,
                 address=address,
@@ -817,7 +935,11 @@ class Device:
             )
         )
 
-    def write_s16(self, address: int, value: int | list[int]) -> ReplyHarpMessage:
+        return reply
+
+    def write_s16(
+        self, address: int, value: int | list[int]
+    ) -> ReplyHarpMessage | None:
         """
         Writes the value of a register of type S16.
 
@@ -832,8 +954,13 @@ class Device:
         -------
         ReplyHarpMessage
             The reply to the Harp message
+
+        Raises
+        ------
+        HarpTimeoutError
+            If no reply is received and the effective strategy requires raising
         """
-        return self.send(
+        reply = self.send(
             HarpMessage.create(
                 message_type=MessageType.WRITE,
                 address=address,
@@ -842,7 +969,11 @@ class Device:
             )
         )
 
-    def write_u32(self, address: int, value: int | list[int]) -> ReplyHarpMessage:
+        return reply
+
+    def write_u32(
+        self, address: int, value: int | list[int]
+    ) -> ReplyHarpMessage | None:
         """
         Writes the value of a register of type U32.
 
@@ -857,8 +988,13 @@ class Device:
         -------
         ReplyHarpMessage
             The reply to the Harp message
+
+        Raises
+        ------
+        HarpTimeoutError
+            If no reply is received and the effective strategy requires raising
         """
-        return self.send(
+        reply = self.send(
             HarpMessage.create(
                 message_type=MessageType.WRITE,
                 address=address,
@@ -867,7 +1003,11 @@ class Device:
             )
         )
 
-    def write_s32(self, address: int, value: int | list[int]) -> ReplyHarpMessage:
+        return reply
+
+    def write_s32(
+        self, address: int, value: int | list[int]
+    ) -> ReplyHarpMessage | None:
         """
         Writes the value of a register of type S32.
 
@@ -882,8 +1022,13 @@ class Device:
         -------
         ReplyHarpMessage
             The reply to the Harp message
+
+        Raises
+        ------
+        HarpTimeoutError
+            If no reply is received and the effective strategy requires raising
         """
-        return self.send(
+        reply = self.send(
             HarpMessage.create(
                 message_type=MessageType.WRITE,
                 address=address,
@@ -892,7 +1037,11 @@ class Device:
             )
         )
 
-    def write_u64(self, address: int, value: int | list[int]) -> ReplyHarpMessage:
+        return reply
+
+    def write_u64(
+        self, address: int, value: int | list[int]
+    ) -> ReplyHarpMessage | None:
         """
         Writes the value of a register of type U64.
 
@@ -907,8 +1056,13 @@ class Device:
         -------
         ReplyHarpMessage
             The reply to the Harp message
+
+        Raises
+        ------
+        HarpTimeoutError
+            If no reply is received and the effective strategy requires raising
         """
-        return self.send(
+        reply = self.send(
             HarpMessage.create(
                 message_type=MessageType.WRITE,
                 address=address,
@@ -917,7 +1071,11 @@ class Device:
             )
         )
 
-    def write_s64(self, address: int, value: int | list[int]) -> ReplyHarpMessage:
+        return reply
+
+    def write_s64(
+        self, address: int, value: int | list[int]
+    ) -> ReplyHarpMessage | None:
         """
         Writes the value of a register of type S64.
 
@@ -932,8 +1090,13 @@ class Device:
         -------
         ReplyHarpMessage
             The reply to the Harp message
+
+        Raises
+        ------
+        HarpTimeoutError
+            If no reply is received and the effective strategy requires raising
         """
-        return self.send(
+        reply = self.send(
             HarpMessage.create(
                 message_type=MessageType.WRITE,
                 address=address,
@@ -942,7 +1105,11 @@ class Device:
             )
         )
 
-    def write_float(self, address: int, value: float | list[float]) -> ReplyHarpMessage:
+        return reply
+
+    def write_float(
+        self, address: int, value: float | list[float]
+    ) -> ReplyHarpMessage | None:
         """
         Writes the value of a register of type Float.
 
@@ -957,8 +1124,13 @@ class Device:
         -------
         ReplyHarpMessage
             The reply to the Harp message
+
+        Raises
+        ------
+        HarpTimeoutError
+            If no reply is received and the effective strategy requires raising
         """
-        return self.send(
+        reply = self.send(
             HarpMessage.create(
                 message_type=MessageType.WRITE,
                 address=address,
@@ -966,6 +1138,8 @@ class Device:
                 value=value,
             )
         )
+
+        return reply
 
     def _read_who_am_i(self) -> int:
         """
