@@ -4,6 +4,7 @@ import struct
 from typing import Optional, Union
 
 from harp.protocol import MessageType, PayloadType
+from harp.protocol.exceptions import HarpReadException
 
 
 class HarpMessage:
@@ -443,7 +444,7 @@ class ReplyHarpMessage(HarpMessage):
 
         # Timestamp is junk if it's not present.
         if not (self.payload_type & PayloadType.Timestamp):
-            self._timestamp = None
+            raise HarpReadException(self.address)
 
     @property
     def is_error(self) -> bool:
