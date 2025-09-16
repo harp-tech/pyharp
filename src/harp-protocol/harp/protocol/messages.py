@@ -149,147 +149,147 @@ class HarpMessage:
         payload_index = payload_start + 1
 
         # length is payload_start + payload type size
-        match self.payload_type:
-            case PayloadType.U8 | PayloadType.TimestampedU8:
-                if self.length == payload_start + 1:
-                    return self._frame[payload_index]
-                else:  # array case
-                    return [
-                        int.from_bytes([self._frame[i]], byteorder="little")
-                        for i in range(payload_index, self.length + 1)
-                    ]
+        pt = self.payload_type
+        if pt == PayloadType.U8 or pt == PayloadType.TimestampedU8:
+            if self.length == payload_start + 1:
+                return self._frame[payload_index]
+            else:  # array case
+                return [
+                    int.from_bytes([self._frame[i]], byteorder="little")
+                    for i in range(payload_index, self.length + 1)
+                ]
 
-            case PayloadType.S8 | PayloadType.TimestampedS8:
-                if self.length == payload_start + 1:
-                    return int.from_bytes(
-                        [self._frame[payload_index]], byteorder="little", signed=True
-                    )
-                else:  # array case
-                    return [
-                        int.from_bytes(
-                            [self._frame[i]],
-                            byteorder="little",
-                            signed=True,
-                        )
-                        for i in range(payload_index, self.length + 1)
-                    ]
-
-            case PayloadType.U16 | PayloadType.TimestampedU16:
-                if self.length == payload_start + 2:
-                    return int.from_bytes(
-                        self._frame[payload_index : payload_index + 2],
-                        byteorder="little",
-                        signed=False,
-                    )
-                else:  # array case
-                    return [
-                        int.from_bytes(
-                            self._frame[i : i + 2],
-                            byteorder="little",
-                            signed=False,
-                        )
-                        for i in range(payload_index, self.length + 1, 2)
-                    ]
-
-            case PayloadType.S16 | PayloadType.TimestampedS16:
-                if self.length == payload_start + 2:
-                    return int.from_bytes(
-                        self._frame[payload_index : payload_index + 2],
+        elif pt == PayloadType.S8 or pt == PayloadType.TimestampedS8:
+            if self.length == payload_start + 1:
+                return int.from_bytes(
+                    [self._frame[payload_index]], byteorder="little", signed=True
+                )
+            else:  # array case
+                return [
+                    int.from_bytes(
+                        [self._frame[i]],
                         byteorder="little",
                         signed=True,
                     )
-                else:
-                    return [
-                        int.from_bytes(
-                            self._frame[i : i + 2],
-                            byteorder="little",
-                            signed=True,
-                        )
-                        for i in range(payload_index, self.length + 1, 2)
-                    ]
+                    for i in range(payload_index, self.length + 1)
+                ]
 
-            case PayloadType.U32 | PayloadType.TimestampedU32:
-                if self.length == payload_start + 4:
-                    return int.from_bytes(
-                        self._frame[payload_index : payload_index + 4],
+        elif pt == PayloadType.U16 or pt == PayloadType.TimestampedU16:
+            if self.length == payload_start + 2:
+                return int.from_bytes(
+                    self._frame[payload_index : payload_index + 2],
+                    byteorder="little",
+                    signed=False,
+                )
+            else:  # array case
+                return [
+                    int.from_bytes(
+                        self._frame[i : i + 2],
                         byteorder="little",
                         signed=False,
                     )
-                else:
-                    return [
-                        int.from_bytes(
-                            self._frame[i : i + 4],
-                            byteorder="little",
-                            signed=False,
-                        )
-                        for i in range(payload_index, self.length + 1, 4)
-                    ]
+                    for i in range(payload_index, self.length + 1, 2)
+                ]
 
-            case PayloadType.S32 | PayloadType.TimestampedS32:
-                if self.length == payload_start + 4:
-                    return int.from_bytes(
-                        self._frame[payload_index : payload_index + 4],
+        elif pt == PayloadType.S16 or pt == PayloadType.TimestampedS16:
+            if self.length == payload_start + 2:
+                return int.from_bytes(
+                    self._frame[payload_index : payload_index + 2],
+                    byteorder="little",
+                    signed=True,
+                )
+            else:
+                return [
+                    int.from_bytes(
+                        self._frame[i : i + 2],
                         byteorder="little",
                         signed=True,
                     )
-                else:
-                    return [
-                        int.from_bytes(
-                            self._frame[i : i + 4],
-                            byteorder="little",
-                            signed=True,
-                        )
-                        for i in range(payload_index, self.length + 1, 4)
-                    ]
+                    for i in range(payload_index, self.length + 1, 2)
+                ]
 
-            case PayloadType.U64 | PayloadType.TimestampedU64:
-                if self.length == payload_start + 8:
-                    return int.from_bytes(
-                        self._frame[payload_index : payload_index + 8],
+        elif pt == PayloadType.U32 or pt == PayloadType.TimestampedU32:
+            if self.length == payload_start + 4:
+                return int.from_bytes(
+                    self._frame[payload_index : payload_index + 4],
+                    byteorder="little",
+                    signed=False,
+                )
+            else:
+                return [
+                    int.from_bytes(
+                        self._frame[i : i + 4],
                         byteorder="little",
                         signed=False,
                     )
-                else:
-                    return [
-                        int.from_bytes(
-                            self._frame[i : i + 8],
-                            byteorder="little",
-                            signed=False,
-                        )
-                        for i in range(payload_index, self.length + 1, 8)
-                    ]
+                    for i in range(payload_index, self.length + 1, 4)
+                ]
 
-            case PayloadType.S64 | PayloadType.TimestampedS64:
-                if self.length == payload_start + 8:
-                    return int.from_bytes(
-                        self._frame[payload_index : payload_index + 8],
+        elif pt == PayloadType.S32 or pt == PayloadType.TimestampedS32:
+            if self.length == payload_start + 4:
+                return int.from_bytes(
+                    self._frame[payload_index : payload_index + 4],
+                    byteorder="little",
+                    signed=True,
+                )
+            else:
+                return [
+                    int.from_bytes(
+                        self._frame[i : i + 4],
                         byteorder="little",
                         signed=True,
                     )
-                else:
-                    return [
-                        int.from_bytes(
-                            self._frame[i : i + 8],
-                            byteorder="little",
-                            signed=True,
-                        )
-                        for i in range(payload_index, self.length + 1, 8)
-                    ]
+                    for i in range(payload_index, self.length + 1, 4)
+                ]
 
-            case PayloadType.Float | PayloadType.TimestampedFloat:
-                if self.length == payload_start + 4:
-                    return struct.unpack(
-                        "<f", self._frame[payload_index : payload_index + 4]
-                    )[0]
-                else:
-                    return [
-                        struct.unpack("<f", self._frame[i : i + 4])[0]
-                        for i in range(payload_index, self.length + 1, 4)
-                    ]
+        elif pt == PayloadType.U64 or pt == PayloadType.TimestampedU64:
+            if self.length == payload_start + 8:
+                return int.from_bytes(
+                    self._frame[payload_index : payload_index + 8],
+                    byteorder="little",
+                    signed=False,
+                )
+            else:
+                return [
+                    int.from_bytes(
+                        self._frame[i : i + 8],
+                        byteorder="little",
+                        signed=False,
+                    )
+                    for i in range(payload_index, self.length + 1, 8)
+                ]
 
-            case _:
-                # For any other payload type, return the raw payload, excluding checksum
-                return self._frame[payload_index:-1]
+        elif pt == PayloadType.S64 or pt == PayloadType.TimestampedS64:
+            if self.length == payload_start + 8:
+                return int.from_bytes(
+                    self._frame[payload_index : payload_index + 8],
+                    byteorder="little",
+                    signed=True,
+                )
+            else:
+                return [
+                    int.from_bytes(
+                        self._frame[i : i + 8],
+                        byteorder="little",
+                        signed=True,
+                    )
+                    for i in range(payload_index, self.length + 1, 8)
+                ]
+
+        elif pt == PayloadType.Float or pt == PayloadType.TimestampedFloat:
+            if self.length == payload_start + 4:
+                return struct.unpack(
+                    "<f", self._frame[payload_index : payload_index + 4]
+                )[0]
+            else:
+                return [
+                    struct.unpack("<f", self._frame[i : i + 4])[0]
+                    for i in range(payload_index, self.length + 1, 4)
+                ]
+
+        else:
+            # For any other payload type, return the raw payload, excluding checksum
+            return self._frame[payload_index:-1]
 
     @property
     def checksum(self) -> int:
