@@ -1,7 +1,7 @@
 from __future__ import annotations  # for type hints (PEP 563)
 
 import struct
-from typing import Union, Optional
+from typing import Optional, Union
 
 from harp.protocol import MessageType, PayloadType
 
@@ -516,22 +516,22 @@ class WriteHarpMessage(HarpMessage):
     # Define payload type properties
     _PAYLOAD_CONFIG = {
         # payload_type: (byte_size, signed, is_float)
-        PayloadType.U8: (1, False, False),
-        PayloadType.S8: (1, True, False),
-        PayloadType.U16: (2, False, False),
-        PayloadType.S16: (2, True, False),
-        PayloadType.U32: (4, False, False),
-        PayloadType.S32: (4, True, False),
-        PayloadType.U64: (8, False, False),
-        PayloadType.S64: (8, True, False),
-        PayloadType.Float: (4, False, True),
+        PayloadType.U8: (1, False),
+        PayloadType.S8: (1, True),
+        PayloadType.U16: (2, False),
+        PayloadType.S16: (2, True),
+        PayloadType.U32: (4, False),
+        PayloadType.S32: (4, True),
+        PayloadType.U64: (8, False),
+        PayloadType.S64: (8, True),
+        PayloadType.Float: (4, False),
     }
 
     def __init__(
         self,
         payload_type: PayloadType,
         address: int,
-        value: Optional[int | float | list[int] | list[float]] = None,
+        value: int | float | list[int] | list[float],
     ):
         """
         Create a WriteHarpMessage to send to a device.
@@ -554,16 +554,18 @@ class WriteHarpMessage(HarpMessage):
         self._frame = bytearray()
 
         # Get configuration for this payload type
-        byte_size, signed, is_float = self._PAYLOAD_CONFIG.get(
-            payload_type, (1, False, False)
-        )
+        byte_size, signed = self._PAYLOAD_CONFIG.get(payload_type, (1, False))
 
         # Convert value to payload bytes
         payload = bytearray()
-        values = value if isinstance(value, list) else [value]
+
+        if isinstance(value, int) or isinstance(value, float):
+            values = [value]
+        else:
+            values = value
 
         for val in values:
-            if is_float:
+            if isinstance(val, float):
                 payload += struct.pack("<f", val)
             else:
                 payload += val.to_bytes(byte_size, byteorder="little", signed=signed)
