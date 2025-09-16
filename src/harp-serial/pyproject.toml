@@ -7,7 +7,7 @@ license = "MIT"
 keywords = ['python', 'harp']
 requires-python = ">=3.9,<4.0"
 dependencies = [
-    "harp-protocol",
+    "harp-protocol==0.3.0",
     "pyserial>=3.5",
 ]
 
