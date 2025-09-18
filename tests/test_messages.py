@@ -1,6 +1,7 @@
 import pytest
 
 from harp.protocol import CommonRegisters, MessageType, PayloadType
+from harp.protocol.exceptions import HarpReadException
 from harp.protocol.messages import (
     HarpMessage,
     ReadHarpMessage,
@@ -57,7 +58,7 @@ def test_reply_is_error():
             5,
             42,
             255,
-            PayloadType.U8,
+            PayloadType.TimestampedU8,
             0,
             0,
             0,
@@ -83,7 +84,7 @@ def test_reply_is_error():
             5,
             42,
             255,
-            PayloadType.U8,
+            PayloadType.TimestampedU8,
             0,
             0,
             0,
@@ -385,7 +386,7 @@ def test_reply_message_str_repr() -> None:
             5,
             42,
             255,
-            PayloadType.U8,
+            PayloadType.TimestampedU8,
             0,
             0,
             0,
@@ -424,7 +425,7 @@ def test_payload_as_string() -> None:
             5 + len(encoded),
             42,
             255,
-            PayloadType.U8,
+            PayloadType.TimestampedU8,
             0,
             0,
             0,
@@ -507,20 +508,17 @@ def test_timestamp_handling() -> None:
     assert reply.timestamp is not None
     assert reply.timestamp == 1 + 32 * 32e-6  # 1 second + 1 millisecond
 
-    # Create a non-timestamped message
+
+# test ReplyHarpMessage without TimestampedU8 raises HarpReadException
+def test_reply_without_timestamp_raises() -> None:
+    """Test that accessing timestamp in non-timestamped message raises exception."""
     frame = bytearray(
         [
             MessageType.READ,
             5,
             42,
             255,
-            PayloadType.U8,
-            1,
-            0,
-            0,
-            0,  # timestamp seconds = 1
-            32,
-            0,  # timestamp micros = 32 (= 1ms)
+            PayloadType.U8,  # Not a timestamped type
             123,  # payload
             0,
         ]
@@ -530,8 +528,9 @@ def test_timestamp_handling() -> None:
     checksum = sum(frame[:-1]) & 255
     frame[-1] = checksum
 
-    reply = ReplyHarpMessage(frame)
-    assert reply.timestamp is None
+    with pytest.raises(HarpReadException) as excinfo:
+        ReplyHarpMessage(frame)
+        assert "not a timestamped payload type" in str(excinfo.value)
 
 
 def test_calculate_checksum() -> None:
