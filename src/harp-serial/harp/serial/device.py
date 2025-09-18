@@ -24,6 +24,21 @@ from harp.serial.harp_serial import HarpSerial
 
 
 class TimeoutStrategy(Enum):
+    """
+    Strategy to handle timeouts when waiting for a reply from the device.
+
+    Attributes
+    ----------
+    RAISE : str
+        Raise HarpTimeoutError
+    RETURN_NONE : str
+        Return None
+    LOG_AND_RAISE : str
+        Log the timeout and raise HarpTimeoutError
+    LOG_AND_NONE : str
+        Log the timeout and return None
+    """
+
     RAISE = "raise"  # Raise HarpTimeoutError
     RETURN_NONE = "return_none"  # Return None
     LOG_AND_RAISE = "log_and_raise"
