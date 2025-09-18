@@ -7,6 +7,7 @@ from io import BufferedWriter
 from pathlib import Path
 from typing import Optional
 
+import serial
 from harp.protocol import (
     ClockConfig,
     CommonRegisters,
@@ -20,8 +21,6 @@ from harp.protocol.device_names import device_names
 from harp.protocol.exceptions import HarpTimeoutError
 from harp.protocol.messages import HarpMessage, ReplyHarpMessage
 from harp.serial.harp_serial import HarpSerial
-
-import serial
 
 
 class TimeoutStrategy(Enum):
@@ -222,6 +221,108 @@ class Device:
             else:
                 break
         return replies
+
+    def read_operation_ctrl(self):
+        """
+        Reads the OPERATION_CTRL register of the device.
+
+        Returns
+        -------
+        ReplyHarpMessage
+            The reply to the Harp message
+        """
+        address = CommonRegisters.OPERATION_CTRL
+        reply = self.send(HarpMessage.create(MessageType.READ, address, PayloadType.U8))
+
+        # create dict with complete byte and then decode each bit according to the OperationCtrl entries
+        if reply is not None:
+            reg_value = reply.payload
+            result = {
+                "REG_VALUE": reply.payload,
+                "OP_MODE": OperationMode(reg_value & OperationCtrl.OP_MODE),
+                "DUMP": bool(reg_value & OperationCtrl.DUMP),
+                "MUTE_RPL": bool(reg_value & OperationCtrl.MUTE_RPL),
+                "VISUALEN": bool(reg_value & OperationCtrl.VISUALEN),
+                "OPLEDEN": bool(reg_value & OperationCtrl.OPLEDEN),
+                "ALIVE_EN": bool(reg_value & OperationCtrl.ALIVE_EN),
+            }
+            return result
+
+    def write_operation_ctrl(
+        self,
+        mode: Optional[OperationMode] = None,
+        mute_rpl: Optional[bool] = None,
+        visual_en: Optional[bool] = None,
+        op_led_en: Optional[bool] = None,
+        alive_en: Optional[bool] = None,
+    ) -> ReplyHarpMessage | None:
+        """
+        Writes the OPERATION_CTRL register of the device.
+
+        Parameters
+        ----------
+        mode : OperationMode, optional
+            The new operation mode value
+        mute_rpl : bool, optional
+            If True, the Replies to all the Commands are muted
+        visual_en : bool, optional
+            If True, enables the status led
+        op_led_en : bool, optional
+            If True, enables the operation LED
+        alive_en : bool, optional
+            If True, enables the ALIVE_EN bit
+        Returns
+        -------
+        ReplyHarpMessage
+            The reply to the Harp message
+        """
+        address = CommonRegisters.OPERATION_CTRL
+
+        # Read register first
+        reg_value = self.send(
+            HarpMessage.create(MessageType.READ, address, PayloadType.U8)
+        )
+
+        if reg_value is None:
+            return reg_value
+
+        reg_value = reg_value.payload
+
+        if mode is not None:
+            # Clear old operation mode
+            reg_value &= ~OperationCtrl.OP_MODE
+            # Set new operation mode
+            reg_value |= mode
+
+        if mute_rpl is not None:
+            if mute_rpl:
+                reg_value |= OperationCtrl.MUTE_RPL
+            else:
+                reg_value &= ~OperationCtrl.MUTE_RPL
+
+        if visual_en is not None:
+            if visual_en:
+                reg_value |= OperationCtrl.VISUALEN
+            else:
+                reg_value &= ~OperationCtrl.VISUALEN
+
+        if op_led_en is not None:
+            if op_led_en:
+                reg_value |= OperationCtrl.OPLEDEN
+            else:
+                reg_value &= ~OperationCtrl.OPLEDEN
+
+        if alive_en is not None:
+            if alive_en:
+                reg_value |= OperationCtrl.ALIVE_EN
+            else:
+                reg_value &= ~OperationCtrl.ALIVE_EN
+
+        reply = self.send(
+            HarpMessage.create(MessageType.WRITE, address, PayloadType.U8, reg_value)
+        )
+
+        return reply
 
     def set_mode(self, mode: OperationMode) -> ReplyHarpMessage | None:
         """
