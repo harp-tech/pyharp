@@ -1,73 +1,12 @@
-# harp
+# pyharp
 
-Python implementation of the Harp protocol for hardware control and data acquisition.
+This project includes two main packages:
 
-## Installation
+ - **harp-protocol**: Provides the core protocol definitions and utilities for the Harp protocol.
+   See [Protocol API Documentation](https://fchampalimaud.github.io/pyharp/api/protocol) for details.
 
-```bash
-uv add harp-protocol
-# or
-pip install harp-protocol
-```
+ - **harp-serial**: Implements serial communication functionalities for generic Harp devices.
+   See [Serial API Documentation](https://fchampalimaud.github.io/pyharp/api/serial) for more information.
 
-## Quick Start
 
-```python
-from harp import MessageType, PayloadType
-from harp.device import Device
-from harp.messages import HarpMessage
-
-# Connect to a device
-device = Device("/dev/ttyUSB0")
-#device = Device("COM3")  # for Windows
-
-# Get device information
-device.info()
-
-# define register_address
-register_address = 32
-
-# Read from register
-value = device.send(HarpMessage.create(MessageType.READ, register_address, PayloadType.U8))
-
-# Write to register
-device.send(HarpMessage.create(MessageType.WRITE, register_address, PayloadType.U8, value))
-
-# Disconnect when done
-device.disconnect()
-```
-
-or using the `with` statement:
-
-```python
-from harp import MessageType, PayloadType
-from harp.device import Device
-from harp.messages import HarpMessage
-
-with Device("/dev/ttyUSB0") as device:
-    # Get device information
-    device.info()
-
-    # define register_address
-    register_address = 32
-
-    # Read from register
-    value = device.send(HarpMessage.create(MessageType.READ, register_address, PayloadType.U8))
-
-    # Write to register
-    device.send(HarpMessage.create(MessageType.WRITE, register_address, PayloadType.U8, value))
-```
-
-## for Linux
-
-### Install UDEV Rules
-
-Install by either copying `10-harp.rules` over to your `/etc/udev/rules.d` folder or by symlinking it with:
-````
-sudo ln -s /absolute/path/to/10-harp.rules /etc/udev/rules.d/10-harp.rules
-````
-
-Then reload udev rules with
-````
-sudo udevadm control --reload-rules
-````
+For specific Harp devices' packages please select the corresponding Harp device under the Devices section on the menu.

@@ -35,6 +35,7 @@ current_device_names = {
     1280: "SoundCard",
     1282: "CurrentDriver",
     1296: "SyringePump",
+    1298: "LaserDriverController",
     1400: "LicketySplit",
     1401: "SniffDetector",
     1402: "Treadmill",

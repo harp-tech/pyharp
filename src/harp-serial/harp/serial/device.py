@@ -24,6 +24,21 @@ from harp.serial.harp_serial import HarpSerial
 
 
 class TimeoutStrategy(Enum):
+    """
+    Strategy to handle timeouts when waiting for a reply from the device.
+
+    Attributes
+    ----------
+    RAISE : str
+        Raise HarpTimeoutError
+    RETURN_NONE : str
+        Return None
+    LOG_AND_RAISE : str
+        Log the timeout and raise HarpTimeoutError
+    LOG_AND_NONE : str
+        Log the timeout and return None
+    """
+
     RAISE = "raise"  # Raise HarpTimeoutError
     RETURN_NONE = "return_none"  # Return None
     LOG_AND_RAISE = "log_and_raise"
@@ -100,7 +115,7 @@ class Device:
         """
         self.log = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
         self._serial_port = serial_port
-        self._dump_file_path = dump_file_path
+        self._dump_file_path = None
         if dump_file_path is not None:
             self._dump_file_path = Path() / dump_file_path
         self._read_timeout_s = read_timeout_s
@@ -221,6 +236,108 @@ class Device:
             else:
                 break
         return replies
+
+    def read_operation_ctrl(self):
+        """
+        Reads the OPERATION_CTRL register of the device.
+
+        Returns
+        -------
+        ReplyHarpMessage
+            The reply to the Harp message
+        """
+        address = CommonRegisters.OPERATION_CTRL
+        reply = self.send(HarpMessage.create(MessageType.READ, address, PayloadType.U8))
+
+        # create dict with complete byte and then decode each bit according to the OperationCtrl entries
+        if reply is not None:
+            reg_value = reply.payload
+            result = {
+                "REG_VALUE": reply.payload,
+                "OP_MODE": OperationMode(reg_value & OperationCtrl.OP_MODE),
+                "DUMP": bool(reg_value & OperationCtrl.DUMP),
+                "MUTE_RPL": bool(reg_value & OperationCtrl.MUTE_RPL),
+                "VISUALEN": bool(reg_value & OperationCtrl.VISUALEN),
+                "OPLEDEN": bool(reg_value & OperationCtrl.OPLEDEN),
+                "ALIVE_EN": bool(reg_value & OperationCtrl.ALIVE_EN),
+            }
+            return result
+
+    def write_operation_ctrl(
+        self,
+        mode: Optional[OperationMode] = None,
+        mute_rpl: Optional[bool] = None,
+        visual_en: Optional[bool] = None,
+        op_led_en: Optional[bool] = None,
+        alive_en: Optional[bool] = None,
+    ) -> ReplyHarpMessage | None:
+        """
+        Writes the OPERATION_CTRL register of the device.
+
+        Parameters
+        ----------
+        mode : OperationMode, optional
+            The new operation mode value
+        mute_rpl : bool, optional
+            If True, the Replies to all the Commands are muted
+        visual_en : bool, optional
+            If True, enables the status led
+        op_led_en : bool, optional
+            If True, enables the operation LED
+        alive_en : bool, optional
+            If True, enables the ALIVE_EN bit
+        Returns
+        -------
+        ReplyHarpMessage
+            The reply to the Harp message
+        """
+        address = CommonRegisters.OPERATION_CTRL
+
+        # Read register first
+        reg_value = self.send(
+            HarpMessage.create(MessageType.READ, address, PayloadType.U8)
+        )
+
+        if reg_value is None:
+            return reg_value
+
+        reg_value = reg_value.payload
+
+        if mode is not None:
+            # Clear old operation mode
+            reg_value &= ~OperationCtrl.OP_MODE
+            # Set new operation mode
+            reg_value |= mode
+
+        if mute_rpl is not None:
+            if mute_rpl:
+                reg_value |= OperationCtrl.MUTE_RPL
+            else:
+                reg_value &= ~OperationCtrl.MUTE_RPL
+
+        if visual_en is not None:
+            if visual_en:
+                reg_value |= OperationCtrl.VISUALEN
+            else:
+                reg_value &= ~OperationCtrl.VISUALEN
+
+        if op_led_en is not None:
+            if op_led_en:
+                reg_value |= OperationCtrl.OPLEDEN
+            else:
+                reg_value &= ~OperationCtrl.OPLEDEN
+
+        if alive_en is not None:
+            if alive_en:
+                reg_value |= OperationCtrl.ALIVE_EN
+            else:
+                reg_value &= ~OperationCtrl.ALIVE_EN
+
+        reply = self.send(
+            HarpMessage.create(MessageType.WRITE, address, PayloadType.U8, reg_value)
+        )
+
+        return reply
 
     def set_mode(self, mode: OperationMode) -> ReplyHarpMessage | None:
         """
@@ -1152,7 +1269,7 @@ class Device:
         """
         address = CommonRegisters.WHO_AM_I
 
-        reply: ReplyHarpMessage = self.send(
+        reply = self.send(
             HarpMessage.create(MessageType.READ, address, PayloadType.U16)
         )
 
@@ -1180,9 +1297,7 @@ class Device:
         """
         address = CommonRegisters.HW_VERSION_H
 
-        reply: ReplyHarpMessage = self.send(
-            HarpMessage.create(MessageType.READ, address, PayloadType.U8)
-        )
+        reply = self.send(HarpMessage.create(MessageType.READ, address, PayloadType.U8))
 
         return reply.payload
 
@@ -1197,9 +1312,7 @@ class Device:
         """
         address = CommonRegisters.HW_VERSION_L
 
-        reply: ReplyHarpMessage = self.send(
-            HarpMessage.create(MessageType.READ, address, PayloadType.U8)
-        )
+        reply = self.send(HarpMessage.create(MessageType.READ, address, PayloadType.U8))
 
         return reply.payload
 
@@ -1214,9 +1327,7 @@ class Device:
         """
         address = CommonRegisters.ASSEMBLY_VERSION
 
-        reply: ReplyHarpMessage = self.send(
-            HarpMessage.create(MessageType.READ, address, PayloadType.U8)
-        )
+        reply = self.send(HarpMessage.create(MessageType.READ, address, PayloadType.U8))
 
         return reply.payload
 
@@ -1231,9 +1342,7 @@ class Device:
         """
         address = CommonRegisters.HARP_VERSION_H
 
-        reply: ReplyHarpMessage = self.send(
-            HarpMessage.create(MessageType.READ, address, PayloadType.U8)
-        )
+        reply = self.send(HarpMessage.create(MessageType.READ, address, PayloadType.U8))
 
         return reply.payload
 
@@ -1248,9 +1357,7 @@ class Device:
         """
         address = CommonRegisters.HARP_VERSION_L
 
-        reply: ReplyHarpMessage = self.send(
-            HarpMessage.create(MessageType.READ, address, PayloadType.U8)
-        )
+        reply = self.send(HarpMessage.create(MessageType.READ, address, PayloadType.U8))
 
         return reply.payload
 
@@ -1265,9 +1372,7 @@ class Device:
         """
         address = CommonRegisters.FIRMWARE_VERSION_H
 
-        reply: ReplyHarpMessage = self.send(
-            HarpMessage.create(MessageType.READ, address, PayloadType.U8)
-        )
+        reply = self.send(HarpMessage.create(MessageType.READ, address, PayloadType.U8))
 
         return reply.payload
 
@@ -1282,9 +1387,7 @@ class Device:
         """
         address = CommonRegisters.FIRMWARE_VERSION_L
 
-        reply: ReplyHarpMessage = self.send(
-            HarpMessage.create(MessageType.READ, address, PayloadType.U8)
-        )
+        reply = self.send(HarpMessage.create(MessageType.READ, address, PayloadType.U8))
 
         return reply.payload
 
@@ -1299,9 +1402,7 @@ class Device:
         """
         address = CommonRegisters.DEVICE_NAME
 
-        reply: ReplyHarpMessage = self.send(
-            HarpMessage.create(MessageType.READ, address, PayloadType.U8)
-        )
+        reply = self.send(HarpMessage.create(MessageType.READ, address, PayloadType.U8))
 
         return reply.payload_as_string()
 
@@ -1316,9 +1417,7 @@ class Device:
         """
         address = CommonRegisters.SERIAL_NUMBER
 
-        reply: ReplyHarpMessage = self.send(
-            HarpMessage.create(MessageType.READ, address, PayloadType.U8)
-        )
+        reply = self.send(HarpMessage.create(MessageType.READ, address, PayloadType.U8))
 
         if reply.is_error:
             return 0
@@ -1336,9 +1435,7 @@ class Device:
         """
         address = CommonRegisters.CLOCK_CONFIG
 
-        reply: ReplyHarpMessage = self.send(
-            HarpMessage.create(MessageType.READ, address, PayloadType.U8)
-        )
+        reply = self.send(HarpMessage.create(MessageType.READ, address, PayloadType.U8))
 
         return reply.payload
 
@@ -1353,9 +1450,7 @@ class Device:
         """
         address = CommonRegisters.TIMESTAMP_OFFSET
 
-        reply: ReplyHarpMessage = self.send(
-            HarpMessage.create(MessageType.READ, address, PayloadType.U8)
-        )
+        reply = self.send(HarpMessage.create(MessageType.READ, address, PayloadType.U8))
 
         return reply.payload
 

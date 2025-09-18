@@ -1,0 +1,25 @@
+[project]
+name = "harp-serial"
+version = "0.3.0"
+description = "Library for data acquisition and control of devices implementing the Harp protocol."
+authors = [{ name= "Hardware and Software Platform, Champalimaud Foundation", email="software@research.fchampalimaud.org"}]
+license = "MIT"
+keywords = ['python', 'harp']
+requires-python = ">=3.9,<4.0"
+dependencies = [
+    "harp-protocol==0.3.0",
+    "pyserial>=3.5",
+]
+
+[tool.uv.sources]
+harp-protocol = { workspace = true }
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+include = [
+    "harp",
+    "harp/**/*",
+]

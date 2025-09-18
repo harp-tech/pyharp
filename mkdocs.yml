@@ -78,8 +78,7 @@ nav:
   - Home: index.md
   - API:
     - Protocol: api/protocol.md
-    - Device: api/device.md
-    - Messages: api/messages.md
+    - Serial: api/serial.md
   - Examples:
     - examples/index.md
     - Getting Device Info: examples/get_info/get_info.md
