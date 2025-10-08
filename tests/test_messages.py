@@ -58,7 +58,7 @@ def test_reply_is_error():
             5,
             42,
             255,
-            PayloadType.TimestampedU8,
+            PayloadType.TIMESTAMPED_U8,
             0,
             0,
             0,
@@ -84,7 +84,7 @@ def test_reply_is_error():
             5,
             42,
             255,
-            PayloadType.TimestampedU8,
+            PayloadType.TIMESTAMPED_U8,
             0,
             0,
             0,
@@ -161,7 +161,7 @@ def test_create_read_S64() -> None:
 
 
 def test_create_read_float() -> None:
-    message = ReadHarpMessage(payload_type=PayloadType.Float, address=DEFAULT_ADDRESS)
+    message = ReadHarpMessage(payload_type=PayloadType.FLOAT, address=DEFAULT_ADDRESS)
 
     assert message.message_type == MessageType.READ
     assert message.checksum == 114  # 1 + 4 + 42 + 255 + 4 - 256
@@ -304,7 +304,7 @@ def test_create_write_S64_array() -> None:
 def test_create_write_float_array() -> None:
     """Test creating a write message with float array values."""
     values = [1.1, 2.2, 3.3]
-    message = WriteHarpMessage(PayloadType.Float, DEFAULT_ADDRESS, values)
+    message = WriteHarpMessage(PayloadType.FLOAT, DEFAULT_ADDRESS, values)
 
     assert message.message_type == MessageType.WRITE
     expected_checksum = 193  # (2 + 4 + 42 + 255 + 1 + 3 * 4) & 255
@@ -386,7 +386,7 @@ def test_reply_message_str_repr() -> None:
             5,
             42,
             255,
-            PayloadType.TimestampedU8,
+            PayloadType.TIMESTAMPED_U8,
             0,
             0,
             0,
@@ -425,7 +425,7 @@ def test_payload_as_string() -> None:
             5 + len(encoded),
             42,
             255,
-            PayloadType.TimestampedU8,
+            PayloadType.TIMESTAMPED_U8,
             0,
             0,
             0,
@@ -456,7 +456,7 @@ def test_harp_message_parse() -> None:
             11,
             42,
             255,
-            PayloadType.TimestampedU8,
+            PayloadType.TIMESTAMPED_U8,
             0,
             0,
             0,
@@ -488,7 +488,7 @@ def test_timestamp_handling() -> None:
             5,
             42,
             255,
-            PayloadType.TimestampedU8,
+            PayloadType.TIMESTAMPED_U8,
             1,
             0,
             0,

@@ -143,14 +143,14 @@ class HarpMessage:
             The payload sent in the write Harp message
         """
         payload_start = self.BASE_LENGTH
-        if self.payload_type & PayloadType.Timestamp:
+        if self.payload_type.has_timestamp():
             payload_start += 6
 
         payload_index = payload_start + 1
 
         # length is payload_start + payload type size
         pt = self.payload_type
-        if pt == PayloadType.U8 or pt == PayloadType.TimestampedU8:
+        if pt == PayloadType.U8 or pt == PayloadType.TIMESTAMPED_U8:
             if self.length == payload_start + 1:
                 return self._frame[payload_index]
             else:  # array case
@@ -159,7 +159,7 @@ class HarpMessage:
                     for i in range(payload_index, self.length + 1)
                 ]
 
-        elif pt == PayloadType.S8 or pt == PayloadType.TimestampedS8:
+        elif pt == PayloadType.S8 or pt == PayloadType.TIMESTAMPED_S8:
             if self.length == payload_start + 1:
                 return int.from_bytes(
                     [self._frame[payload_index]], byteorder="little", signed=True
@@ -174,7 +174,7 @@ class HarpMessage:
                     for i in range(payload_index, self.length + 1)
                 ]
 
-        elif pt == PayloadType.U16 or pt == PayloadType.TimestampedU16:
+        elif pt == PayloadType.U16 or pt == PayloadType.TIMESTAMPED_U16:
             if self.length == payload_start + 2:
                 return int.from_bytes(
                     self._frame[payload_index : payload_index + 2],
@@ -191,7 +191,7 @@ class HarpMessage:
                     for i in range(payload_index, self.length + 1, 2)
                 ]
 
-        elif pt == PayloadType.S16 or pt == PayloadType.TimestampedS16:
+        elif pt == PayloadType.S16 or pt == PayloadType.TIMESTAMPED_S16:
             if self.length == payload_start + 2:
                 return int.from_bytes(
                     self._frame[payload_index : payload_index + 2],
@@ -208,7 +208,7 @@ class HarpMessage:
                     for i in range(payload_index, self.length + 1, 2)
                 ]
 
-        elif pt == PayloadType.U32 or pt == PayloadType.TimestampedU32:
+        elif pt == PayloadType.U32 or pt == PayloadType.TIMESTAMPED_U32:
             if self.length == payload_start + 4:
                 return int.from_bytes(
                     self._frame[payload_index : payload_index + 4],
@@ -225,7 +225,7 @@ class HarpMessage:
                     for i in range(payload_index, self.length + 1, 4)
                 ]
 
-        elif pt == PayloadType.S32 or pt == PayloadType.TimestampedS32:
+        elif pt == PayloadType.S32 or pt == PayloadType.TIMESTAMPED_S32:
             if self.length == payload_start + 4:
                 return int.from_bytes(
                     self._frame[payload_index : payload_index + 4],
@@ -242,7 +242,7 @@ class HarpMessage:
                     for i in range(payload_index, self.length + 1, 4)
                 ]
 
-        elif pt == PayloadType.U64 or pt == PayloadType.TimestampedU64:
+        elif pt == PayloadType.U64 or pt == PayloadType.TIMESTAMPED_U64:
             if self.length == payload_start + 8:
                 return int.from_bytes(
                     self._frame[payload_index : payload_index + 8],
@@ -259,7 +259,7 @@ class HarpMessage:
                     for i in range(payload_index, self.length + 1, 8)
                 ]
 
-        elif pt == PayloadType.S64 or pt == PayloadType.TimestampedS64:
+        elif pt == PayloadType.S64 or pt == PayloadType.TIMESTAMPED_S64:
             if self.length == payload_start + 8:
                 return int.from_bytes(
                     self._frame[payload_index : payload_index + 8],
@@ -276,7 +276,7 @@ class HarpMessage:
                     for i in range(payload_index, self.length + 1, 8)
                 ]
 
-        elif pt == PayloadType.Float or pt == PayloadType.TimestampedFloat:
+        elif pt == PayloadType.FLOAT or pt == PayloadType.TIMESTAMPED_FLOAT:
             if self.length == payload_start + 4:
                 return struct.unpack(
                     "<f", self._frame[payload_index : payload_index + 4]
@@ -376,7 +376,7 @@ class HarpMessage:
         """
         payload_str = ""
         format_str = ""
-        if self.payload_type in [PayloadType.Float, PayloadType.TimestampedFloat]:
+        if self.payload_type in [PayloadType.FLOAT, PayloadType.TIMESTAMPED_FLOAT]:
             format_str = ".6f"
         else:
             bytes_per_word = self.payload_type & 0x07
@@ -443,7 +443,7 @@ class ReplyHarpMessage(HarpMessage):
         )
 
         # Timestamp is junk if it's not present.
-        if not (self.payload_type & PayloadType.Timestamp):
+        if not self.payload_type.has_timestamp():
             raise HarpReadException(self.address)
 
     @property
@@ -456,7 +456,7 @@ class ReplyHarpMessage(HarpMessage):
         bool
             Returns True if this HarpMessage is an error message, False otherwise.
         """
-        return self.message_type in [MessageType.READ_ERROR, MessageType.WRITE_ERROR]
+        return self.message_type.is_error()
 
     @property
     def timestamp(self) -> float:
