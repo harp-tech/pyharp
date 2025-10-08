@@ -111,7 +111,9 @@ class Device:
         dump_file_path: str, optional
             The binary file to which all Harp messages will be written
         read_timeout_s: float, optional
-            _TODO_
+            The timeout in seconds when waiting for a reply from the device
+        timeout_strategy: TimeoutStrategy, optional
+            The strategy to handle timeouts when waiting for a reply from the device
         """
         self.log = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
         self._serial_port = serial_port
