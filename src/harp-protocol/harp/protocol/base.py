@@ -117,10 +117,10 @@ class CommonRegisters(IntEnum):
         The number of the `HW_VERSION_L` register
     ASSEMBLY_VERSION : int
         The number of the `ASSEMBLY_VERSION` register
-    HARP_VERSION_H : int
-        The number of the `HARP_VERSION_H` register
-    HARP_VERSION_L : int
-        The number of the `HARP_VERSION_L` register
+    CORE_VERSION_H : int
+        The number of the `CORE_VERSION_H` register
+    CORE_VERSION_L : int
+        The number of the `CORE_VERSION_L` register
     FIRMWARE_VERSION_H : int
         The number of the `FIRMWARE_VERSION_H` register
     FIRMWARE_VERSION_L : int
@@ -147,8 +147,8 @@ class CommonRegisters(IntEnum):
     HW_VERSION_H = 0x01
     HW_VERSION_L = 0x02
     ASSEMBLY_VERSION = 0x03
-    HARP_VERSION_H = 0x04
-    HARP_VERSION_L = 0x05
+    CORE_VERSION_H = 0x04
+    CORE_VERSION_L = 0x05
     FIRMWARE_VERSION_H = 0x06
     FIRMWARE_VERSION_L = 0x07
     TIMESTAMP_SECOND = 0x08

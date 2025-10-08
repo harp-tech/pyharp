@@ -80,8 +80,8 @@ class Device:
     HW_VERSION_H: int
     HW_VERSION_L: int
     ASSEMBLY_VERSION: int
-    HARP_VERSION_H: int
-    HARP_VERSION_L: int
+    CORE_VERSION_H: int
+    CORE_VERSION_L: int
     FIRMWARE_VERSION_H: int
     FIRMWARE_VERSION_L: int
     DEVICE_NAME: str
@@ -134,8 +134,8 @@ class Device:
         self.HW_VERSION_H = self._read_hw_version_h()
         self.HW_VERSION_L = self._read_hw_version_l()
         self.ASSEMBLY_VERSION = self._read_assembly_version()
-        self.HARP_VERSION_H = self._read_harp_version_h()
-        self.HARP_VERSION_L = self._read_harp_version_l()
+        self.CORE_VERSION_H = self._read_core_version_h()
+        self.CORE_VERSION_L = self._read_core_version_l()
         self.FIRMWARE_VERSION_H = self._read_fw_version_h()
         self.FIRMWARE_VERSION_L = self._read_fw_version_l()
         self.DEVICE_NAME = self._read_device_name()
@@ -151,7 +151,7 @@ class Device:
         print(f"* Who am I: ({self.WHO_AM_I}) {self.DEFAULT_DEVICE_NAME}")
         print(f"* HW version: {self.HW_VERSION_H}.{self.HW_VERSION_L}")
         print(f"* Assembly version: {self.ASSEMBLY_VERSION}")
-        print(f"* HARP version: {self.HARP_VERSION_H}.{self.HARP_VERSION_L}")
+        print(f"* HARP version: {self.CORE_VERSION_H}.{self.CORE_VERSION_L}")
         print(
             f"* Firmware version: {self.FIRMWARE_VERSION_H}.{self.FIRMWARE_VERSION_L}"
         )
@@ -1331,31 +1331,31 @@ class Device:
 
         return reply.payload
 
-    def _read_harp_version_h(self) -> int:
+    def _read_core_version_h(self) -> int:
         """
-        Reads the value stored in the `HARP_VERSION_H` register.
+        Reads the value stored in the `CORE_VERSION_H` register.
 
         Returns
         -------
         int
-            The value of the `HARP_VERSION_H` register
+            The value of the `CORE_VERSION_H` register
         """
-        address = CommonRegisters.HARP_VERSION_H
+        address = CommonRegisters.CORE_VERSION_H
 
         reply = self.send(HarpMessage.create(MessageType.READ, address, PayloadType.U8))
 
         return reply.payload
 
-    def _read_harp_version_l(self) -> int:
+    def _read_core_version_l(self) -> int:
         """
-        Reads the value stored in the `HARP_VERSION_L` register.
+        Reads the value stored in the `CORE_VERSION_L` register.
 
         Returns
         -------
         int
-            The value of the `HARP_VERSION_L` register
+            The value of the `CORE_VERSION_L` register
         """
-        address = CommonRegisters.HARP_VERSION_L
+        address = CommonRegisters.CORE_VERSION_L
 
         reply = self.send(HarpMessage.create(MessageType.READ, address, PayloadType.U8))
 
