@@ -4,7 +4,7 @@ import struct
 from typing import Optional, Union
 
 from harp.protocol import MessageType, PayloadType
-from harp.protocol.exceptions import HarpReadException
+from harp.protocol.exceptions import HarpException, HarpReadException
 
 
 class HarpMessage:
@@ -33,6 +33,60 @@ class HarpMessage:
     BASE_LENGTH: int = 4
     _frame: bytearray = bytearray()
     _port: int = DEFAULT_PORT
+
+    def __init__(
+        self,
+        message_type: MessageType,
+        payload_type: PayloadType,
+        address: int,
+        value: Optional[int | float | list[int] | list[float]] = None,
+    ):
+        """
+        Parameters
+        ----------
+        message_type : MessageType
+            The message type.
+        payload_type : PayloadType
+            The payload type.
+        address : int
+            The address of the register that the message will interact with.
+        value: int | list[int] | float | list[float], optional
+            The payload of the message. If message_type == MessageType.WRITE, the value cannot be None
+        """
+        if message_type in [MessageType.WRITE, MessageType.EVENT] and value is None:
+            raise HarpException(
+                "The value cannot be None if the message type is equal to MessageType.WRITE!"
+            )
+
+        self._frame = bytearray()
+        payload = bytearray()
+
+        if value is not None:
+            if isinstance(value, int) or isinstance(value, float):
+                values = [value]
+            else:
+                values = value
+
+            for val in values:
+                if isinstance(val, float):
+                    payload += struct.pack("<f", val)
+                else:
+                    payload += val.to_bytes(
+                        payload_type.type_size(),
+                        byteorder="little",
+                        signed=payload_type.is_signed(),
+                    )
+
+        self._frame.append(message_type)
+        self._frame.append(self.BASE_LENGTH + len(payload))
+        self._frame.append(address)
+        self._frame.append(self._port)
+        self._frame.append(payload_type)
+
+        if value is not None:
+            self._frame += payload
+
+        self._frame.append(self.calculate_checksum())
 
     def calculate_checksum(self) -> int:
         """
@@ -480,103 +534,3 @@ class ReplyHarpMessage(HarpMessage):
             The payload parsed as a str
         """
         return self._raw_payload.decode("utf-8").rstrip("\x00")
-
-
-class ReadHarpMessage(HarpMessage):
-    """
-    A read Harp message sent to a Harp device.
-    """
-
-    MESSAGE_TYPE: int = MessageType.READ
-
-    def __init__(self, payload_type: PayloadType, address: int):
-        self._frame = bytearray()
-
-        self._frame.append(self.MESSAGE_TYPE)
-
-        length: int = 4
-        self._frame.append(length)
-        self._frame.append(address)
-        self._frame.append(self._port)
-        self._frame.append(payload_type)
-        self._frame.append(self.calculate_checksum())
-
-
-class WriteHarpMessage(HarpMessage):
-    """
-    A write Harp message sent to a Harp device.
-
-    Attributes
-    ----------
-    payload : Union[int, list[int]]
-        The payload sent in the write Harp message
-    """
-
-    MESSAGE_TYPE: int = MessageType.WRITE
-
-    # Define payload type properties
-    _PAYLOAD_CONFIG = {
-        # payload_type: (byte_size, signed, is_float)
-        PayloadType.U8: (1, False),
-        PayloadType.S8: (1, True),
-        PayloadType.U16: (2, False),
-        PayloadType.S16: (2, True),
-        PayloadType.U32: (4, False),
-        PayloadType.S32: (4, True),
-        PayloadType.U64: (8, False),
-        PayloadType.S64: (8, True),
-        PayloadType.Float: (4, False),
-    }
-
-    def __init__(
-        self,
-        payload_type: PayloadType,
-        address: int,
-        value: int | float | list[int] | list[float],
-    ):
-        """
-        Create a WriteHarpMessage to send to a device.
-
-        Parameters
-        ----------
-        payload_type : PayloadType
-            Type of payload (U8, S8, U16, etc.)
-        address : int
-            Register address to write to
-        value : int, float, List[int], or List[float], optional
-            Value(s) to write - can be a single value or list of values
-
-        Note
-        -----
-        The message frame is constructed according to the HARP binary protocol.
-        The length is calculated as BASE_LENGTH + payload size in bytes.
-        """
-
-        self._frame = bytearray()
-
-        # Get configuration for this payload type
-        byte_size, signed = self._PAYLOAD_CONFIG.get(payload_type, (1, False))
-
-        # Convert value to payload bytes
-        payload = bytearray()
-
-        if isinstance(value, int) or isinstance(value, float):
-            values = [value]
-        else:
-            values = value
-
-        for val in values:
-            if isinstance(val, float):
-                payload += struct.pack("<f", val)
-            else:
-                payload += val.to_bytes(byte_size, byteorder="little", signed=signed)
-
-        # Build the frame
-        self._frame.append(self.MESSAGE_TYPE)
-        # Length is BASE_LENGTH + payload size
-        self._frame.append(self.BASE_LENGTH + len(payload))
-        self._frame.append(address)
-        self._frame.append(self._port)
-        self._frame.append(payload_type)
-        self._frame += payload
-        self._frame.append(self.calculate_checksum())
