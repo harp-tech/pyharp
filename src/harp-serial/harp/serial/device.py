@@ -200,7 +200,7 @@ class Device:
             The current device mode
         """
         address = CommonRegisters.OPERATION_CTRL
-        reply = self.send(HarpMessage.create(MessageType.READ, address, PayloadType.U8))
+        reply = self.send(HarpMessage(MessageType.READ, PayloadType.U8, address))
         return OperationMode(reply.payload & OperationCtrl.OP_MODE)
 
     def dump_registers(self) -> list:
@@ -214,9 +214,7 @@ class Device:
             The list containing the reply Harp messages for all the device's registers
         """
         address = CommonRegisters.OPERATION_CTRL
-        reg_value = self.send(
-            HarpMessage.create(MessageType.READ, address, PayloadType.U8)
-        )
+        reg_value = self.send(HarpMessage(MessageType.READ, PayloadType.U8, address))
 
         if reg_value is None:
             return []
@@ -225,9 +223,7 @@ class Device:
 
         # Assert DUMP bit
         reg_value |= OperationCtrl.DUMP
-        self.send(
-            HarpMessage.create(MessageType.WRITE, address, PayloadType.U8, reg_value)
-        )
+        self.send(HarpMessage(MessageType.WRITE, PayloadType.U8, address, reg_value))
 
         # Receive the contents of all registers as Harp Read Reply Messages
         replies = []
@@ -249,7 +245,7 @@ class Device:
             The reply to the Harp message
         """
         address = CommonRegisters.OPERATION_CTRL
-        reply = self.send(HarpMessage.create(MessageType.READ, address, PayloadType.U8))
+        reply = self.send(HarpMessage(MessageType.READ, PayloadType.U8, address))
 
         # create dict with complete byte and then decode each bit according to the OperationCtrl entries
         if reply is not None:
@@ -296,14 +292,12 @@ class Device:
         address = CommonRegisters.OPERATION_CTRL
 
         # Read register first
-        reg_value = self.send(
-            HarpMessage.create(MessageType.READ, address, PayloadType.U8)
-        )
+        reply = self.send(HarpMessage(MessageType.READ, PayloadType.U8, address))
 
-        if reg_value is None:
-            return reg_value
+        if reply is None:
+            return reply
 
-        reg_value = reg_value.payload
+        reg_value = reply.payload
 
         if mode is not None:
             # Clear old operation mode
@@ -336,7 +330,7 @@ class Device:
                 reg_value &= ~OperationCtrl.ALIVE_EN
 
         reply = self.send(
-            HarpMessage.create(MessageType.WRITE, address, PayloadType.U8, reg_value)
+            HarpMessage(MessageType.WRITE, PayloadType.U8, address, reg_value)
         )
 
         return reply
@@ -358,14 +352,12 @@ class Device:
         address = CommonRegisters.OPERATION_CTRL
 
         # Read register first
-        reg_value = self.send(
-            HarpMessage.create(MessageType.READ, address, PayloadType.U8)
-        )
+        reply = self.send(HarpMessage(MessageType.READ, PayloadType.U8, address))
 
-        if reg_value is None:
-            return reg_value
+        if reply is None:
+            return reply
 
-        reg_value = reg_value.payload
+        reg_value = reply.payload
 
         # Clear old operation mode
         reg_value &= ~OperationCtrl.OP_MODE
@@ -373,7 +365,7 @@ class Device:
         # Set new operation mode
         reg_value |= mode
         reply = self.send(
-            HarpMessage.create(MessageType.WRITE, address, PayloadType.U8, reg_value)
+            HarpMessage(MessageType.WRITE, PayloadType.U8, address, reg_value)
         )
 
         return reply
@@ -395,14 +387,12 @@ class Device:
         address = CommonRegisters.OPERATION_CTRL
 
         # Read register first
-        reg_value = self.send(
-            HarpMessage.create(MessageType.READ, address, PayloadType.U8)
-        )
+        reply = self.send(HarpMessage(MessageType.READ, PayloadType.U8, address))
 
-        if reg_value is None:
+        if reply is None:
             return False
 
-        reg_value = reg_value.payload
+        reg_value = reply.payload
 
         if enable:
             reg_value |= OperationCtrl.ALIVE_EN
@@ -410,7 +400,7 @@ class Device:
             reg_value &= ~OperationCtrl.ALIVE_EN
 
         reply = self.send(
-            HarpMessage.create(MessageType.WRITE, address, PayloadType.U8, reg_value)
+            HarpMessage(MessageType.WRITE, PayloadType.U8, address, reg_value)
         )
 
         if reply is None:
@@ -435,14 +425,12 @@ class Device:
         address = CommonRegisters.OPERATION_CTRL
 
         # Read register first
-        reg_value = self.send(
-            HarpMessage.create(MessageType.READ, address, PayloadType.U8)
-        )
+        reply = self.send(HarpMessage(MessageType.READ, PayloadType.U8, address))
 
-        if reg_value is None:
+        if reply is None:
             return False
 
-        reg_value = reg_value.payload
+        reg_value = reply.payload
 
         if enable:
             reg_value |= OperationCtrl.OPLEDEN
@@ -450,7 +438,7 @@ class Device:
             reg_value &= ~OperationCtrl.OPLEDEN
 
         reply = self.send(
-            HarpMessage.create(MessageType.WRITE, address, PayloadType.U8, reg_value)
+            HarpMessage(MessageType.WRITE, PayloadType.U8, address, reg_value)
         )
 
         return reply is not None
@@ -472,14 +460,12 @@ class Device:
         address = CommonRegisters.OPERATION_CTRL
 
         # Read register first
-        reg_value = self.send(
-            HarpMessage.create(MessageType.READ, address, PayloadType.U8)
-        )
+        reply = self.send(HarpMessage(MessageType.READ, PayloadType.U8, address))
 
-        if reg_value is None:
+        if reply is None:
             return False
 
-        reg_value = reg_value.payload
+        reg_value = reply.payload
 
         if enable:
             reg_value |= OperationCtrl.VISUALEN
@@ -487,7 +473,7 @@ class Device:
             reg_value &= ~OperationCtrl.VISUALEN
 
         reply = self.send(
-            HarpMessage.create(MessageType.WRITE, address, PayloadType.U8, reg_value)
+            HarpMessage(MessageType.WRITE, PayloadType.U8, address, reg_value)
         )
 
         return reply is not None
@@ -509,14 +495,12 @@ class Device:
         address = CommonRegisters.OPERATION_CTRL
 
         # Read register first
-        reg_value = self.send(
-            HarpMessage.create(MessageType.READ, address, PayloadType.U8)
-        )
+        reply = self.send(HarpMessage(MessageType.READ, PayloadType.U8, address))
 
-        if reg_value is None:
+        if reply is None:
             return False
 
-        reg_value = reg_value.payload
+        reg_value = reply.payload
 
         if enable:
             reg_value |= OperationCtrl.MUTE_RPL
@@ -524,7 +508,7 @@ class Device:
             reg_value &= ~OperationCtrl.MUTE_RPL
 
         reply = self.send(
-            HarpMessage.create(MessageType.WRITE, address, PayloadType.U8, reg_value)
+            HarpMessage(MessageType.WRITE, PayloadType.U8, address, reg_value)
         )
 
         return reply is not None
@@ -542,7 +526,7 @@ class Device:
         """
         address = CommonRegisters.RESET_DEV
         reply = self.send(
-            HarpMessage.create(MessageType.WRITE, address, PayloadType.U8, reset_mode)
+            HarpMessage(MessageType.WRITE, PayloadType.U8, address, reset_mode)
         )
 
         return reply
@@ -563,7 +547,7 @@ class Device:
         """
         address = CommonRegisters.CLOCK_CONFIG
         reply = self.send(
-            HarpMessage.create(MessageType.WRITE, address, PayloadType.U8, clock_config)
+            HarpMessage(MessageType.WRITE, PayloadType.U8, address, clock_config)
         )
 
         return reply
@@ -584,9 +568,7 @@ class Device:
         """
         address = CommonRegisters.TIMESTAMP_OFFSET
         reply = self.send(
-            HarpMessage.create(
-                MessageType.WRITE, address, PayloadType.U8, timestamp_offset
-            )
+            HarpMessage(MessageType.WRITE, PayloadType.U8, address, timestamp_offset)
         )
 
         return reply
@@ -716,13 +698,7 @@ class Device:
         HarpTimeoutError
             If no reply is received and the effective strategy requires raising
         """
-        reply = self.send(
-            HarpMessage.create(
-                message_type=MessageType.READ,
-                address=address,
-                payload_type=PayloadType.U8,
-            )
-        )
+        reply = self.send(HarpMessage(MessageType.READ, PayloadType.U8, address))
 
         return reply
 
@@ -745,13 +721,7 @@ class Device:
         HarpTimeoutError
             If no reply is received and the effective strategy requires raising
         """
-        reply = self.send(
-            HarpMessage.create(
-                message_type=MessageType.READ,
-                address=address,
-                payload_type=PayloadType.S8,
-            )
-        )
+        reply = self.send(HarpMessage(MessageType.READ, PayloadType.S8, address))
 
         return reply
 
@@ -774,13 +744,7 @@ class Device:
         HarpTimeoutError
             If no reply is received and the effective strategy requires raising
         """
-        reply = self.send(
-            HarpMessage.create(
-                message_type=MessageType.READ,
-                address=address,
-                payload_type=PayloadType.U16,
-            )
-        )
+        reply = self.send(HarpMessage(MessageType.READ, PayloadType.U16, address))
 
         return reply
 
@@ -803,13 +767,7 @@ class Device:
         HarpTimeoutError
             If no reply is received and the effective strategy requires raising
         """
-        reply = self.send(
-            HarpMessage.create(
-                message_type=MessageType.READ,
-                address=address,
-                payload_type=PayloadType.S16,
-            )
-        )
+        reply = self.send(HarpMessage(MessageType.READ, PayloadType.S16, address))
 
         return reply
 
@@ -832,13 +790,7 @@ class Device:
         HarpTimeoutError
             If no reply is received and the effective strategy requires raising
         """
-        reply = self.send(
-            HarpMessage.create(
-                message_type=MessageType.READ,
-                address=address,
-                payload_type=PayloadType.U32,
-            )
-        )
+        reply = self.send(HarpMessage(MessageType.READ, PayloadType.U32, address))
 
         return reply
 
@@ -861,13 +813,7 @@ class Device:
         HarpTimeoutError
             If no reply is received and the effective strategy requires raising
         """
-        reply = self.send(
-            HarpMessage.create(
-                message_type=MessageType.READ,
-                address=address,
-                payload_type=PayloadType.S32,
-            )
-        )
+        reply = self.send(HarpMessage(MessageType.READ, PayloadType.S32, address))
 
         return reply
 
@@ -890,13 +836,7 @@ class Device:
         HarpTimeoutError
             If no reply is received and the effective strategy requires raising
         """
-        reply = self.send(
-            HarpMessage.create(
-                message_type=MessageType.READ,
-                address=address,
-                payload_type=PayloadType.U64,
-            )
-        )
+        reply = self.send(HarpMessage(MessageType.READ, PayloadType.U64, address))
 
         return reply
 
@@ -919,13 +859,7 @@ class Device:
         HarpTimeoutError
             If no reply is received and the effective strategy requires raising
         """
-        reply = self.send(
-            HarpMessage.create(
-                message_type=MessageType.READ,
-                address=address,
-                payload_type=PayloadType.S64,
-            )
-        )
+        reply = self.send(HarpMessage(MessageType.READ, PayloadType.S64, address))
 
         return reply
 
@@ -948,13 +882,7 @@ class Device:
         HarpTimeoutError
             If no reply is received and the effective strategy requires raising
         """
-        reply = self.send(
-            HarpMessage.create(
-                message_type=MessageType.READ,
-                address=address,
-                payload_type=PayloadType.Float,
-            )
-        )
+        reply = self.send(HarpMessage(MessageType.READ, PayloadType.FLOAT, address))
 
         return reply
 
@@ -980,12 +908,7 @@ class Device:
             If no reply is received and the effective strategy requires raising
         """
         reply = self.send(
-            HarpMessage.create(
-                message_type=MessageType.WRITE,
-                address=address,
-                payload_type=PayloadType.U8,
-                value=value,
-            )
+            HarpMessage(MessageType.WRITE, PayloadType.U8, address, value)
         )
 
         return reply
@@ -1012,12 +935,7 @@ class Device:
             If no reply is received and the effective strategy requires raising
         """
         reply = self.send(
-            HarpMessage.create(
-                message_type=MessageType.WRITE,
-                address=address,
-                payload_type=PayloadType.S8,
-                value=value,
-            )
+            HarpMessage(MessageType.WRITE, PayloadType.S8, address, value)
         )
 
         return reply
@@ -1046,12 +964,7 @@ class Device:
             If no reply is received and the effective strategy requires raising
         """
         reply = self.send(
-            HarpMessage.create(
-                message_type=MessageType.WRITE,
-                address=address,
-                payload_type=PayloadType.U16,
-                value=value,
-            )
+            HarpMessage(MessageType.WRITE, PayloadType.U16, address, value)
         )
 
         return reply
@@ -1080,12 +993,7 @@ class Device:
             If no reply is received and the effective strategy requires raising
         """
         reply = self.send(
-            HarpMessage.create(
-                message_type=MessageType.WRITE,
-                address=address,
-                payload_type=PayloadType.S16,
-                value=value,
-            )
+            HarpMessage(MessageType.WRITE, PayloadType.S16, address, value)
         )
 
         return reply
@@ -1114,12 +1022,7 @@ class Device:
             If no reply is received and the effective strategy requires raising
         """
         reply = self.send(
-            HarpMessage.create(
-                message_type=MessageType.WRITE,
-                address=address,
-                payload_type=PayloadType.U32,
-                value=value,
-            )
+            HarpMessage(MessageType.WRITE, PayloadType.U32, address, value)
         )
 
         return reply
@@ -1148,12 +1051,7 @@ class Device:
             If no reply is received and the effective strategy requires raising
         """
         reply = self.send(
-            HarpMessage.create(
-                message_type=MessageType.WRITE,
-                address=address,
-                payload_type=PayloadType.S32,
-                value=value,
-            )
+            HarpMessage(MessageType.WRITE, PayloadType.S32, address, value)
         )
 
         return reply
@@ -1182,12 +1080,7 @@ class Device:
             If no reply is received and the effective strategy requires raising
         """
         reply = self.send(
-            HarpMessage.create(
-                message_type=MessageType.WRITE,
-                address=address,
-                payload_type=PayloadType.U64,
-                value=value,
-            )
+            HarpMessage(MessageType.WRITE, PayloadType.U64, address, value)
         )
 
         return reply
@@ -1216,12 +1109,7 @@ class Device:
             If no reply is received and the effective strategy requires raising
         """
         reply = self.send(
-            HarpMessage.create(
-                message_type=MessageType.WRITE,
-                address=address,
-                payload_type=PayloadType.S64,
-                value=value,
-            )
+            HarpMessage(MessageType.WRITE, PayloadType.S64, address, value)
         )
 
         return reply
@@ -1250,12 +1138,7 @@ class Device:
             If no reply is received and the effective strategy requires raising
         """
         reply = self.send(
-            HarpMessage.create(
-                message_type=MessageType.WRITE,
-                address=address,
-                payload_type=PayloadType.Float,
-                value=value,
-            )
+            HarpMessage(MessageType.WRITE, PayloadType.FLOAT, address, value)
         )
 
         return reply
@@ -1271,9 +1154,7 @@ class Device:
         """
         address = CommonRegisters.WHO_AM_I
 
-        reply = self.send(
-            HarpMessage.create(MessageType.READ, address, PayloadType.U16)
-        )
+        reply = self.send(HarpMessage(MessageType.READ, PayloadType.U16, address))
 
         return reply.payload
 
@@ -1299,7 +1180,7 @@ class Device:
         """
         address = CommonRegisters.HW_VERSION_H
 
-        reply = self.send(HarpMessage.create(MessageType.READ, address, PayloadType.U8))
+        reply = self.send(HarpMessage(MessageType.READ, PayloadType.U8, address))
 
         return reply.payload
 
@@ -1314,7 +1195,7 @@ class Device:
         """
         address = CommonRegisters.HW_VERSION_L
 
-        reply = self.send(HarpMessage.create(MessageType.READ, address, PayloadType.U8))
+        reply = self.send(HarpMessage(MessageType.READ, PayloadType.U8, address))
 
         return reply.payload
 
@@ -1329,7 +1210,7 @@ class Device:
         """
         address = CommonRegisters.ASSEMBLY_VERSION
 
-        reply = self.send(HarpMessage.create(MessageType.READ, address, PayloadType.U8))
+        reply = self.send(HarpMessage(MessageType.READ, PayloadType.U8, address))
 
         return reply.payload
 
@@ -1344,7 +1225,7 @@ class Device:
         """
         address = CommonRegisters.CORE_VERSION_H
 
-        reply = self.send(HarpMessage.create(MessageType.READ, address, PayloadType.U8))
+        reply = self.send(HarpMessage(MessageType.READ, PayloadType.U8, address))
 
         return reply.payload
 
@@ -1359,7 +1240,7 @@ class Device:
         """
         address = CommonRegisters.CORE_VERSION_L
 
-        reply = self.send(HarpMessage.create(MessageType.READ, address, PayloadType.U8))
+        reply = self.send(HarpMessage(MessageType.READ, PayloadType.U8, address))
 
         return reply.payload
 
@@ -1374,7 +1255,7 @@ class Device:
         """
         address = CommonRegisters.FIRMWARE_VERSION_H
 
-        reply = self.send(HarpMessage.create(MessageType.READ, address, PayloadType.U8))
+        reply = self.send(HarpMessage(MessageType.READ, PayloadType.U8, address))
 
         return reply.payload
 
@@ -1389,7 +1270,7 @@ class Device:
         """
         address = CommonRegisters.FIRMWARE_VERSION_L
 
-        reply = self.send(HarpMessage.create(MessageType.READ, address, PayloadType.U8))
+        reply = self.send(HarpMessage(MessageType.READ, PayloadType.U8, address))
 
         return reply.payload
 
@@ -1404,7 +1285,7 @@ class Device:
         """
         address = CommonRegisters.DEVICE_NAME
 
-        reply = self.send(HarpMessage.create(MessageType.READ, address, PayloadType.U8))
+        reply = self.send(HarpMessage(MessageType.READ, PayloadType.U8, address))
 
         return reply.payload_as_string()
 
@@ -1419,9 +1300,9 @@ class Device:
         """
         address = CommonRegisters.SERIAL_NUMBER
 
-        reply = self.send(HarpMessage.create(MessageType.READ, address, PayloadType.U8))
+        reply = self.send(HarpMessage(MessageType.READ, PayloadType.U8, address))
 
-        if reply.is_error:
+        if reply is not None and reply.is_error:
             return 0
 
         return reply.payload
@@ -1437,7 +1318,7 @@ class Device:
         """
         address = CommonRegisters.CLOCK_CONFIG
 
-        reply = self.send(HarpMessage.create(MessageType.READ, address, PayloadType.U8))
+        reply = self.send(HarpMessage(MessageType.READ, PayloadType.U8, address))
 
         return reply.payload
 
@@ -1452,7 +1333,7 @@ class Device:
         """
         address = CommonRegisters.TIMESTAMP_OFFSET
 
-        reply = self.send(HarpMessage.create(MessageType.READ, address, PayloadType.U8))
+        reply = self.send(HarpMessage(MessageType.READ, PayloadType.U8, address))
 
         return reply.payload
 

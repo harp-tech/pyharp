@@ -374,40 +374,6 @@ class HarpMessage:
         """
         return ReplyHarpMessage(frame)
 
-    @staticmethod
-    def create(
-        message_type: MessageType,
-        address: int,
-        payload_type: PayloadType,
-        value: Optional[int | list[int] | float | list[float]] = None,
-    ) -> HarpMessage:
-        """
-        Creates a Harp message.
-
-        Parameters
-        ----------
-        message_type : MessageType
-            The message type. It can only be of type READ or WRITE
-        address : int
-            The address of the register that the message will interact with
-        payload_type : PayloadType
-            The payload type
-        value: int | list[int] | float | list[float], optional
-            The payload of the message. If message_type == MessageType.WRITE, the value cannot be None
-        """
-        if message_type == MessageType.READ:
-            return ReadHarpMessage(payload_type, address)
-        elif message_type == MessageType.WRITE and value is not None:
-            return WriteHarpMessage(payload_type, address, value)
-        elif message_type != MessageType.READ and message_type != MessageType.WRITE:
-            raise Exception(
-                "The only valid message types are MessageType.READ and MessageType.Write!"
-            )
-        else:
-            raise Exception(
-                "The value cannot be None if the message type is equal to MessageType.WRITE!"
-            )
-
     def __repr__(self) -> str:
         """
         Prints debug representation of the reply message.

@@ -2,10 +2,11 @@ import random
 import time
 from threading import Event, Thread
 
+from serial import SerialException
+
 from harp.protocol import MessageType, PayloadType
 from harp.protocol.messages import HarpMessage
 from harp.serial.device import Device, OperationMode
-from serial import SerialException
 
 SERIAL_PORT = (
     "/dev/ttyUSB0"  # or "COMx" in Windows ("x" is the number of the serial port)
@@ -41,7 +42,7 @@ def main():
     device.set_mode(OperationMode.ACTIVE)
 
     # Enable flow
-    device.send(HarpMessage.create(MessageType.WRITE, 32, PayloadType.U8, 0x01))
+    device.send(HarpMessage(MessageType.WRITE, PayloadType.U8, 32, 0x01))
 
     # Initialize thread for events
     events_thread = Thread(
@@ -55,52 +56,52 @@ def main():
 
     # Set the valves to a random flow
     device.send(
-        HarpMessage.create(
-            MessageType.WRITE, 42, PayloadType.Float, int(random.random() * 100)
+        HarpMessage(
+            MessageType.WRITE, PayloadType.FLOAT, 42, int(random.random() * 100)
         )
     )
     device.send(
-        HarpMessage.create(
-            MessageType.WRITE, 43, PayloadType.Float, int(random.random() * 100)
+        HarpMessage(
+            MessageType.WRITE, PayloadType.FLOAT, 43, int(random.random() * 100)
         )
     )
     device.send(
-        HarpMessage.create(
-            MessageType.WRITE, 44, PayloadType.Float, int(random.random() * 100)
+        HarpMessage(
+            MessageType.WRITE, PayloadType.FLOAT, 44, int(random.random() * 100)
         )
     )
     device.send(
-        HarpMessage.create(
-            MessageType.WRITE, 45, PayloadType.Float, int(random.random() * 100)
+        HarpMessage(
+            MessageType.WRITE, PayloadType.FLOAT, 45, int(random.random() * 100)
         )
     )
 
     # Open every odor valve, one at a time every 5 seconds
-    device.send(HarpMessage.create(MessageType.WRITE, 68, PayloadType.Float, 0x01))
+    device.send(HarpMessage(MessageType.WRITE, PayloadType.FLOAT, 68, 0x01))
 
     time.sleep(5)
 
-    device.send(HarpMessage.create(MessageType.WRITE, 69, PayloadType.Float, 0x01))
-    device.send(HarpMessage.create(MessageType.WRITE, 68, PayloadType.Float, 0x02))
+    device.send(HarpMessage(MessageType.WRITE, PayloadType.FLOAT, 69, 0x01))
+    device.send(HarpMessage(MessageType.WRITE, PayloadType.FLOAT, 68, 0x02))
 
     time.sleep(5)
 
-    device.send(HarpMessage.create(MessageType.WRITE, 69, PayloadType.Float, 0x02))
-    device.send(HarpMessage.create(MessageType.WRITE, 68, PayloadType.Float, 0x04))
+    device.send(HarpMessage(MessageType.WRITE, PayloadType.FLOAT, 69, 0x02))
+    device.send(HarpMessage(MessageType.WRITE, PayloadType.FLOAT, 68, 0x04))
 
     time.sleep(5)
 
-    device.send(HarpMessage.create(MessageType.WRITE, 69, PayloadType.Float, 0x04))
-    device.send(HarpMessage.create(MessageType.WRITE, 68, PayloadType.Float, 0x08))
+    device.send(HarpMessage(MessageType.WRITE, PayloadType.FLOAT, 69, 0x04))
+    device.send(HarpMessage(MessageType.WRITE, PayloadType.FLOAT, 68, 0x08))
 
     time.sleep(5)
 
-    device.send(HarpMessage.create(MessageType.WRITE, 69, PayloadType.Float, 0x08))
+    device.send(HarpMessage(MessageType.WRITE, PayloadType.FLOAT, 69, 0x08))
 
     time.sleep(5)
 
     # Disable flow
-    device.send(HarpMessage.create(MessageType.WRITE, 32, PayloadType.Float, 0x00))
+    device.send(HarpMessage(MessageType.WRITE, PayloadType.FLOAT, 32, 0x00))
 
     time.sleep(1)
 

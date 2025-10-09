@@ -25,7 +25,7 @@
 #     read_size: int = 35  # TODO: automatically calculate this!
 
 #     reply: ReplyHarpMessage = device.send(
-#         HarpMessage.create(MessageType.READ, register, PayloadType.U8)
+#         HarpMessage(MessageType.READ, PayloadType.U8, register)
 #     )
 #     assert reply is not None
 #     # assert reply.payload == write_value
@@ -48,8 +48,8 @@
 
 #     # write 65 on register 38
 #     reply = device.send(
-#         HarpMessage.create(
-#             MessageType.WRITE, register, PayloadType.U8, write_value
+#         HarpMessage(
+#             MessageType.WRITE, PayloadType.U8, register, write_value
 #         )
 #     )
 #     assert reply is not None
