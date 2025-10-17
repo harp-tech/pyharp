@@ -4,7 +4,6 @@ import struct
 from typing import Optional, Union
 
 from harp.protocol import MessageType, PayloadType
-from harp.protocol.exceptions import HarpException, HarpReadException
 
 
 class HarpMessage:
@@ -56,6 +55,9 @@ class HarpMessage:
             The payload of the message. If message_type == MessageType.WRITE, the value cannot be None
         """
         if message_type in [MessageType.WRITE, MessageType.EVENT] and value is None:
+            # prevents circular import
+            from harp.protocol.exceptions import HarpException
+
             raise HarpException(
                 "The value cannot be None if the message type is equal to MessageType.WRITE!"
             )

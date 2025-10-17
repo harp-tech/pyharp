@@ -18,7 +18,7 @@ from harp.protocol import (
     ResetMode,
 )
 from harp.protocol.device_names import device_names
-from harp.protocol.exceptions import HarpTimeoutError
+from harp.protocol.exceptions import HarpTimeoutException
 from harp.protocol.messages import HarpMessage
 from harp.serial.harp_serial import HarpSerial
 
@@ -30,16 +30,16 @@ class TimeoutStrategy(Enum):
     Attributes
     ----------
     RAISE : str
-        Raise HarpTimeoutError
+        Raise HarpTimeoutException
     RETURN_NONE : str
         Return None
     LOG_AND_RAISE : str
-        Log the timeout and raise HarpTimeoutError
+        Log the timeout and raise HarpTimeoutException
     LOG_AND_NONE : str
         Log the timeout and return None
     """
 
-    RAISE = "raise"  # Raise HarpTimeoutError
+    RAISE = "raise"  # Raise HarpTimeoutException
     RETURN_NONE = "return_none"  # Return None
     LOG_AND_RAISE = "log_and_raise"
     LOG_AND_NONE = "log_and_none"
@@ -597,7 +597,7 @@ class Device:
 
         Raises
         -------
-        HarpTimeoutError
+        HarpTimeoutException
             If no reply is received and the effective strategy requires raising
         """
         self._ser.write(message.frame)
@@ -610,7 +610,7 @@ class Device:
         try:
             reply = self._read()
         except TimeoutError:
-            hte = HarpTimeoutError(self._timeout)
+            hte = HarpTimeoutException(self._timeout, message)
             if strategy in (
                 TimeoutStrategy.LOG_AND_RAISE,
                 TimeoutStrategy.LOG_AND_NONE,
@@ -693,7 +693,7 @@ class Device:
 
         Raises
         ------
-        HarpTimeoutError
+        HarpTimeoutException
             If no reply is received and the effective strategy requires raising
         """
         reply = self.send(HarpMessage(MessageType.READ, PayloadType.U8, address))
@@ -716,7 +716,7 @@ class Device:
 
         Raises
         ------
-        HarpTimeoutError
+        HarpTimeoutException
             If no reply is received and the effective strategy requires raising
         """
         reply = self.send(HarpMessage(MessageType.READ, PayloadType.S8, address))
@@ -739,7 +739,7 @@ class Device:
 
         Raises
         ------
-        HarpTimeoutError
+        HarpTimeoutException
             If no reply is received and the effective strategy requires raising
         """
         reply = self.send(HarpMessage(MessageType.READ, PayloadType.U16, address))
@@ -762,7 +762,7 @@ class Device:
 
         Raises
         ------
-        HarpTimeoutError
+        HarpTimeoutException
             If no reply is received and the effective strategy requires raising
         """
         reply = self.send(HarpMessage(MessageType.READ, PayloadType.S16, address))
@@ -785,7 +785,7 @@ class Device:
 
         Raises
         ------
-        HarpTimeoutError
+        HarpTimeoutException
             If no reply is received and the effective strategy requires raising
         """
         reply = self.send(HarpMessage(MessageType.READ, PayloadType.U32, address))
@@ -808,7 +808,7 @@ class Device:
 
         Raises
         ------
-        HarpTimeoutError
+        HarpTimeoutException
             If no reply is received and the effective strategy requires raising
         """
         reply = self.send(HarpMessage(MessageType.READ, PayloadType.S32, address))
@@ -831,7 +831,7 @@ class Device:
 
         Raises
         ------
-        HarpTimeoutError
+        HarpTimeoutException
             If no reply is received and the effective strategy requires raising
         """
         reply = self.send(HarpMessage(MessageType.READ, PayloadType.U64, address))
@@ -854,7 +854,7 @@ class Device:
 
         Raises
         ------
-        HarpTimeoutError
+        HarpTimeoutException
             If no reply is received and the effective strategy requires raising
         """
         reply = self.send(HarpMessage(MessageType.READ, PayloadType.S64, address))
@@ -877,7 +877,7 @@ class Device:
 
         Raises
         ------
-        HarpTimeoutError
+        HarpTimeoutException
             If no reply is received and the effective strategy requires raising
         """
         reply = self.send(HarpMessage(MessageType.READ, PayloadType.FLOAT, address))
@@ -902,7 +902,7 @@ class Device:
 
         Raises
         ------
-        HarpTimeoutError
+        HarpTimeoutException
             If no reply is received and the effective strategy requires raising
         """
         reply = self.send(
@@ -929,7 +929,7 @@ class Device:
 
         Raises
         ------
-        HarpTimeoutError
+        HarpTimeoutException
             If no reply is received and the effective strategy requires raising
         """
         reply = self.send(
@@ -956,7 +956,7 @@ class Device:
 
         Raises
         ------
-        HarpTimeoutError
+        HarpTimeoutException
             If no reply is received and the effective strategy requires raising
         """
         reply = self.send(
@@ -983,7 +983,7 @@ class Device:
 
         Raises
         ------
-        HarpTimeoutError
+        HarpTimeoutException
             If no reply is received and the effective strategy requires raising
         """
         reply = self.send(
@@ -1010,7 +1010,7 @@ class Device:
 
         Raises
         ------
-        HarpTimeoutError
+        HarpTimeoutException
             If no reply is received and the effective strategy requires raising
         """
         reply = self.send(
@@ -1037,7 +1037,7 @@ class Device:
 
         Raises
         ------
-        HarpTimeoutError
+        HarpTimeoutException
             If no reply is received and the effective strategy requires raising
         """
         reply = self.send(
@@ -1064,7 +1064,7 @@ class Device:
 
         Raises
         ------
-        HarpTimeoutError
+        HarpTimeoutException
             If no reply is received and the effective strategy requires raising
         """
         reply = self.send(
@@ -1091,7 +1091,7 @@ class Device:
 
         Raises
         ------
-        HarpTimeoutError
+        HarpTimeoutException
             If no reply is received and the effective strategy requires raising
         """
         reply = self.send(
@@ -1120,7 +1120,7 @@ class Device:
 
         Raises
         ------
-        HarpTimeoutError
+        HarpTimeoutException
             If no reply is received and the effective strategy requires raising
         """
         reply = self.send(

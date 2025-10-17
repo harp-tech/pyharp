@@ -1,3 +1,8 @@
+from typing import Optional
+
+from harp.protocol.messages import HarpMessage
+
+
 class HarpException(Exception):
     """Base class for all exceptions raised related with Harp."""
 
@@ -24,17 +29,27 @@ class HarpReadException(HarpException):
         self.register = register
 
 
-class HarpTimeoutError(HarpException):
+class HarpTimeoutException(HarpException):
     """Raised when no reply is received within the configured timeout."""
 
-    def __init__(self, timeout: float):
+    def __init__(self, timeout: float, message: Optional[HarpMessage] = None):
         """
-        Creates a new HarpTimeoutError with the given timeout.
+        Creates a new HarpTimeoutException with the given timeout.
 
         Parameters
         ----------
         timeout: float
-            Number of seconds waited before the timeout occurred.
+            The timeout duration in seconds.
+        message: HarpMessage, optional
+            The Harp message that was sent when the timeout occurred.
         """
-        super().__init__(f"No reply received within {timeout} seconds.")
+        if message is None:
+            error_msg = f"No reply received within {timeout} seconds."
+        else:
+            error_msg = (
+                f"No reply received within {timeout} seconds for message:\r\n{message}"
+            )
+
+        super().__init__(error_msg)
         self.timeout = timeout
+        self.message = message
