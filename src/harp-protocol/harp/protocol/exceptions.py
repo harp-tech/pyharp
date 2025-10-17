@@ -27,6 +27,14 @@ class HarpReadException(HarpException):
 class HarpTimeoutError(HarpException):
     """Raised when no reply is received within the configured timeout."""
 
-    def __init__(self, timeout_s: float):
-        super().__init__(f"No reply received within {timeout_s} seconds.")
-        self.timeout_s = timeout_s
+    def __init__(self, timeout: float):
+        """
+        Creates a new HarpTimeoutError with the given timeout.
+
+        Parameters
+        ----------
+        timeout: float
+            Number of seconds waited before the timeout occurred.
+        """
+        super().__init__(f"No reply received within {timeout} seconds.")
+        self.timeout = timeout

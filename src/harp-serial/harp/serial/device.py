@@ -92,15 +92,13 @@ class Device:
     _ser: HarpSerial
     _dump_file_path: Optional[Path]
     _dump_file: Optional[BufferedWriter] = None
-    _read_timeout_s: float
-
-    _TIMEOUT_S: float = 1.0
+    _timeout: float
 
     def __init__(
         self,
         serial_port: str,
         dump_file_path: Optional[str] = None,
-        read_timeout_s: float = 1,
+        timeout: float = 1,
         timeout_strategy: TimeoutStrategy = TimeoutStrategy.RAISE,
     ):
         """
@@ -110,7 +108,7 @@ class Device:
             The serial port used to establish the connection with the Harp device. It must be denoted as `/dev/ttyUSBx` in Linux and `COMx` in Windows, where `x` is the number of the serial port
         dump_file_path: str, optional
             The binary file to which all Harp messages will be written
-        read_timeout_s: float, optional
+        timeout: float, optional
             The timeout in seconds when waiting for a reply from the device
         timeout_strategy: TimeoutStrategy, optional
             The strategy to handle timeouts when waiting for a reply from the device
@@ -120,7 +118,7 @@ class Device:
         self._dump_file_path = None
         if dump_file_path is not None:
             self._dump_file_path = Path() / dump_file_path
-        self._read_timeout_s = read_timeout_s
+        self._timeout = timeout
         self._timeout_strategy = timeout_strategy
 
         # Connect to the Harp device and load the data stored in the device's common registers
@@ -168,7 +166,7 @@ class Device:
         self._ser = HarpSerial(
             self._serial_port,  # "/dev/tty.usbserial-A106C8O9"
             baudrate=1000000,
-            timeout=self._TIMEOUT_S,
+            timeout=self._timeout,
             parity=serial.PARITY_NONE,
             stopbits=1,
             bytesize=8,
@@ -612,7 +610,7 @@ class Device:
         try:
             reply = self._read()
         except TimeoutError:
-            hte = HarpTimeoutError(self._read_timeout_s)
+            hte = HarpTimeoutError(self._timeout)
             if strategy in (
                 TimeoutStrategy.LOG_AND_RAISE,
                 TimeoutStrategy.LOG_AND_NONE,
@@ -640,7 +638,7 @@ class Device:
             If no reply is received within the timeout period
         """
         try:
-            return self._ser.msg_q.get(block=True, timeout=self._read_timeout_s)
+            return self._ser.msg_q.get(block=True, timeout=self._timeout)
         except queue.Empty:
             raise TimeoutError("No reply received within the timeout period.")
 
