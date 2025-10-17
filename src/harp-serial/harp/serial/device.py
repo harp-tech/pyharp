@@ -1,4 +1,4 @@
-from __future__ import annotations  # enable subscriptable type hints for lists.
+from __future__ import annotations  # for type hints (PEP 563)
 
 import logging
 import queue
