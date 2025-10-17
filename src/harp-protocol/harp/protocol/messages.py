@@ -33,6 +33,8 @@ class HarpMessage:
     BASE_LENGTH: int = 4
     _frame: bytearray = bytearray()
     _port: int = DEFAULT_PORT
+    _timestamp: Optional[float] = None
+    _raw_payload: bytearray = bytearray()
 
     def __init__(
         self,
@@ -85,6 +87,10 @@ class HarpMessage:
 
         if value is not None:
             self._frame += payload
+            if self.payload_type.has_timestamp():
+                self._raw_payload = self._frame[11:-1]
+            else:
+                self._raw_payload = self._frame[5:-1]
 
         self._frame.append(self.calculate_checksum())
 
@@ -185,6 +191,10 @@ class HarpMessage:
             The payload type
         """
         return PayloadType(self._frame[4])
+
+    @property
+    def timestamp(self) -> float | None:
+        return self._timestamp
 
     @property
     def payload(self) -> Union[int, list[int], bytearray, float, list[float]]:
@@ -357,8 +367,31 @@ class HarpMessage:
         """
         return self._frame[-1]
 
+    @property
+    def is_error(self) -> bool:
+        """
+        Indicates if this HarpMessage is an error message or not.
+
+        Returns
+        -------
+        bool
+            Returns True if this HarpMessage is an error message, False otherwise.
+        """
+        return self.message_type.is_error()
+
+    def payload_as_string(self) -> str:
+        """
+        Returns the payload as a str.
+
+        Returns
+        -------
+        str
+            The payload parsed as a str
+        """
+        return self._raw_payload.decode("utf-8").rstrip("\x00")
+
     @staticmethod
-    def parse(frame: bytearray) -> ReplyHarpMessage:
+    def parse(frame: bytearray) -> HarpMessage:
         """
         Parses a bytearray to a (reply) Harp message.
 
@@ -369,10 +402,25 @@ class HarpMessage:
 
         Returns
         -------
-        ReplyHarpMessage
+        HarpMessage
             The Harp message object parsed from the original bytearray
         """
-        return ReplyHarpMessage(frame)
+        message = HarpMessage(MessageType(frame[0]), PayloadType(frame[4]), frame[2])
+
+        message._frame = frame
+
+        # assign timestamp if exists
+        if message.payload_type.has_timestamp():
+            message._raw_payload = frame[11:-1]
+            message._timestamp = (
+                int.from_bytes(frame[5:9], byteorder="little", signed=False)
+                + int.from_bytes(frame[9:11], byteorder="little", signed=False) * 32e-6
+            )
+        else:
+            message._raw_payload = frame[5:-1]
+            message._timestamp = None
+
+        return message
 
     def __repr__(self) -> str:
         """
@@ -427,76 +475,3 @@ class HarpMessage:
             + f"Payload: {payload_str}\r\n"
             + f"Checksum: {self.checksum}"
         )
-
-
-class ReplyHarpMessage(HarpMessage):
-    """
-    A response message from a Harp device.
-
-    Attributes
-    ----------
-    payload : Union[int, list[int]]
-        The message payload formatted as the appropriate type
-    timestamp : float
-        The Harp timestamp at which the message was sent
-    """
-
-    def __init__(
-        self,
-        frame: bytearray,
-    ):
-        """
-        Parameters
-        ----------
-        frame : bytearray
-            The Harp message in bytearray format
-        """
-
-        self._frame = frame
-        # Retrieve all content from 11 (where payload starts) until the checksum (not inclusive)
-        self._raw_payload = frame[11:-1]
-
-        # Assign timestamp after _payload since @properties all rely on self._payload.
-        self._timestamp = (
-            int.from_bytes(frame[5:9], byteorder="little", signed=False)
-            + int.from_bytes(frame[9:11], byteorder="little", signed=False) * 32e-6
-        )
-
-        # Timestamp is junk if it's not present.
-        if not self.payload_type.has_timestamp():
-            raise HarpReadException(self.address)
-
-    @property
-    def is_error(self) -> bool:
-        """
-        Indicates if this HarpMessage is an error message or not.
-
-        Returns
-        -------
-        bool
-            Returns True if this HarpMessage is an error message, False otherwise.
-        """
-        return self.message_type.is_error()
-
-    @property
-    def timestamp(self) -> float:
-        """
-        The Harp timestamp at which the message was sent.
-
-        Returns
-        -------
-        float
-            The Harp timestamp at which the message was sent
-        """
-        return self._timestamp
-
-    def payload_as_string(self) -> str:
-        """
-        Returns the payload as a str.
-
-        Returns
-        -------
-        str
-            The payload parsed as a str
-        """
-        return self._raw_payload.decode("utf-8").rstrip("\x00")

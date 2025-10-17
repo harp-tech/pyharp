@@ -2,10 +2,7 @@ import pytest
 
 from harp.protocol import CommonRegisters, MessageType, PayloadType
 from harp.protocol.exceptions import HarpException, HarpReadException
-from harp.protocol.messages import (
-    HarpMessage,
-    ReplyHarpMessage,
-)
+from harp.protocol.messages import HarpMessage
 
 DEFAULT_ADDRESS = 42
 
@@ -43,7 +40,7 @@ def test_create_error_cases():
 
 
 def test_reply_is_error():
-    """Test ReplyHarpMessage.is_error property."""
+    """Test HarpMessage.is_error property."""
     # Create a READ_ERROR message
     frame = bytearray(
         [
@@ -67,7 +64,7 @@ def test_reply_is_error():
     checksum = sum(frame[:-1]) & 255
     frame[-1] = checksum
 
-    reply = ReplyHarpMessage(frame)
+    reply = HarpMessage.parse(frame)
     assert reply.is_error
 
     # Create a normal READ message
@@ -93,7 +90,7 @@ def test_reply_is_error():
     checksum = sum(frame[:-1]) & 255
     frame[-1] = checksum
 
-    reply = ReplyHarpMessage(frame)
+    reply = HarpMessage.parse(frame)
     assert not reply.is_error
 
 
@@ -393,7 +390,7 @@ def test_reply_message_str_repr() -> None:
     checksum = sum(frame[:-1]) & 255
     frame[-1] = checksum
 
-    reply = ReplyHarpMessage(frame)
+    reply = HarpMessage.parse(frame)
     str_repr = str(reply)
     repr_str = repr(reply)
 
@@ -406,7 +403,7 @@ def test_reply_message_str_repr() -> None:
 
 
 def test_payload_as_string() -> None:
-    """Test ReplyHarpMessage.payload_as_string()."""
+    """Test HarpMessage.payload_as_string()."""
     test_string = "Hello"
     encoded = test_string.encode("utf-8")
 
@@ -435,7 +432,7 @@ def test_payload_as_string() -> None:
     checksum = sum(frame[:-1]) & 255
     frame[-1] = checksum
 
-    reply = ReplyHarpMessage(frame)
+    reply = HarpMessage.parse(frame)
     assert reply.payload_as_string() == test_string
 
 
@@ -464,14 +461,13 @@ def test_harp_message_parse() -> None:
     frame[-1] = checksum
 
     message = HarpMessage.parse(frame)
-    assert isinstance(message, ReplyHarpMessage)
     assert message.message_type == MessageType.READ
     assert message.address == 42
     assert message.payload == 123
 
 
 def test_timestamp_handling() -> None:
-    """Test timestamp handling in ReplyHarpMessage."""
+    """Test timestamp handling in HarpMessage."""
     # Create a timestamped message
     frame = bytearray(
         [
@@ -495,35 +491,12 @@ def test_timestamp_handling() -> None:
     checksum = sum(frame[:-1]) & 255
     frame[-1] = checksum
 
-    reply = ReplyHarpMessage(frame)
+    reply = HarpMessage.parse(frame)
     assert reply.timestamp is not None
     assert reply.timestamp == 1 + 32 * 32e-6  # 1 second + 1 millisecond
 
 
-# test ReplyHarpMessage without TimestampedU8 raises HarpReadException
-def test_reply_without_timestamp_raises() -> None:
-    """Test that accessing timestamp in non-timestamped message raises exception."""
-    frame = bytearray(
-        [
-            MessageType.READ,
-            5,
-            42,
-            255,
-            PayloadType.U8,  # Not a timestamped type
-            123,  # payload
-            0,
-        ]
-    )  # checksum placeholder
-
-    # Fix checksum
-    checksum = sum(frame[:-1]) & 255
-    frame[-1] = checksum
-
-    with pytest.raises(HarpReadException) as excinfo:
-        ReplyHarpMessage(frame)
-        assert "not a timestamped payload type" in str(excinfo.value)
-
-
+# FIXME: handle this better
 def test_calculate_checksum() -> None:
     """Test the calculate_checksum method."""
     message = HarpMessage(MessageType.READ, PayloadType.U8, DEFAULT_ADDRESS)
@@ -535,3 +508,53 @@ def test_calculate_checksum() -> None:
     message._frame = bytearray([200, 100, 50, 20, 10])
     # Sum is 380, checksum is 380 % 256 = 124
     assert message.calculate_checksum() == 124
+
+
+# create harpMessage test, check _raw_payload and change frame and recheck raw_payload
+def test_raw_payload_assignment() -> None:
+    """Test that _raw_payload is assigned correctly based on payload type."""
+    # Create a timestamped message frame
+    frame = bytearray(
+        [
+            MessageType.READ,
+            11,
+            42,
+            255,
+            PayloadType.TIMESTAMPED_U8,
+            0,
+            0,
+            0,
+            0,  # timestamp seconds
+            0,
+            0,  # timestamp micros
+            123,  # payload
+            0,
+        ]
+    )  # checksum placeholder
+
+    # Fix checksum
+    checksum = sum(frame[:-1]) & 255
+    frame[-1] = checksum
+
+    message = HarpMessage.parse(frame)
+    assert message._raw_payload == frame[11:-1]
+
+    # Create a non-timestamped message frame
+    frame_no_timestamp = bytearray(
+        [
+            MessageType.READ,
+            5,
+            42,
+            255,
+            PayloadType.U8,
+            123,  # payload
+            0,
+        ]
+    )  # checksum placeholder
+
+    # Fix checksum
+    checksum = sum(frame_no_timestamp[:-1]) & 255
+    frame_no_timestamp[-1] = checksum
+
+    message_no_timestamp = HarpMessage.parse(frame_no_timestamp)
+    assert message_no_timestamp._raw_payload == frame_no_timestamp[5:-1]

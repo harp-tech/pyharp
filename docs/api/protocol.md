@@ -10,4 +10,3 @@
 ::: harp.protocol.ResetMode
 ::: harp.protocol.ClockConfig
 ::: harp.protocol.messages.HarpMessage
-::: harp.protocol.messages.ReplyHarpMessage

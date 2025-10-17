@@ -19,7 +19,7 @@ from harp.protocol import (
 )
 from harp.protocol.device_names import device_names
 from harp.protocol.exceptions import HarpTimeoutError
-from harp.protocol.messages import HarpMessage, ReplyHarpMessage
+from harp.protocol.messages import HarpMessage
 from harp.serial.harp_serial import HarpSerial
 
 
@@ -241,7 +241,7 @@ class Device:
 
         Returns
         -------
-        ReplyHarpMessage
+        HarpMessage
             The reply to the Harp message
         """
         address = CommonRegisters.OPERATION_CTRL
@@ -268,7 +268,7 @@ class Device:
         visual_en: Optional[bool] = None,
         op_led_en: Optional[bool] = None,
         alive_en: Optional[bool] = None,
-    ) -> ReplyHarpMessage | None:
+    ) -> HarpMessage | None:
         """
         Writes the OPERATION_CTRL register of the device.
 
@@ -286,7 +286,7 @@ class Device:
             If True, enables the ALIVE_EN bit
         Returns
         -------
-        ReplyHarpMessage
+        HarpMessage
             The reply to the Harp message
         """
         address = CommonRegisters.OPERATION_CTRL
@@ -335,7 +335,7 @@ class Device:
 
         return reply
 
-    def set_mode(self, mode: OperationMode) -> ReplyHarpMessage | None:
+    def set_mode(self, mode: OperationMode) -> HarpMessage | None:
         """
         Sets the operation mode of the device.
 
@@ -346,7 +346,7 @@ class Device:
 
         Returns
         -------
-        ReplyHarpMessage
+        HarpMessage
             The reply to the Harp message
         """
         address = CommonRegisters.OPERATION_CTRL
@@ -515,13 +515,13 @@ class Device:
 
     def reset_device(
         self, reset_mode: ResetMode = ResetMode.RST_DEF
-    ) -> ReplyHarpMessage | None:
+    ) -> HarpMessage | None:
         """
         Resets the device and reboots with all the registers with the default values. Beware that the EEPROM will be erased. More information on the reset device register can be found [here](https://harp-tech.org/protocol/Device.html#r_reset_dev-u8--reset-device-and-save-non-volatile-registers).
 
         Returns
         -------
-        ReplyHarpMessage
+        HarpMessage
             The reply to the Harp message
         """
         address = CommonRegisters.RESET_DEV
@@ -531,7 +531,7 @@ class Device:
 
         return reply
 
-    def set_clock_config(self, clock_config: ClockConfig) -> ReplyHarpMessage | None:
+    def set_clock_config(self, clock_config: ClockConfig) -> HarpMessage | None:
         """
         Sets the clock configuration of the device.
 
@@ -542,7 +542,7 @@ class Device:
 
         Returns
         -------
-        ReplyHarpMessage
+        HarpMessage
             The reply to the Harp message
         """
         address = CommonRegisters.CLOCK_CONFIG
@@ -552,7 +552,7 @@ class Device:
 
         return reply
 
-    def set_timestamp_offset(self, timestamp_offset: int) -> ReplyHarpMessage | None:
+    def set_timestamp_offset(self, timestamp_offset: int) -> HarpMessage | None:
         """
         When the value of this register is above 0 (zero), the device's timestamp will be offset by this amount. The register is sensitive to 500 microsecond increments. This register is non-volatile.
 
@@ -563,7 +563,7 @@ class Device:
 
         Returns
         -------
-        ReplyHarpMessage
+        HarpMessage
             The reply to the Harp message
         """
         address = CommonRegisters.TIMESTAMP_OFFSET
@@ -579,7 +579,7 @@ class Device:
         *,
         expect_reply: bool = True,
         timeout_strategy: TimeoutStrategy | None = None,
-    ) -> ReplyHarpMessage | None:
+    ) -> HarpMessage | None:
         """
         Sends a Harp message and (optionally) waits for a reply.
 
@@ -594,7 +594,7 @@ class Device:
 
         Returns
         -------
-        ReplyHarpMessage | None
+        HarpMessage | None
             Reply (or None when allowed by the timeout strategy or expect_reply=False)
 
         Raises
@@ -625,13 +625,13 @@ class Device:
         self._dump_reply(reply.frame)
         return reply
 
-    def _read(self) -> ReplyHarpMessage:
+    def _read(self) -> HarpMessage:
         """
         Reads an incoming serial message in a blocking way.
 
         Returns
         -------
-        ReplyHarpMessage
+        HarpMessage
             The incoming Harp message in case it exists
 
         Raises
@@ -651,7 +651,7 @@ class Device:
         if self._dump_file:
             self._dump_file.write(reply)
 
-    def get_events(self) -> list[ReplyHarpMessage]:
+    def get_events(self) -> list[HarpMessage]:
         """
         Gets all events from the event queue.
 
@@ -679,7 +679,7 @@ class Device:
         """
         return self._ser.event_q.qsize()
 
-    def read_u8(self, address: int) -> ReplyHarpMessage | None:
+    def read_u8(self, address: int) -> HarpMessage | None:
         """
         Reads the value of a register of type U8.
 
@@ -690,7 +690,7 @@ class Device:
 
         Returns
         -------
-        ReplyHarpMessage
+        HarpMessage
             The reply to the Harp message that will contain the value read from the register
 
         Raises
@@ -702,7 +702,7 @@ class Device:
 
         return reply
 
-    def read_s8(self, address: int) -> ReplyHarpMessage | None:
+    def read_s8(self, address: int) -> HarpMessage | None:
         """
         Reads the value of a register of type S8.
 
@@ -713,7 +713,7 @@ class Device:
 
         Returns
         -------
-        ReplyHarpMessage
+        HarpMessage
             The reply to the Harp message that will contain the value read from the register
 
         Raises
@@ -725,7 +725,7 @@ class Device:
 
         return reply
 
-    def read_u16(self, address: int) -> ReplyHarpMessage | None:
+    def read_u16(self, address: int) -> HarpMessage | None:
         """
         Reads the value of a register of type U16.
 
@@ -736,7 +736,7 @@ class Device:
 
         Returns
         -------
-        ReplyHarpMessage
+        HarpMessage
             The reply to the Harp message that will contain the value read from the register
 
         Raises
@@ -748,7 +748,7 @@ class Device:
 
         return reply
 
-    def read_s16(self, address: int) -> ReplyHarpMessage | None:
+    def read_s16(self, address: int) -> HarpMessage | None:
         """
         Reads the value of a register of type S16.
 
@@ -759,7 +759,7 @@ class Device:
 
         Returns
         -------
-        ReplyHarpMessage
+        HarpMessage
             The reply to the Harp message that will contain the value read from the register
 
         Raises
@@ -771,7 +771,7 @@ class Device:
 
         return reply
 
-    def read_u32(self, address: int) -> ReplyHarpMessage | None:
+    def read_u32(self, address: int) -> HarpMessage | None:
         """
         Reads the value of a register of type U32.
 
@@ -782,7 +782,7 @@ class Device:
 
         Returns
         -------
-        ReplyHarpMessage
+        HarpMessage
             The reply to the Harp message that will contain the value read from the register
 
         Raises
@@ -794,7 +794,7 @@ class Device:
 
         return reply
 
-    def read_s32(self, address: int) -> ReplyHarpMessage | None:
+    def read_s32(self, address: int) -> HarpMessage | None:
         """
         Reads the value of a register of type S32.
 
@@ -805,7 +805,7 @@ class Device:
 
         Returns
         -------
-        ReplyHarpMessage
+        HarpMessage
             The reply to the Harp message that will contain the value read from the register
 
         Raises
@@ -817,7 +817,7 @@ class Device:
 
         return reply
 
-    def read_u64(self, address: int) -> ReplyHarpMessage | None:
+    def read_u64(self, address: int) -> HarpMessage | None:
         """
         Reads the value of a register of type U64.
 
@@ -828,7 +828,7 @@ class Device:
 
         Returns
         -------
-        ReplyHarpMessage
+        HarpMessage
             The reply to the Harp message that will contain the value read from the register
 
         Raises
@@ -840,7 +840,7 @@ class Device:
 
         return reply
 
-    def read_s64(self, address: int) -> ReplyHarpMessage | None:
+    def read_s64(self, address: int) -> HarpMessage | None:
         """
         Reads the value of a register of type S64.
 
@@ -851,7 +851,7 @@ class Device:
 
         Returns
         -------
-        ReplyHarpMessage
+        HarpMessage
             The reply to the Harp message that will contain the value read from the register
 
         Raises
@@ -863,7 +863,7 @@ class Device:
 
         return reply
 
-    def read_float(self, address: int) -> ReplyHarpMessage | None:
+    def read_float(self, address: int) -> HarpMessage | None:
         """
         Reads the value of a register of type Float.
 
@@ -874,7 +874,7 @@ class Device:
 
         Returns
         -------
-        ReplyHarpMessage
+        HarpMessage
             The reply to the Harp message that will contain the value read from the register
 
         Raises
@@ -886,7 +886,7 @@ class Device:
 
         return reply
 
-    def write_u8(self, address: int, value: int | list[int]) -> ReplyHarpMessage | None:
+    def write_u8(self, address: int, value: int | list[int]) -> HarpMessage | None:
         """
         Writes the value of a register of type U8.
 
@@ -899,7 +899,7 @@ class Device:
 
         Returns
         -------
-        ReplyHarpMessage
+        HarpMessage
             The reply to the Harp message
 
         Raises
@@ -913,7 +913,7 @@ class Device:
 
         return reply
 
-    def write_s8(self, address: int, value: int | list[int]) -> ReplyHarpMessage | None:
+    def write_s8(self, address: int, value: int | list[int]) -> HarpMessage | None:
         """
         Writes the value of a register of type S8.
 
@@ -926,7 +926,7 @@ class Device:
 
         Returns
         -------
-        ReplyHarpMessage
+        HarpMessage
             The reply to the Harp message
 
         Raises
@@ -940,9 +940,7 @@ class Device:
 
         return reply
 
-    def write_u16(
-        self, address: int, value: int | list[int]
-    ) -> ReplyHarpMessage | None:
+    def write_u16(self, address: int, value: int | list[int]) -> HarpMessage | None:
         """
         Writes the value of a register of type U16.
 
@@ -955,7 +953,7 @@ class Device:
 
         Returns
         -------
-        ReplyHarpMessage
+        HarpMessage
             The reply to the Harp message
 
         Raises
@@ -969,9 +967,7 @@ class Device:
 
         return reply
 
-    def write_s16(
-        self, address: int, value: int | list[int]
-    ) -> ReplyHarpMessage | None:
+    def write_s16(self, address: int, value: int | list[int]) -> HarpMessage | None:
         """
         Writes the value of a register of type S16.
 
@@ -984,7 +980,7 @@ class Device:
 
         Returns
         -------
-        ReplyHarpMessage
+        HarpMessage
             The reply to the Harp message
 
         Raises
@@ -998,9 +994,7 @@ class Device:
 
         return reply
 
-    def write_u32(
-        self, address: int, value: int | list[int]
-    ) -> ReplyHarpMessage | None:
+    def write_u32(self, address: int, value: int | list[int]) -> HarpMessage | None:
         """
         Writes the value of a register of type U32.
 
@@ -1013,7 +1007,7 @@ class Device:
 
         Returns
         -------
-        ReplyHarpMessage
+        HarpMessage
             The reply to the Harp message
 
         Raises
@@ -1027,9 +1021,7 @@ class Device:
 
         return reply
 
-    def write_s32(
-        self, address: int, value: int | list[int]
-    ) -> ReplyHarpMessage | None:
+    def write_s32(self, address: int, value: int | list[int]) -> HarpMessage | None:
         """
         Writes the value of a register of type S32.
 
@@ -1042,7 +1034,7 @@ class Device:
 
         Returns
         -------
-        ReplyHarpMessage
+        HarpMessage
             The reply to the Harp message
 
         Raises
@@ -1056,9 +1048,7 @@ class Device:
 
         return reply
 
-    def write_u64(
-        self, address: int, value: int | list[int]
-    ) -> ReplyHarpMessage | None:
+    def write_u64(self, address: int, value: int | list[int]) -> HarpMessage | None:
         """
         Writes the value of a register of type U64.
 
@@ -1071,7 +1061,7 @@ class Device:
 
         Returns
         -------
-        ReplyHarpMessage
+        HarpMessage
             The reply to the Harp message
 
         Raises
@@ -1085,9 +1075,7 @@ class Device:
 
         return reply
 
-    def write_s64(
-        self, address: int, value: int | list[int]
-    ) -> ReplyHarpMessage | None:
+    def write_s64(self, address: int, value: int | list[int]) -> HarpMessage | None:
         """
         Writes the value of a register of type S64.
 
@@ -1100,7 +1088,7 @@ class Device:
 
         Returns
         -------
-        ReplyHarpMessage
+        HarpMessage
             The reply to the Harp message
 
         Raises
@@ -1116,7 +1104,7 @@ class Device:
 
     def write_float(
         self, address: int, value: float | list[float]
-    ) -> ReplyHarpMessage | None:
+    ) -> HarpMessage | None:
         """
         Writes the value of a register of type Float.
 
@@ -1129,7 +1117,7 @@ class Device:
 
         Returns
         -------
-        ReplyHarpMessage
+        HarpMessage
             The reply to the Harp message
 
         Raises

@@ -2,7 +2,7 @@
 
 # from pyharp import MessageType, PayloadType
 # from pyharp.device import Device
-# from pyharp.messages import HarpMessage, ReplyHarpMessage
+# from pyharp.messages import HarpMessage
 
 # DEFAULT_ADDRESS = 42
 
@@ -24,7 +24,7 @@
 #     register: int = 38
 #     read_size: int = 35  # TODO: automatically calculate this!
 
-#     reply: ReplyHarpMessage = device.send(
+#     reply: HarpMessage = device.send(
 #         HarpMessage(MessageType.READ, PayloadType.U8, register)
 #     )
 #     assert reply is not None
