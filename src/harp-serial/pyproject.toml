@@ -5,7 +5,7 @@ description = "Library for data acquisition and control of devices implementing 
 authors = [{ name= "Hardware and Software Platform, Champalimaud Foundation", email="software@research.fchampalimaud.org"}]
 license = "MIT"
 keywords = ['python', 'harp']
-requires-python = ">=3.9,<4.0"
+requires-python = ">=3.10,<4.0"
 dependencies = [
     "harp-protocol==0.3.0",
     "pyserial>=3.5",

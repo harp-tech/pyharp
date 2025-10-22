@@ -6,7 +6,7 @@ authors = [{ name= "Hardware and Software Platform, Champalimaud Foundation", em
 license = "MIT"
 readme = 'README.md'
 keywords = ['python', 'harp']
-requires-python = ">=3.9,<4.0"
+requires-python = ">=3.10,<4.0"
 dependencies = ["harp-protocol", "harp-serial"]
 
 [project.urls]

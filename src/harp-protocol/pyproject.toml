@@ -5,7 +5,7 @@ description = "Library with the base types for Harp protocol usage."
 authors = [{ name= "Hardware and Software Platform, Champalimaud Foundation", email="software@research.fchampalimaud.org"}]
 license = "MIT"
 keywords = ['python', 'harp']
-requires-python = ">=3.9,<4.0"
+requires-python = ">=3.10,<4.0"
 
 [build-system]
 requires = ["uv_build>=0.9.5,<0.10.0"]
