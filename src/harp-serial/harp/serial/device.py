@@ -17,7 +17,7 @@ from harp.protocol import (
     PayloadType,
     ResetMode,
 )
-from harp.protocol.exceptions import HarpTimeoutException
+from harp.protocol.exceptions import HarpException, HarpTimeoutException
 from harp.protocol.messages import HarpMessage
 from harp.serial.harp_serial import HarpSerial
 
@@ -159,7 +159,7 @@ class Device:
         Connects to the Harp device.
         """
         self._ser = HarpSerial(
-            self._serial_port,  # "/dev/tty.usbserial-A106C8O9"
+            self._serial_port,
             baudrate=1000000,
             timeout=self._timeout,
             parity=serial.PARITY_NONE,
@@ -1135,7 +1135,15 @@ class Device:
         """
         address = CommonRegisters.WHO_AM_I
 
-        reply = self.send(HarpMessage(MessageType.READ, PayloadType.U16, address))
+        # Attempt to read the WHO_AM_I register to verify if the device is a Harp device
+        error_msg = "This is not a Harp device."
+        try:
+            reply = self.send(HarpMessage(MessageType.READ, PayloadType.U16, address))
+        except HarpTimeoutException:
+            raise HarpException(error_msg)
+
+        if reply is None:
+            raise HarpException(error_msg)
 
         return reply.payload
 

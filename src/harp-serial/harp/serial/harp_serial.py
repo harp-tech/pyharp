@@ -6,7 +6,7 @@ from typing import Union
 
 import serial
 import serial.threaded
-
+from harp.protocol.exceptions import HarpException
 from harp.protocol.messages import HarpMessage, MessageType
 
 
@@ -98,8 +98,15 @@ class HarpSerial:
         serial_port : str
             The serial port used to establish the connection with the Harp device. It must be denoted as `/dev/ttyUSBx` in Linux and `COMx` in Windows, where `x` is the number of the serial port
         """
+        ser_kwargs = dict(kwargs)
+        ser_kwargs.setdefault("exclusive", True)
         # Connect to the Harp device
-        self._ser = serial.Serial(serial_port, **kwargs)
+        try:
+            self._ser = serial.Serial(serial_port, **ser_kwargs)
+        except serial.serialutil.SerialException:
+            raise HarpException(
+                f"Error connecting to device. Resource might be busy or without proper permissions: {serial_port}"
+            )
 
         self.log = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
 
