@@ -17,7 +17,6 @@ from harp.protocol import (
     PayloadType,
     ResetMode,
 )
-from harp.protocol.device_names import device_names
 from harp.protocol.exceptions import HarpTimeoutException
 from harp.protocol.messages import HarpMessage
 from harp.serial.harp_serial import HarpSerial
@@ -53,8 +52,6 @@ class Device:
     ----------
     WHO_AM_I : int
         The device ID number. A list of devices can be found [here](https://github.com/harp-tech/protocol/blob/main/whoami.md)
-    DEFAULT_DEVICE_NAME : str
-        The device name, i.e. "Behavior". This name is derived by cross-referencing the `WHO_AM_I` identifier with the corresponding device name in the `device_names` dictionary
     HW_VERSION_H : int
         The major hardware version
     HW_VERSION_L : int
@@ -76,7 +73,6 @@ class Device:
     """
 
     WHO_AM_I: int
-    DEFAULT_DEVICE_NAME: str
     HW_VERSION_H: int
     HW_VERSION_L: int
     ASSEMBLY_VERSION: int
@@ -130,7 +126,6 @@ class Device:
         Loads the data stored in the device's common registers.
         """
         self.WHO_AM_I = self._read_who_am_i()
-        self.DEFAULT_DEVICE_NAME = self._read_default_device_name()
         self.HW_VERSION_H = self._read_hw_version_h()
         self.HW_VERSION_L = self._read_hw_version_l()
         self.ASSEMBLY_VERSION = self._read_assembly_version()
@@ -148,14 +143,14 @@ class Device:
         Prints the device information.
         """
         print("Device info:")
-        print(f"* Who am I: ({self.WHO_AM_I}) {self.DEFAULT_DEVICE_NAME}")
+        print(f"* Who am I: ({self.WHO_AM_I})")
         print(f"* HW version: {self.HW_VERSION_H}.{self.HW_VERSION_L}")
         print(f"* Assembly version: {self.ASSEMBLY_VERSION}")
         print(f"* HARP version: {self.CORE_VERSION_H}.{self.CORE_VERSION_L}")
         print(
             f"* Firmware version: {self.FIRMWARE_VERSION_H}.{self.FIRMWARE_VERSION_L}"
         )
-        print(f"* Device user name: {self.DEVICE_NAME}")
+        print(f"* Device name: {self.DEVICE_NAME}")
         print(f"* Serial number: {self.SERIAL_NUMBER}")
         print(f"* Mode: {self._read_device_mode().name}")
 
@@ -1143,17 +1138,6 @@ class Device:
         reply = self.send(HarpMessage(MessageType.READ, PayloadType.U16, address))
 
         return reply.payload
-
-    def _read_default_device_name(self) -> str:
-        """
-        Returns the `DEFAULT_DEVICE_NAME` by cross-referencing the `WHO_AM_I` with the corresponding device name in the `device_names` dictionary.
-
-        Returns
-        -------
-        str
-            The default device name
-        """
-        return device_names.get(self.WHO_AM_I, "Unknown device")
 
     def _read_hw_version_h(self) -> int:
         """
