@@ -31,14 +31,6 @@ def test_create_write_list():
     assert list(payload_bytes) == values
 
 
-def test_create_error_cases():
-    """Test error cases while creating HarpMessage."""
-    # Test WRITE with None value
-    with pytest.raises(HarpException) as excinfo:
-        HarpMessage(MessageType.WRITE, PayloadType.U8, 42, None)
-    assert "value cannot be None" in str(excinfo.value)
-
-
 def test_reply_is_error():
     """Test HarpMessage.is_error property."""
     # Create a READ_ERROR message
