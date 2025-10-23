@@ -661,7 +661,9 @@ class Device:
         msgs = []
         while True:
             try:
-                msgs.append(self._ser.event_q.get(timeout=False))
+                msg = self._ser.event_q.get(timeout=False)
+                self._dump_reply(msg.frame)
+                msgs.append(msg)
             except queue.Empty:
                 break
         return msgs
