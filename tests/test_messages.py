@@ -1,13 +1,8 @@
 import pytest
 
 from harp.protocol import CommonRegisters, MessageType, PayloadType
-from harp.protocol.exceptions import HarpReadException
-from harp.protocol.messages import (
-    HarpMessage,
-    ReadHarpMessage,
-    ReplyHarpMessage,
-    WriteHarpMessage,
-)
+from harp.protocol.exceptions import HarpException, HarpReadException
+from harp.protocol.messages import HarpMessage
 
 DEFAULT_ADDRESS = 42
 
@@ -15,7 +10,7 @@ DEFAULT_ADDRESS = 42
 def test_create_write_float():
     """Test creating a write message with float value."""
     value = 3.14159
-    message = WriteHarpMessage(PayloadType.Float, 42, value)
+    message = HarpMessage(MessageType.WRITE, PayloadType.FLOAT, 42, value)
 
     assert message.message_type == MessageType.WRITE
     assert abs(message.payload - value) < 0.0001  # Float comparison
@@ -25,7 +20,7 @@ def test_create_write_float():
 def test_create_write_list():
     """Test creating a write message with list values."""
     values = [10, 20, 30]
-    message = WriteHarpMessage(PayloadType.U8, 42, values)
+    message = HarpMessage(MessageType.WRITE, PayloadType.U8, 42, values)
 
     # The frame should have length: 1 (type) + 1 (length) + 1 (address) + 1 (port) + 1 (payload_type) + 3 (values) + 1 (checksum)
     assert len(message.frame) == 9
@@ -36,21 +31,8 @@ def test_create_write_list():
     assert list(payload_bytes) == values
 
 
-def test_create_error_cases():
-    """Test error cases in HarpMessage.create()."""
-    # Test invalid message type
-    with pytest.raises(Exception) as excinfo:
-        HarpMessage.create(MessageType.EVENT, 42, PayloadType.U8, 10)
-    assert "valid message types" in str(excinfo.value)
-
-    # Test WRITE with None value
-    with pytest.raises(Exception) as excinfo:
-        HarpMessage.create(MessageType.WRITE, 42, PayloadType.U8, None)
-    assert "value cannot be None" in str(excinfo.value)
-
-
 def test_reply_is_error():
-    """Test ReplyHarpMessage.is_error property."""
+    """Test HarpMessage.is_error property."""
     # Create a READ_ERROR message
     frame = bytearray(
         [
@@ -58,7 +40,7 @@ def test_reply_is_error():
             5,
             42,
             255,
-            PayloadType.TimestampedU8,
+            PayloadType.TIMESTAMPED_U8,
             0,
             0,
             0,
@@ -74,7 +56,7 @@ def test_reply_is_error():
     checksum = sum(frame[:-1]) & 255
     frame[-1] = checksum
 
-    reply = ReplyHarpMessage(frame)
+    reply = HarpMessage.parse(frame)
     assert reply.is_error
 
     # Create a normal READ message
@@ -84,7 +66,7 @@ def test_reply_is_error():
             5,
             42,
             255,
-            PayloadType.TimestampedU8,
+            PayloadType.TIMESTAMPED_U8,
             0,
             0,
             0,
@@ -100,68 +82,68 @@ def test_reply_is_error():
     checksum = sum(frame[:-1]) & 255
     frame[-1] = checksum
 
-    reply = ReplyHarpMessage(frame)
+    reply = HarpMessage.parse(frame)
     assert not reply.is_error
 
 
 def test_create_read_U8() -> None:
-    message = ReadHarpMessage(payload_type=PayloadType.U8, address=DEFAULT_ADDRESS)
+    message = HarpMessage(MessageType.READ, PayloadType.U8, DEFAULT_ADDRESS)
 
     assert message.message_type == MessageType.READ
     assert message.checksum == 47  # 1 + 4 + 42 + 255 + 1 - 256
 
 
 def test_create_read_S8() -> None:
-    message = ReadHarpMessage(payload_type=PayloadType.S8, address=DEFAULT_ADDRESS)
+    message = HarpMessage(MessageType.READ, PayloadType.S8, DEFAULT_ADDRESS)
 
     assert message.message_type == MessageType.READ
     assert message.checksum == 175  # 1 + 4 + 42 + 255 + 129 - 256
 
 
 def test_create_read_U16() -> None:
-    message = ReadHarpMessage(payload_type=PayloadType.U16, address=DEFAULT_ADDRESS)
+    message = HarpMessage(MessageType.READ, PayloadType.U16, DEFAULT_ADDRESS)
 
     assert message.message_type == MessageType.READ
     assert message.checksum == 48  # 1 + 4 + 42 + 255 + 2 - 256
 
 
 def test_create_read_S16() -> None:
-    message = ReadHarpMessage(payload_type=PayloadType.S16, address=DEFAULT_ADDRESS)
+    message = HarpMessage(MessageType.READ, PayloadType.S16, DEFAULT_ADDRESS)
 
     assert message.message_type == MessageType.READ
     assert message.checksum == 176  # 1 + 4 + 42 + 255 + 130 - 256
 
 
 def test_create_read_U32() -> None:
-    message = ReadHarpMessage(payload_type=PayloadType.U32, address=DEFAULT_ADDRESS)
+    message = HarpMessage(MessageType.READ, PayloadType.U32, DEFAULT_ADDRESS)
 
     assert message.message_type == MessageType.READ
     assert message.checksum == 50  # 1 + 4 + 42 + 255 + 4 - 256
 
 
 def test_create_read_S32() -> None:
-    message = ReadHarpMessage(payload_type=PayloadType.S32, address=DEFAULT_ADDRESS)
+    message = HarpMessage(MessageType.READ, PayloadType.S32, DEFAULT_ADDRESS)
 
     assert message.message_type == MessageType.READ
     assert message.checksum == 178  # 1 + 4 + 42 + 255 + 130 - 256
 
 
 def test_create_read_U64() -> None:
-    message = ReadHarpMessage(payload_type=PayloadType.U64, address=DEFAULT_ADDRESS)
+    message = HarpMessage(MessageType.READ, PayloadType.U64, DEFAULT_ADDRESS)
 
     assert message.message_type == MessageType.READ
     assert message.checksum == 54  # 1 + 4 + 42 + 255 + 2 - 256
 
 
 def test_create_read_S64() -> None:
-    message = ReadHarpMessage(payload_type=PayloadType.S64, address=DEFAULT_ADDRESS)
+    message = HarpMessage(MessageType.READ, PayloadType.S64, DEFAULT_ADDRESS)
 
     assert message.message_type == MessageType.READ
     assert message.checksum == 182  # 1 + 4 + 42 + 255 + 130 - 256
 
 
 def test_create_read_float() -> None:
-    message = ReadHarpMessage(payload_type=PayloadType.Float, address=DEFAULT_ADDRESS)
+    message = HarpMessage(MessageType.READ, PayloadType.FLOAT, DEFAULT_ADDRESS)
 
     assert message.message_type == MessageType.READ
     assert message.checksum == 114  # 1 + 4 + 42 + 255 + 4 - 256
@@ -169,7 +151,7 @@ def test_create_read_float() -> None:
 
 def test_create_write_U8() -> None:
     value: int = 23
-    message = WriteHarpMessage(PayloadType.U8, DEFAULT_ADDRESS, value)
+    message = HarpMessage(MessageType.WRITE, PayloadType.U8, DEFAULT_ADDRESS, value)
 
     assert message.message_type == MessageType.WRITE
     assert message.payload == value
@@ -178,7 +160,7 @@ def test_create_write_U8() -> None:
 
 def test_create_write_S8() -> None:
     value: int = -3  # corresponds to signed int 253 (0xFD)
-    message = WriteHarpMessage(PayloadType.S8, DEFAULT_ADDRESS, value)
+    message = HarpMessage(MessageType.WRITE, PayloadType.S8, DEFAULT_ADDRESS, value)
 
     assert message.message_type == MessageType.WRITE
     assert message.payload == value
@@ -187,7 +169,7 @@ def test_create_write_S8() -> None:
 
 def test_create_write_U16() -> None:
     value: int = 1024  # 4 0 (2 x bytes)
-    message = WriteHarpMessage(PayloadType.U16, DEFAULT_ADDRESS, value)
+    message = HarpMessage(MessageType.WRITE, PayloadType.U16, DEFAULT_ADDRESS, value)
 
     assert message.message_type == MessageType.WRITE
     assert message.length == 6
@@ -197,7 +179,7 @@ def test_create_write_U16() -> None:
 
 def test_create_write_S16() -> None:
     value: int = -4837  # 27 237 (2 x bytes), corresponds to signed int 7149
-    message = WriteHarpMessage(PayloadType.S16, DEFAULT_ADDRESS, value)
+    message = HarpMessage(MessageType.WRITE, PayloadType.S16, DEFAULT_ADDRESS, value)
 
     assert message.message_type == MessageType.WRITE
     assert message.length == 6
@@ -207,7 +189,7 @@ def test_create_write_S16() -> None:
 
 def test_create_write_U8_array() -> None:
     values: list[int] = [1, 2, 3, 4, 5]
-    message = WriteHarpMessage(PayloadType.U8, DEFAULT_ADDRESS, values)
+    message = HarpMessage(MessageType.WRITE, PayloadType.U8, DEFAULT_ADDRESS, values)
 
     assert message.message_type == MessageType.WRITE
     assert message.length == 4 + len(
@@ -219,7 +201,7 @@ def test_create_write_U8_array() -> None:
 
 def test_create_write_S8_array() -> None:
     values: list[int] = [-1, -2, -3, -4, -5]
-    message = WriteHarpMessage(PayloadType.S8, DEFAULT_ADDRESS, values)
+    message = HarpMessage(MessageType.WRITE, PayloadType.S8, DEFAULT_ADDRESS, values)
 
     assert message.message_type == MessageType.WRITE
     assert message.length == 4 + len(
@@ -231,7 +213,7 @@ def test_create_write_S8_array() -> None:
 
 def test_create_write_U16_array() -> None:
     values: list[int] = [1, 2, 3, 4, 5]
-    message = WriteHarpMessage(PayloadType.U16, DEFAULT_ADDRESS, values)
+    message = HarpMessage(MessageType.WRITE, PayloadType.U16, DEFAULT_ADDRESS, values)
 
     assert message.message_type == MessageType.WRITE
     assert (
@@ -243,7 +225,7 @@ def test_create_write_U16_array() -> None:
 
 def test_create_write_S16_array() -> None:
     values: list[int] = [-1, -2, -3, -4, -5]
-    message = WriteHarpMessage(PayloadType.S16, DEFAULT_ADDRESS, values)
+    message = HarpMessage(MessageType.WRITE, PayloadType.S16, DEFAULT_ADDRESS, values)
 
     assert message.message_type == MessageType.WRITE
     assert (
@@ -255,7 +237,7 @@ def test_create_write_S16_array() -> None:
 
 def test_create_write_U32_array() -> None:
     values: list[int] = [1, 2, 3, 4, 5]
-    message = WriteHarpMessage(PayloadType.U32, DEFAULT_ADDRESS, values)
+    message = HarpMessage(MessageType.WRITE, PayloadType.U32, DEFAULT_ADDRESS, values)
 
     assert message.message_type == MessageType.WRITE
     assert (
@@ -267,7 +249,7 @@ def test_create_write_U32_array() -> None:
 
 def test_create_write_S32_array() -> None:
     values: list[int] = [-1, -2, -3, -4, -5]
-    message = WriteHarpMessage(PayloadType.S32, DEFAULT_ADDRESS, values)
+    message = HarpMessage(MessageType.WRITE, PayloadType.S32, DEFAULT_ADDRESS, values)
 
     assert message.message_type == MessageType.WRITE
     assert (
@@ -279,7 +261,7 @@ def test_create_write_S32_array() -> None:
 
 def test_create_write_U64_array() -> None:
     values: list[int] = [1, 2, 3, 4, 5]
-    message = WriteHarpMessage(PayloadType.U64, DEFAULT_ADDRESS, values)
+    message = HarpMessage(MessageType.WRITE, PayloadType.U64, DEFAULT_ADDRESS, values)
 
     assert message.message_type == MessageType.WRITE
     assert (
@@ -291,7 +273,7 @@ def test_create_write_U64_array() -> None:
 
 def test_create_write_S64_array() -> None:
     values: list[int] = [-1, -2, -3, -4, -5]
-    message = WriteHarpMessage(PayloadType.S64, DEFAULT_ADDRESS, values)
+    message = HarpMessage(MessageType.WRITE, PayloadType.S64, DEFAULT_ADDRESS, values)
 
     assert message.message_type == MessageType.WRITE
     assert (
@@ -304,7 +286,7 @@ def test_create_write_S64_array() -> None:
 def test_create_write_float_array() -> None:
     """Test creating a write message with float array values."""
     values = [1.1, 2.2, 3.3]
-    message = WriteHarpMessage(PayloadType.Float, DEFAULT_ADDRESS, values)
+    message = HarpMessage(MessageType.WRITE, PayloadType.FLOAT, DEFAULT_ADDRESS, values)
 
     assert message.message_type == MessageType.WRITE
     expected_checksum = 193  # (2 + 4 + 42 + 255 + 1 + 3 * 4) & 255
@@ -315,9 +297,7 @@ def test_create_write_float_array() -> None:
 
 
 def test_read_who_am_i() -> None:
-    message = ReadHarpMessage(
-        payload_type=PayloadType.U16, address=CommonRegisters.WHO_AM_I
-    )
+    message = HarpMessage(MessageType.READ, PayloadType.U16, CommonRegisters.WHO_AM_I)
 
     assert str(message.frame) == str(bytearray(b"\x01\x04\x00\xff\x02\x06"))
 
@@ -325,7 +305,7 @@ def test_read_who_am_i() -> None:
 def test_create_write_U32() -> None:
     """Test creating a write message with S32 value."""
     value: int = 2147483000  # Large number
-    message = WriteHarpMessage(PayloadType.U32, DEFAULT_ADDRESS, value)
+    message = HarpMessage(MessageType.WRITE, PayloadType.U32, DEFAULT_ADDRESS, value)
 
     assert message.message_type == MessageType.WRITE
     assert message.length == 8
@@ -339,7 +319,7 @@ def test_create_write_U32() -> None:
 def test_create_write_S32() -> None:
     """Test creating a write message with S32 value."""
     value: int = -2147483000  # Large negative number
-    message = WriteHarpMessage(PayloadType.S32, DEFAULT_ADDRESS, value)
+    message = HarpMessage(MessageType.WRITE, PayloadType.S32, DEFAULT_ADDRESS, value)
 
     assert message.message_type == MessageType.WRITE
     assert message.length == 8
@@ -353,7 +333,7 @@ def test_create_write_S32() -> None:
 def test_create_write_U64() -> None:
     """Test creating a write message with U64 value."""
     value: int = 9223372036854775807  # Large 64-bit value
-    message = WriteHarpMessage(PayloadType.U64, DEFAULT_ADDRESS, value)
+    message = HarpMessage(MessageType.WRITE, PayloadType.U64, DEFAULT_ADDRESS, value)
 
     assert message.message_type == MessageType.WRITE
     assert message.length == 12  # 5 header bytes + 8 payload bytes
@@ -367,7 +347,7 @@ def test_create_write_U64() -> None:
 def test_create_write_S64() -> None:
     """Test creating a write message with S64 value."""
     value: int = -9223372036854775807
-    message = WriteHarpMessage(PayloadType.S64, DEFAULT_ADDRESS, value)
+    message = HarpMessage(MessageType.WRITE, PayloadType.S64, DEFAULT_ADDRESS, value)
     assert message.message_type == MessageType.WRITE
     assert message.length == 12
     assert message.payload == value
@@ -386,7 +366,7 @@ def test_reply_message_str_repr() -> None:
             5,
             42,
             255,
-            PayloadType.TimestampedU8,
+            PayloadType.TIMESTAMPED_U8,
             0,
             0,
             0,
@@ -402,7 +382,7 @@ def test_reply_message_str_repr() -> None:
     checksum = sum(frame[:-1]) & 255
     frame[-1] = checksum
 
-    reply = ReplyHarpMessage(frame)
+    reply = HarpMessage.parse(frame)
     str_repr = str(reply)
     repr_str = repr(reply)
 
@@ -415,7 +395,7 @@ def test_reply_message_str_repr() -> None:
 
 
 def test_payload_as_string() -> None:
-    """Test ReplyHarpMessage.payload_as_string()."""
+    """Test HarpMessage.payload_as_string()."""
     test_string = "Hello"
     encoded = test_string.encode("utf-8")
 
@@ -425,7 +405,7 @@ def test_payload_as_string() -> None:
             5 + len(encoded),
             42,
             255,
-            PayloadType.TimestampedU8,
+            PayloadType.TIMESTAMPED_U8,
             0,
             0,
             0,
@@ -444,7 +424,7 @@ def test_payload_as_string() -> None:
     checksum = sum(frame[:-1]) & 255
     frame[-1] = checksum
 
-    reply = ReplyHarpMessage(frame)
+    reply = HarpMessage.parse(frame)
     assert reply.payload_as_string() == test_string
 
 
@@ -456,7 +436,7 @@ def test_harp_message_parse() -> None:
             11,
             42,
             255,
-            PayloadType.TimestampedU8,
+            PayloadType.TIMESTAMPED_U8,
             0,
             0,
             0,
@@ -473,14 +453,13 @@ def test_harp_message_parse() -> None:
     frame[-1] = checksum
 
     message = HarpMessage.parse(frame)
-    assert isinstance(message, ReplyHarpMessage)
     assert message.message_type == MessageType.READ
     assert message.address == 42
     assert message.payload == 123
 
 
 def test_timestamp_handling() -> None:
-    """Test timestamp handling in ReplyHarpMessage."""
+    """Test timestamp handling in HarpMessage."""
     # Create a timestamped message
     frame = bytearray(
         [
@@ -488,7 +467,7 @@ def test_timestamp_handling() -> None:
             5,
             42,
             255,
-            PayloadType.TimestampedU8,
+            PayloadType.TIMESTAMPED_U8,
             1,
             0,
             0,
@@ -504,21 +483,42 @@ def test_timestamp_handling() -> None:
     checksum = sum(frame[:-1]) & 255
     frame[-1] = checksum
 
-    reply = ReplyHarpMessage(frame)
+    reply = HarpMessage.parse(frame)
     assert reply.timestamp is not None
     assert reply.timestamp == 1 + 32 * 32e-6  # 1 second + 1 millisecond
 
 
-# test ReplyHarpMessage without TimestampedU8 raises HarpReadException
-def test_reply_without_timestamp_raises() -> None:
-    """Test that accessing timestamp in non-timestamped message raises exception."""
+# FIXME: handle this better
+def test_calculate_checksum() -> None:
+    """Test the calculate_checksum method."""
+    message = HarpMessage(MessageType.READ, PayloadType.U8, DEFAULT_ADDRESS)
+    message._frame = bytearray([1, 2, 3, 4, 5])
+
+    # Sum is 15, checksum is 15 (no overflow)
+    assert message.calculate_checksum() == 15
+
+    message._frame = bytearray([200, 100, 50, 20, 10])
+    # Sum is 380, checksum is 380 % 256 = 124
+    assert message.calculate_checksum() == 124
+
+
+# create harpMessage test, check _raw_payload and change frame and recheck raw_payload
+def test_raw_payload_assignment() -> None:
+    """Test that _raw_payload is assigned correctly based on payload type."""
+    # Create a timestamped message frame
     frame = bytearray(
         [
             MessageType.READ,
-            5,
+            11,
             42,
             255,
-            PayloadType.U8,  # Not a timestamped type
+            PayloadType.TIMESTAMPED_U8,
+            0,
+            0,
+            0,
+            0,  # timestamp seconds
+            0,
+            0,  # timestamp micros
             123,  # payload
             0,
         ]
@@ -528,19 +528,25 @@ def test_reply_without_timestamp_raises() -> None:
     checksum = sum(frame[:-1]) & 255
     frame[-1] = checksum
 
-    with pytest.raises(HarpReadException) as excinfo:
-        ReplyHarpMessage(frame)
-        assert "not a timestamped payload type" in str(excinfo.value)
+    message = HarpMessage.parse(frame)
+    assert message._raw_payload == frame[11:-1]
 
+    # Create a non-timestamped message frame
+    frame_no_timestamp = bytearray(
+        [
+            MessageType.READ,
+            5,
+            42,
+            255,
+            PayloadType.U8,
+            123,  # payload
+            0,
+        ]
+    )  # checksum placeholder
 
-def test_calculate_checksum() -> None:
-    """Test the calculate_checksum method."""
-    message = HarpMessage()
-    message._frame = bytearray([1, 2, 3, 4, 5])
+    # Fix checksum
+    checksum = sum(frame_no_timestamp[:-1]) & 255
+    frame_no_timestamp[-1] = checksum
 
-    # Sum is 15, checksum is 15 (no overflow)
-    assert message.calculate_checksum() == 15
-
-    message._frame = bytearray([200, 100, 50, 20, 10])
-    # Sum is 380, checksum is 380 % 256 = 124
-    assert message.calculate_checksum() == 124
+    message_no_timestamp = HarpMessage.parse(frame_no_timestamp)
+    assert message_no_timestamp._raw_payload == frame_no_timestamp[5:-1]

@@ -6,8 +6,11 @@ authors = [{ name= "Hardware and Software Platform, Champalimaud Foundation", em
 license = "MIT"
 readme = 'README.md'
 keywords = ['python', 'harp']
-requires-python = ">=3.9,<4.0"
-dependencies = ["harp-protocol", "harp-serial"]
+requires-python = ">=3.10,<4.0"
+dependencies = [
+    "harp-protocol",
+    "harp-serial",
+]
 
 [project.urls]
 Repository = "https://github.com/fchampalimaud/pyharp/"
@@ -24,7 +27,7 @@ members = [
 ]
 
 [dependency-groups]
-dev = [
+docs = [
     "griffe-fieldz>=0.2.1",
     "mkdocs>=1.6.1",
     "mkdocs-codeinclude-plugin>=0.2.1",
@@ -34,6 +37,9 @@ dev = [
     "mkdocs-material>=9.6.9",
     "mkdocs-monorepo-plugin>=1.1.2",
     "mkdocstrings-python>=1.16.6",
+]
+
+dev = [
     "pytest>=8.3.5",
     "pytest-cov>=6.1.1",
     "ruff>=0.11.0",

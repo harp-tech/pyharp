@@ -1,4 +1,4 @@
-from __future__ import annotations  # enable subscriptable type hints for lists.
+from __future__ import annotations  # for type hints (PEP 563)
 
 import logging
 import queue
@@ -17,9 +17,8 @@ from harp.protocol import (
     PayloadType,
     ResetMode,
 )
-from harp.protocol.device_names import device_names
-from harp.protocol.exceptions import HarpTimeoutError
-from harp.protocol.messages import HarpMessage, ReplyHarpMessage
+from harp.protocol.exceptions import HarpException, HarpTimeoutException
+from harp.protocol.messages import HarpMessage
 from harp.serial.harp_serial import HarpSerial
 
 
@@ -30,16 +29,16 @@ class TimeoutStrategy(Enum):
     Attributes
     ----------
     RAISE : str
-        Raise HarpTimeoutError
+        Raise HarpTimeoutException
     RETURN_NONE : str
         Return None
     LOG_AND_RAISE : str
-        Log the timeout and raise HarpTimeoutError
+        Log the timeout and raise HarpTimeoutException
     LOG_AND_NONE : str
         Log the timeout and return None
     """
 
-    RAISE = "raise"  # Raise HarpTimeoutError
+    RAISE = "raise"  # Raise HarpTimeoutException
     RETURN_NONE = "return_none"  # Return None
     LOG_AND_RAISE = "log_and_raise"
     LOG_AND_NONE = "log_and_none"
@@ -53,8 +52,6 @@ class Device:
     ----------
     WHO_AM_I : int
         The device ID number. A list of devices can be found [here](https://github.com/harp-tech/protocol/blob/main/whoami.md)
-    DEFAULT_DEVICE_NAME : str
-        The device name, i.e. "Behavior". This name is derived by cross-referencing the `WHO_AM_I` identifier with the corresponding device name in the `device_names` dictionary
     HW_VERSION_H : int
         The major hardware version
     HW_VERSION_L : int
@@ -76,12 +73,11 @@ class Device:
     """
 
     WHO_AM_I: int
-    DEFAULT_DEVICE_NAME: str
     HW_VERSION_H: int
     HW_VERSION_L: int
     ASSEMBLY_VERSION: int
-    HARP_VERSION_H: int
-    HARP_VERSION_L: int
+    CORE_VERSION_H: int
+    CORE_VERSION_L: int
     FIRMWARE_VERSION_H: int
     FIRMWARE_VERSION_L: int
     DEVICE_NAME: str
@@ -92,15 +88,13 @@ class Device:
     _ser: HarpSerial
     _dump_file_path: Optional[Path]
     _dump_file: Optional[BufferedWriter] = None
-    _read_timeout_s: float
-
-    _TIMEOUT_S: float = 1.0
+    _timeout: float
 
     def __init__(
         self,
         serial_port: str,
         dump_file_path: Optional[str] = None,
-        read_timeout_s: float = 1,
+        timeout: float = 1,
         timeout_strategy: TimeoutStrategy = TimeoutStrategy.RAISE,
     ):
         """
@@ -110,15 +104,17 @@ class Device:
             The serial port used to establish the connection with the Harp device. It must be denoted as `/dev/ttyUSBx` in Linux and `COMx` in Windows, where `x` is the number of the serial port
         dump_file_path: str, optional
             The binary file to which all Harp messages will be written
-        read_timeout_s: float, optional
-            _TODO_
+        timeout: float, optional
+            The timeout in seconds when waiting for a reply from the device
+        timeout_strategy: TimeoutStrategy, optional
+            The strategy to handle timeouts when waiting for a reply from the device
         """
         self.log = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
         self._serial_port = serial_port
         self._dump_file_path = None
         if dump_file_path is not None:
             self._dump_file_path = Path() / dump_file_path
-        self._read_timeout_s = read_timeout_s
+        self._timeout = timeout
         self._timeout_strategy = timeout_strategy
 
         # Connect to the Harp device and load the data stored in the device's common registers
@@ -130,12 +126,11 @@ class Device:
         Loads the data stored in the device's common registers.
         """
         self.WHO_AM_I = self._read_who_am_i()
-        self.DEFAULT_DEVICE_NAME = self._read_default_device_name()
         self.HW_VERSION_H = self._read_hw_version_h()
         self.HW_VERSION_L = self._read_hw_version_l()
         self.ASSEMBLY_VERSION = self._read_assembly_version()
-        self.HARP_VERSION_H = self._read_harp_version_h()
-        self.HARP_VERSION_L = self._read_harp_version_l()
+        self.CORE_VERSION_H = self._read_core_version_h()
+        self.CORE_VERSION_L = self._read_core_version_l()
         self.FIRMWARE_VERSION_H = self._read_fw_version_h()
         self.FIRMWARE_VERSION_L = self._read_fw_version_l()
         self.DEVICE_NAME = self._read_device_name()
@@ -148,14 +143,14 @@ class Device:
         Prints the device information.
         """
         print("Device info:")
-        print(f"* Who am I: ({self.WHO_AM_I}) {self.DEFAULT_DEVICE_NAME}")
+        print(f"* Who am I: ({self.WHO_AM_I})")
         print(f"* HW version: {self.HW_VERSION_H}.{self.HW_VERSION_L}")
         print(f"* Assembly version: {self.ASSEMBLY_VERSION}")
-        print(f"* HARP version: {self.HARP_VERSION_H}.{self.HARP_VERSION_L}")
+        print(f"* HARP version: {self.CORE_VERSION_H}.{self.CORE_VERSION_L}")
         print(
             f"* Firmware version: {self.FIRMWARE_VERSION_H}.{self.FIRMWARE_VERSION_L}"
         )
-        print(f"* Device user name: {self.DEVICE_NAME}")
+        print(f"* Device name: {self.DEVICE_NAME}")
         print(f"* Serial number: {self.SERIAL_NUMBER}")
         print(f"* Mode: {self._read_device_mode().name}")
 
@@ -164,9 +159,9 @@ class Device:
         Connects to the Harp device.
         """
         self._ser = HarpSerial(
-            self._serial_port,  # "/dev/tty.usbserial-A106C8O9"
+            self._serial_port,
             baudrate=1000000,
-            timeout=self._TIMEOUT_S,
+            timeout=self._timeout,
             parity=serial.PARITY_NONE,
             stopbits=1,
             bytesize=8,
@@ -198,7 +193,7 @@ class Device:
             The current device mode
         """
         address = CommonRegisters.OPERATION_CTRL
-        reply = self.send(HarpMessage.create(MessageType.READ, address, PayloadType.U8))
+        reply = self.send(HarpMessage(MessageType.READ, PayloadType.U8, address))
         return OperationMode(reply.payload & OperationCtrl.OP_MODE)
 
     def dump_registers(self) -> list:
@@ -212,9 +207,7 @@ class Device:
             The list containing the reply Harp messages for all the device's registers
         """
         address = CommonRegisters.OPERATION_CTRL
-        reg_value = self.send(
-            HarpMessage.create(MessageType.READ, address, PayloadType.U8)
-        )
+        reg_value = self.send(HarpMessage(MessageType.READ, PayloadType.U8, address))
 
         if reg_value is None:
             return []
@@ -223,18 +216,17 @@ class Device:
 
         # Assert DUMP bit
         reg_value |= OperationCtrl.DUMP
-        self.send(
-            HarpMessage.create(MessageType.WRITE, address, PayloadType.U8, reg_value)
-        )
+        self.send(HarpMessage(MessageType.WRITE, PayloadType.U8, address, reg_value))
 
         # Receive the contents of all registers as Harp Read Reply Messages
         replies = []
         while True:
             msg = self._read()
-            if msg is not None:
-                replies.append(msg)
-            else:
+            if msg is None:
                 break
+            else:
+                replies.append(msg)
+                self._dump_reply(msg.frame)
         return replies
 
     def read_operation_ctrl(self):
@@ -243,11 +235,11 @@ class Device:
 
         Returns
         -------
-        ReplyHarpMessage
+        HarpMessage
             The reply to the Harp message
         """
         address = CommonRegisters.OPERATION_CTRL
-        reply = self.send(HarpMessage.create(MessageType.READ, address, PayloadType.U8))
+        reply = self.send(HarpMessage(MessageType.READ, PayloadType.U8, address))
 
         # create dict with complete byte and then decode each bit according to the OperationCtrl entries
         if reply is not None:
@@ -270,7 +262,7 @@ class Device:
         visual_en: Optional[bool] = None,
         op_led_en: Optional[bool] = None,
         alive_en: Optional[bool] = None,
-    ) -> ReplyHarpMessage | None:
+    ) -> HarpMessage | None:
         """
         Writes the OPERATION_CTRL register of the device.
 
@@ -288,20 +280,18 @@ class Device:
             If True, enables the ALIVE_EN bit
         Returns
         -------
-        ReplyHarpMessage
+        HarpMessage
             The reply to the Harp message
         """
         address = CommonRegisters.OPERATION_CTRL
 
         # Read register first
-        reg_value = self.send(
-            HarpMessage.create(MessageType.READ, address, PayloadType.U8)
-        )
+        reply = self.send(HarpMessage(MessageType.READ, PayloadType.U8, address))
 
-        if reg_value is None:
-            return reg_value
+        if reply is None:
+            return reply
 
-        reg_value = reg_value.payload
+        reg_value = reply.payload
 
         if mode is not None:
             # Clear old operation mode
@@ -334,12 +324,12 @@ class Device:
                 reg_value &= ~OperationCtrl.ALIVE_EN
 
         reply = self.send(
-            HarpMessage.create(MessageType.WRITE, address, PayloadType.U8, reg_value)
+            HarpMessage(MessageType.WRITE, PayloadType.U8, address, reg_value)
         )
 
         return reply
 
-    def set_mode(self, mode: OperationMode) -> ReplyHarpMessage | None:
+    def set_mode(self, mode: OperationMode) -> HarpMessage | None:
         """
         Sets the operation mode of the device.
 
@@ -350,20 +340,18 @@ class Device:
 
         Returns
         -------
-        ReplyHarpMessage
+        HarpMessage
             The reply to the Harp message
         """
         address = CommonRegisters.OPERATION_CTRL
 
         # Read register first
-        reg_value = self.send(
-            HarpMessage.create(MessageType.READ, address, PayloadType.U8)
-        )
+        reply = self.send(HarpMessage(MessageType.READ, PayloadType.U8, address))
 
-        if reg_value is None:
-            return reg_value
+        if reply is None:
+            return reply
 
-        reg_value = reg_value.payload
+        reg_value = reply.payload
 
         # Clear old operation mode
         reg_value &= ~OperationCtrl.OP_MODE
@@ -371,7 +359,7 @@ class Device:
         # Set new operation mode
         reg_value |= mode
         reply = self.send(
-            HarpMessage.create(MessageType.WRITE, address, PayloadType.U8, reg_value)
+            HarpMessage(MessageType.WRITE, PayloadType.U8, address, reg_value)
         )
 
         return reply
@@ -393,14 +381,12 @@ class Device:
         address = CommonRegisters.OPERATION_CTRL
 
         # Read register first
-        reg_value = self.send(
-            HarpMessage.create(MessageType.READ, address, PayloadType.U8)
-        )
+        reply = self.send(HarpMessage(MessageType.READ, PayloadType.U8, address))
 
-        if reg_value is None:
+        if reply is None:
             return False
 
-        reg_value = reg_value.payload
+        reg_value = reply.payload
 
         if enable:
             reg_value |= OperationCtrl.ALIVE_EN
@@ -408,7 +394,7 @@ class Device:
             reg_value &= ~OperationCtrl.ALIVE_EN
 
         reply = self.send(
-            HarpMessage.create(MessageType.WRITE, address, PayloadType.U8, reg_value)
+            HarpMessage(MessageType.WRITE, PayloadType.U8, address, reg_value)
         )
 
         if reply is None:
@@ -433,14 +419,12 @@ class Device:
         address = CommonRegisters.OPERATION_CTRL
 
         # Read register first
-        reg_value = self.send(
-            HarpMessage.create(MessageType.READ, address, PayloadType.U8)
-        )
+        reply = self.send(HarpMessage(MessageType.READ, PayloadType.U8, address))
 
-        if reg_value is None:
+        if reply is None:
             return False
 
-        reg_value = reg_value.payload
+        reg_value = reply.payload
 
         if enable:
             reg_value |= OperationCtrl.OPLEDEN
@@ -448,7 +432,7 @@ class Device:
             reg_value &= ~OperationCtrl.OPLEDEN
 
         reply = self.send(
-            HarpMessage.create(MessageType.WRITE, address, PayloadType.U8, reg_value)
+            HarpMessage(MessageType.WRITE, PayloadType.U8, address, reg_value)
         )
 
         return reply is not None
@@ -470,14 +454,12 @@ class Device:
         address = CommonRegisters.OPERATION_CTRL
 
         # Read register first
-        reg_value = self.send(
-            HarpMessage.create(MessageType.READ, address, PayloadType.U8)
-        )
+        reply = self.send(HarpMessage(MessageType.READ, PayloadType.U8, address))
 
-        if reg_value is None:
+        if reply is None:
             return False
 
-        reg_value = reg_value.payload
+        reg_value = reply.payload
 
         if enable:
             reg_value |= OperationCtrl.VISUALEN
@@ -485,7 +467,7 @@ class Device:
             reg_value &= ~OperationCtrl.VISUALEN
 
         reply = self.send(
-            HarpMessage.create(MessageType.WRITE, address, PayloadType.U8, reg_value)
+            HarpMessage(MessageType.WRITE, PayloadType.U8, address, reg_value)
         )
 
         return reply is not None
@@ -507,14 +489,12 @@ class Device:
         address = CommonRegisters.OPERATION_CTRL
 
         # Read register first
-        reg_value = self.send(
-            HarpMessage.create(MessageType.READ, address, PayloadType.U8)
-        )
+        reply = self.send(HarpMessage(MessageType.READ, PayloadType.U8, address))
 
-        if reg_value is None:
+        if reply is None:
             return False
 
-        reg_value = reg_value.payload
+        reg_value = reply.payload
 
         if enable:
             reg_value |= OperationCtrl.MUTE_RPL
@@ -522,30 +502,30 @@ class Device:
             reg_value &= ~OperationCtrl.MUTE_RPL
 
         reply = self.send(
-            HarpMessage.create(MessageType.WRITE, address, PayloadType.U8, reg_value)
+            HarpMessage(MessageType.WRITE, PayloadType.U8, address, reg_value)
         )
 
         return reply is not None
 
     def reset_device(
         self, reset_mode: ResetMode = ResetMode.RST_DEF
-    ) -> ReplyHarpMessage | None:
+    ) -> HarpMessage | None:
         """
         Resets the device and reboots with all the registers with the default values. Beware that the EEPROM will be erased. More information on the reset device register can be found [here](https://harp-tech.org/protocol/Device.html#r_reset_dev-u8--reset-device-and-save-non-volatile-registers).
 
         Returns
         -------
-        ReplyHarpMessage
+        HarpMessage
             The reply to the Harp message
         """
         address = CommonRegisters.RESET_DEV
         reply = self.send(
-            HarpMessage.create(MessageType.WRITE, address, PayloadType.U8, reset_mode)
+            HarpMessage(MessageType.WRITE, PayloadType.U8, address, reset_mode)
         )
 
         return reply
 
-    def set_clock_config(self, clock_config: ClockConfig) -> ReplyHarpMessage | None:
+    def set_clock_config(self, clock_config: ClockConfig) -> HarpMessage | None:
         """
         Sets the clock configuration of the device.
 
@@ -556,17 +536,17 @@ class Device:
 
         Returns
         -------
-        ReplyHarpMessage
+        HarpMessage
             The reply to the Harp message
         """
         address = CommonRegisters.CLOCK_CONFIG
         reply = self.send(
-            HarpMessage.create(MessageType.WRITE, address, PayloadType.U8, clock_config)
+            HarpMessage(MessageType.WRITE, PayloadType.U8, address, clock_config)
         )
 
         return reply
 
-    def set_timestamp_offset(self, timestamp_offset: int) -> ReplyHarpMessage | None:
+    def set_timestamp_offset(self, timestamp_offset: int) -> HarpMessage | None:
         """
         When the value of this register is above 0 (zero), the device's timestamp will be offset by this amount. The register is sensitive to 500 microsecond increments. This register is non-volatile.
 
@@ -577,14 +557,12 @@ class Device:
 
         Returns
         -------
-        ReplyHarpMessage
+        HarpMessage
             The reply to the Harp message
         """
         address = CommonRegisters.TIMESTAMP_OFFSET
         reply = self.send(
-            HarpMessage.create(
-                MessageType.WRITE, address, PayloadType.U8, timestamp_offset
-            )
+            HarpMessage(MessageType.WRITE, PayloadType.U8, address, timestamp_offset)
         )
 
         return reply
@@ -595,7 +573,7 @@ class Device:
         *,
         expect_reply: bool = True,
         timeout_strategy: TimeoutStrategy | None = None,
-    ) -> ReplyHarpMessage | None:
+    ) -> HarpMessage | None:
         """
         Sends a Harp message and (optionally) waits for a reply.
 
@@ -610,12 +588,12 @@ class Device:
 
         Returns
         -------
-        ReplyHarpMessage | None
+        HarpMessage | None
             Reply (or None when allowed by the timeout strategy or expect_reply=False)
 
         Raises
         -------
-        HarpTimeoutError
+        HarpTimeoutException
             If no reply is received and the effective strategy requires raising
         """
         self._ser.write(message.frame)
@@ -625,10 +603,9 @@ class Device:
 
         strategy = timeout_strategy or self._timeout_strategy
 
-        try:
-            reply = self._read()
-        except TimeoutError:
-            hte = HarpTimeoutError(self._read_timeout_s)
+        reply = self._read()
+        if reply is None:
+            hte = HarpTimeoutException(self._timeout, message)
             if strategy in (
                 TimeoutStrategy.LOG_AND_RAISE,
                 TimeoutStrategy.LOG_AND_NONE,
@@ -636,18 +613,17 @@ class Device:
                 self.log.warning(str(hte))
             if strategy in (TimeoutStrategy.RAISE, TimeoutStrategy.LOG_AND_RAISE):
                 raise hte
-            return None
-
-        self._dump_reply(reply.frame)
+        else:
+            self._dump_reply(reply.frame)
         return reply
 
-    def _read(self) -> ReplyHarpMessage:
+    def _read(self) -> HarpMessage | None:
         """
         Reads an incoming serial message in a blocking way.
 
         Returns
         -------
-        ReplyHarpMessage
+        HarpMessage | None
             The incoming Harp message in case it exists
 
         Raises
@@ -656,9 +632,9 @@ class Device:
             If no reply is received within the timeout period
         """
         try:
-            return self._ser.msg_q.get(block=True, timeout=self._read_timeout_s)
+            return self._ser.msg_q.get(block=True, timeout=self._timeout)
         except queue.Empty:
-            raise TimeoutError("No reply received within the timeout period.")
+            return None
 
     def _dump_reply(self, reply: bytearray):
         """
@@ -667,7 +643,7 @@ class Device:
         if self._dump_file:
             self._dump_file.write(reply)
 
-    def get_events(self) -> list[ReplyHarpMessage]:
+    def get_events(self) -> list[HarpMessage]:
         """
         Gets all events from the event queue.
 
@@ -679,7 +655,9 @@ class Device:
         msgs = []
         while True:
             try:
-                msgs.append(self._ser.event_q.get(timeout=False))
+                msg = self._ser.event_q.get(timeout=False)
+                self._dump_reply(msg.frame)
+                msgs.append(msg)
             except queue.Empty:
                 break
         return msgs
@@ -695,7 +673,7 @@ class Device:
         """
         return self._ser.event_q.qsize()
 
-    def read_u8(self, address: int) -> ReplyHarpMessage | None:
+    def read_u8(self, address: int) -> HarpMessage | None:
         """
         Reads the value of a register of type U8.
 
@@ -706,25 +684,19 @@ class Device:
 
         Returns
         -------
-        ReplyHarpMessage
+        HarpMessage
             The reply to the Harp message that will contain the value read from the register
 
         Raises
         ------
-        HarpTimeoutError
+        HarpTimeoutException
             If no reply is received and the effective strategy requires raising
         """
-        reply = self.send(
-            HarpMessage.create(
-                message_type=MessageType.READ,
-                address=address,
-                payload_type=PayloadType.U8,
-            )
-        )
+        reply = self.send(HarpMessage(MessageType.READ, PayloadType.U8, address))
 
         return reply
 
-    def read_s8(self, address: int) -> ReplyHarpMessage | None:
+    def read_s8(self, address: int) -> HarpMessage | None:
         """
         Reads the value of a register of type S8.
 
@@ -735,25 +707,19 @@ class Device:
 
         Returns
         -------
-        ReplyHarpMessage
+        HarpMessage
             The reply to the Harp message that will contain the value read from the register
 
         Raises
         ------
-        HarpTimeoutError
+        HarpTimeoutException
             If no reply is received and the effective strategy requires raising
         """
-        reply = self.send(
-            HarpMessage.create(
-                message_type=MessageType.READ,
-                address=address,
-                payload_type=PayloadType.S8,
-            )
-        )
+        reply = self.send(HarpMessage(MessageType.READ, PayloadType.S8, address))
 
         return reply
 
-    def read_u16(self, address: int) -> ReplyHarpMessage | None:
+    def read_u16(self, address: int) -> HarpMessage | None:
         """
         Reads the value of a register of type U16.
 
@@ -764,25 +730,19 @@ class Device:
 
         Returns
         -------
-        ReplyHarpMessage
+        HarpMessage
             The reply to the Harp message that will contain the value read from the register
 
         Raises
         ------
-        HarpTimeoutError
+        HarpTimeoutException
             If no reply is received and the effective strategy requires raising
         """
-        reply = self.send(
-            HarpMessage.create(
-                message_type=MessageType.READ,
-                address=address,
-                payload_type=PayloadType.U16,
-            )
-        )
+        reply = self.send(HarpMessage(MessageType.READ, PayloadType.U16, address))
 
         return reply
 
-    def read_s16(self, address: int) -> ReplyHarpMessage | None:
+    def read_s16(self, address: int) -> HarpMessage | None:
         """
         Reads the value of a register of type S16.
 
@@ -793,25 +753,19 @@ class Device:
 
         Returns
         -------
-        ReplyHarpMessage
+        HarpMessage
             The reply to the Harp message that will contain the value read from the register
 
         Raises
         ------
-        HarpTimeoutError
+        HarpTimeoutException
             If no reply is received and the effective strategy requires raising
         """
-        reply = self.send(
-            HarpMessage.create(
-                message_type=MessageType.READ,
-                address=address,
-                payload_type=PayloadType.S16,
-            )
-        )
+        reply = self.send(HarpMessage(MessageType.READ, PayloadType.S16, address))
 
         return reply
 
-    def read_u32(self, address: int) -> ReplyHarpMessage | None:
+    def read_u32(self, address: int) -> HarpMessage | None:
         """
         Reads the value of a register of type U32.
 
@@ -822,25 +776,19 @@ class Device:
 
         Returns
         -------
-        ReplyHarpMessage
+        HarpMessage
             The reply to the Harp message that will contain the value read from the register
 
         Raises
         ------
-        HarpTimeoutError
+        HarpTimeoutException
             If no reply is received and the effective strategy requires raising
         """
-        reply = self.send(
-            HarpMessage.create(
-                message_type=MessageType.READ,
-                address=address,
-                payload_type=PayloadType.U32,
-            )
-        )
+        reply = self.send(HarpMessage(MessageType.READ, PayloadType.U32, address))
 
         return reply
 
-    def read_s32(self, address: int) -> ReplyHarpMessage | None:
+    def read_s32(self, address: int) -> HarpMessage | None:
         """
         Reads the value of a register of type S32.
 
@@ -851,25 +799,19 @@ class Device:
 
         Returns
         -------
-        ReplyHarpMessage
+        HarpMessage
             The reply to the Harp message that will contain the value read from the register
 
         Raises
         ------
-        HarpTimeoutError
+        HarpTimeoutException
             If no reply is received and the effective strategy requires raising
         """
-        reply = self.send(
-            HarpMessage.create(
-                message_type=MessageType.READ,
-                address=address,
-                payload_type=PayloadType.S32,
-            )
-        )
+        reply = self.send(HarpMessage(MessageType.READ, PayloadType.S32, address))
 
         return reply
 
-    def read_u64(self, address: int) -> ReplyHarpMessage | None:
+    def read_u64(self, address: int) -> HarpMessage | None:
         """
         Reads the value of a register of type U64.
 
@@ -880,25 +822,19 @@ class Device:
 
         Returns
         -------
-        ReplyHarpMessage
+        HarpMessage
             The reply to the Harp message that will contain the value read from the register
 
         Raises
         ------
-        HarpTimeoutError
+        HarpTimeoutException
             If no reply is received and the effective strategy requires raising
         """
-        reply = self.send(
-            HarpMessage.create(
-                message_type=MessageType.READ,
-                address=address,
-                payload_type=PayloadType.U64,
-            )
-        )
+        reply = self.send(HarpMessage(MessageType.READ, PayloadType.U64, address))
 
         return reply
 
-    def read_s64(self, address: int) -> ReplyHarpMessage | None:
+    def read_s64(self, address: int) -> HarpMessage | None:
         """
         Reads the value of a register of type S64.
 
@@ -909,25 +845,19 @@ class Device:
 
         Returns
         -------
-        ReplyHarpMessage
+        HarpMessage
             The reply to the Harp message that will contain the value read from the register
 
         Raises
         ------
-        HarpTimeoutError
+        HarpTimeoutException
             If no reply is received and the effective strategy requires raising
         """
-        reply = self.send(
-            HarpMessage.create(
-                message_type=MessageType.READ,
-                address=address,
-                payload_type=PayloadType.S64,
-            )
-        )
+        reply = self.send(HarpMessage(MessageType.READ, PayloadType.S64, address))
 
         return reply
 
-    def read_float(self, address: int) -> ReplyHarpMessage | None:
+    def read_float(self, address: int) -> HarpMessage | None:
         """
         Reads the value of a register of type Float.
 
@@ -938,25 +868,19 @@ class Device:
 
         Returns
         -------
-        ReplyHarpMessage
+        HarpMessage
             The reply to the Harp message that will contain the value read from the register
 
         Raises
         ------
-        HarpTimeoutError
+        HarpTimeoutException
             If no reply is received and the effective strategy requires raising
         """
-        reply = self.send(
-            HarpMessage.create(
-                message_type=MessageType.READ,
-                address=address,
-                payload_type=PayloadType.Float,
-            )
-        )
+        reply = self.send(HarpMessage(MessageType.READ, PayloadType.FLOAT, address))
 
         return reply
 
-    def write_u8(self, address: int, value: int | list[int]) -> ReplyHarpMessage | None:
+    def write_u8(self, address: int, value: int | list[int]) -> HarpMessage | None:
         """
         Writes the value of a register of type U8.
 
@@ -969,26 +893,21 @@ class Device:
 
         Returns
         -------
-        ReplyHarpMessage
+        HarpMessage
             The reply to the Harp message
 
         Raises
         ------
-        HarpTimeoutError
+        HarpTimeoutException
             If no reply is received and the effective strategy requires raising
         """
         reply = self.send(
-            HarpMessage.create(
-                message_type=MessageType.WRITE,
-                address=address,
-                payload_type=PayloadType.U8,
-                value=value,
-            )
+            HarpMessage(MessageType.WRITE, PayloadType.U8, address, value)
         )
 
         return reply
 
-    def write_s8(self, address: int, value: int | list[int]) -> ReplyHarpMessage | None:
+    def write_s8(self, address: int, value: int | list[int]) -> HarpMessage | None:
         """
         Writes the value of a register of type S8.
 
@@ -1001,28 +920,21 @@ class Device:
 
         Returns
         -------
-        ReplyHarpMessage
+        HarpMessage
             The reply to the Harp message
 
         Raises
         ------
-        HarpTimeoutError
+        HarpTimeoutException
             If no reply is received and the effective strategy requires raising
         """
         reply = self.send(
-            HarpMessage.create(
-                message_type=MessageType.WRITE,
-                address=address,
-                payload_type=PayloadType.S8,
-                value=value,
-            )
+            HarpMessage(MessageType.WRITE, PayloadType.S8, address, value)
         )
 
         return reply
 
-    def write_u16(
-        self, address: int, value: int | list[int]
-    ) -> ReplyHarpMessage | None:
+    def write_u16(self, address: int, value: int | list[int]) -> HarpMessage | None:
         """
         Writes the value of a register of type U16.
 
@@ -1035,28 +947,21 @@ class Device:
 
         Returns
         -------
-        ReplyHarpMessage
+        HarpMessage
             The reply to the Harp message
 
         Raises
         ------
-        HarpTimeoutError
+        HarpTimeoutException
             If no reply is received and the effective strategy requires raising
         """
         reply = self.send(
-            HarpMessage.create(
-                message_type=MessageType.WRITE,
-                address=address,
-                payload_type=PayloadType.U16,
-                value=value,
-            )
+            HarpMessage(MessageType.WRITE, PayloadType.U16, address, value)
         )
 
         return reply
 
-    def write_s16(
-        self, address: int, value: int | list[int]
-    ) -> ReplyHarpMessage | None:
+    def write_s16(self, address: int, value: int | list[int]) -> HarpMessage | None:
         """
         Writes the value of a register of type S16.
 
@@ -1069,28 +974,21 @@ class Device:
 
         Returns
         -------
-        ReplyHarpMessage
+        HarpMessage
             The reply to the Harp message
 
         Raises
         ------
-        HarpTimeoutError
+        HarpTimeoutException
             If no reply is received and the effective strategy requires raising
         """
         reply = self.send(
-            HarpMessage.create(
-                message_type=MessageType.WRITE,
-                address=address,
-                payload_type=PayloadType.S16,
-                value=value,
-            )
+            HarpMessage(MessageType.WRITE, PayloadType.S16, address, value)
         )
 
         return reply
 
-    def write_u32(
-        self, address: int, value: int | list[int]
-    ) -> ReplyHarpMessage | None:
+    def write_u32(self, address: int, value: int | list[int]) -> HarpMessage | None:
         """
         Writes the value of a register of type U32.
 
@@ -1103,28 +1001,21 @@ class Device:
 
         Returns
         -------
-        ReplyHarpMessage
+        HarpMessage
             The reply to the Harp message
 
         Raises
         ------
-        HarpTimeoutError
+        HarpTimeoutException
             If no reply is received and the effective strategy requires raising
         """
         reply = self.send(
-            HarpMessage.create(
-                message_type=MessageType.WRITE,
-                address=address,
-                payload_type=PayloadType.U32,
-                value=value,
-            )
+            HarpMessage(MessageType.WRITE, PayloadType.U32, address, value)
         )
 
         return reply
 
-    def write_s32(
-        self, address: int, value: int | list[int]
-    ) -> ReplyHarpMessage | None:
+    def write_s32(self, address: int, value: int | list[int]) -> HarpMessage | None:
         """
         Writes the value of a register of type S32.
 
@@ -1137,28 +1028,21 @@ class Device:
 
         Returns
         -------
-        ReplyHarpMessage
+        HarpMessage
             The reply to the Harp message
 
         Raises
         ------
-        HarpTimeoutError
+        HarpTimeoutException
             If no reply is received and the effective strategy requires raising
         """
         reply = self.send(
-            HarpMessage.create(
-                message_type=MessageType.WRITE,
-                address=address,
-                payload_type=PayloadType.S32,
-                value=value,
-            )
+            HarpMessage(MessageType.WRITE, PayloadType.S32, address, value)
         )
 
         return reply
 
-    def write_u64(
-        self, address: int, value: int | list[int]
-    ) -> ReplyHarpMessage | None:
+    def write_u64(self, address: int, value: int | list[int]) -> HarpMessage | None:
         """
         Writes the value of a register of type U64.
 
@@ -1171,28 +1055,21 @@ class Device:
 
         Returns
         -------
-        ReplyHarpMessage
+        HarpMessage
             The reply to the Harp message
 
         Raises
         ------
-        HarpTimeoutError
+        HarpTimeoutException
             If no reply is received and the effective strategy requires raising
         """
         reply = self.send(
-            HarpMessage.create(
-                message_type=MessageType.WRITE,
-                address=address,
-                payload_type=PayloadType.U64,
-                value=value,
-            )
+            HarpMessage(MessageType.WRITE, PayloadType.U64, address, value)
         )
 
         return reply
 
-    def write_s64(
-        self, address: int, value: int | list[int]
-    ) -> ReplyHarpMessage | None:
+    def write_s64(self, address: int, value: int | list[int]) -> HarpMessage | None:
         """
         Writes the value of a register of type S64.
 
@@ -1205,28 +1082,23 @@ class Device:
 
         Returns
         -------
-        ReplyHarpMessage
+        HarpMessage
             The reply to the Harp message
 
         Raises
         ------
-        HarpTimeoutError
+        HarpTimeoutException
             If no reply is received and the effective strategy requires raising
         """
         reply = self.send(
-            HarpMessage.create(
-                message_type=MessageType.WRITE,
-                address=address,
-                payload_type=PayloadType.S64,
-                value=value,
-            )
+            HarpMessage(MessageType.WRITE, PayloadType.S64, address, value)
         )
 
         return reply
 
     def write_float(
         self, address: int, value: float | list[float]
-    ) -> ReplyHarpMessage | None:
+    ) -> HarpMessage | None:
         """
         Writes the value of a register of type Float.
 
@@ -1239,21 +1111,16 @@ class Device:
 
         Returns
         -------
-        ReplyHarpMessage
+        HarpMessage
             The reply to the Harp message
 
         Raises
         ------
-        HarpTimeoutError
+        HarpTimeoutException
             If no reply is received and the effective strategy requires raising
         """
         reply = self.send(
-            HarpMessage.create(
-                message_type=MessageType.WRITE,
-                address=address,
-                payload_type=PayloadType.Float,
-                value=value,
-            )
+            HarpMessage(MessageType.WRITE, PayloadType.FLOAT, address, value)
         )
 
         return reply
@@ -1269,22 +1136,17 @@ class Device:
         """
         address = CommonRegisters.WHO_AM_I
 
-        reply = self.send(
-            HarpMessage.create(MessageType.READ, address, PayloadType.U16)
-        )
+        # Attempt to read the WHO_AM_I register to verify if the device is a Harp device
+        error_msg = "This is not a Harp device."
+        try:
+            reply = self.send(HarpMessage(MessageType.READ, PayloadType.U16, address))
+        except HarpTimeoutException:
+            raise HarpException(error_msg)
+
+        if reply is None:
+            raise HarpException(error_msg)
 
         return reply.payload
-
-    def _read_default_device_name(self) -> str:
-        """
-        Returns the `DEFAULT_DEVICE_NAME` by cross-referencing the `WHO_AM_I` with the corresponding device name in the `device_names` dictionary.
-
-        Returns
-        -------
-        str
-            The default device name
-        """
-        return device_names.get(self.WHO_AM_I, "Unknown device")
 
     def _read_hw_version_h(self) -> int:
         """
@@ -1297,7 +1159,7 @@ class Device:
         """
         address = CommonRegisters.HW_VERSION_H
 
-        reply = self.send(HarpMessage.create(MessageType.READ, address, PayloadType.U8))
+        reply = self.send(HarpMessage(MessageType.READ, PayloadType.U8, address))
 
         return reply.payload
 
@@ -1312,7 +1174,7 @@ class Device:
         """
         address = CommonRegisters.HW_VERSION_L
 
-        reply = self.send(HarpMessage.create(MessageType.READ, address, PayloadType.U8))
+        reply = self.send(HarpMessage(MessageType.READ, PayloadType.U8, address))
 
         return reply.payload
 
@@ -1327,37 +1189,37 @@ class Device:
         """
         address = CommonRegisters.ASSEMBLY_VERSION
 
-        reply = self.send(HarpMessage.create(MessageType.READ, address, PayloadType.U8))
+        reply = self.send(HarpMessage(MessageType.READ, PayloadType.U8, address))
 
         return reply.payload
 
-    def _read_harp_version_h(self) -> int:
+    def _read_core_version_h(self) -> int:
         """
-        Reads the value stored in the `HARP_VERSION_H` register.
+        Reads the value stored in the `CORE_VERSION_H` register.
 
         Returns
         -------
         int
-            The value of the `HARP_VERSION_H` register
+            The value of the `CORE_VERSION_H` register
         """
-        address = CommonRegisters.HARP_VERSION_H
+        address = CommonRegisters.CORE_VERSION_H
 
-        reply = self.send(HarpMessage.create(MessageType.READ, address, PayloadType.U8))
+        reply = self.send(HarpMessage(MessageType.READ, PayloadType.U8, address))
 
         return reply.payload
 
-    def _read_harp_version_l(self) -> int:
+    def _read_core_version_l(self) -> int:
         """
-        Reads the value stored in the `HARP_VERSION_L` register.
+        Reads the value stored in the `CORE_VERSION_L` register.
 
         Returns
         -------
         int
-            The value of the `HARP_VERSION_L` register
+            The value of the `CORE_VERSION_L` register
         """
-        address = CommonRegisters.HARP_VERSION_L
+        address = CommonRegisters.CORE_VERSION_L
 
-        reply = self.send(HarpMessage.create(MessageType.READ, address, PayloadType.U8))
+        reply = self.send(HarpMessage(MessageType.READ, PayloadType.U8, address))
 
         return reply.payload
 
@@ -1372,7 +1234,7 @@ class Device:
         """
         address = CommonRegisters.FIRMWARE_VERSION_H
 
-        reply = self.send(HarpMessage.create(MessageType.READ, address, PayloadType.U8))
+        reply = self.send(HarpMessage(MessageType.READ, PayloadType.U8, address))
 
         return reply.payload
 
@@ -1387,7 +1249,7 @@ class Device:
         """
         address = CommonRegisters.FIRMWARE_VERSION_L
 
-        reply = self.send(HarpMessage.create(MessageType.READ, address, PayloadType.U8))
+        reply = self.send(HarpMessage(MessageType.READ, PayloadType.U8, address))
 
         return reply.payload
 
@@ -1402,7 +1264,7 @@ class Device:
         """
         address = CommonRegisters.DEVICE_NAME
 
-        reply = self.send(HarpMessage.create(MessageType.READ, address, PayloadType.U8))
+        reply = self.send(HarpMessage(MessageType.READ, PayloadType.U8, address))
 
         return reply.payload_as_string()
 
@@ -1417,9 +1279,9 @@ class Device:
         """
         address = CommonRegisters.SERIAL_NUMBER
 
-        reply = self.send(HarpMessage.create(MessageType.READ, address, PayloadType.U8))
+        reply = self.send(HarpMessage(MessageType.READ, PayloadType.U8, address))
 
-        if reply.is_error:
+        if reply is not None and reply.is_error:
             return 0
 
         return reply.payload
@@ -1435,7 +1297,7 @@ class Device:
         """
         address = CommonRegisters.CLOCK_CONFIG
 
-        reply = self.send(HarpMessage.create(MessageType.READ, address, PayloadType.U8))
+        reply = self.send(HarpMessage(MessageType.READ, PayloadType.U8, address))
 
         return reply.payload
 
@@ -1450,7 +1312,7 @@ class Device:
         """
         address = CommonRegisters.TIMESTAMP_OFFSET
 
-        reply = self.send(HarpMessage.create(MessageType.READ, address, PayloadType.U8))
+        reply = self.send(HarpMessage(MessageType.READ, PayloadType.U8, address))
 
         return reply.payload
 

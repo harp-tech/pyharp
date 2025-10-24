@@ -30,10 +30,10 @@ device.info()
 register_address = 32
 
 # Read from register
-reply = device.send(HarpMessage.create(MessageType.READ, register_address, PayloadType.U8))
+reply = device.send(HarpMessage(MessageType.READ, PayloadType.U8, register_address))
 
 # Write to register
-device.send(HarpMessage.create(MessageType.WRITE, register_address, PayloadType.U8, reply.payload))
+device.send(HarpMessage(MessageType.WRITE, PayloadType.U8, register_address, reply.payload))
 
 # Disconnect when done
 device.disconnect()
@@ -54,10 +54,10 @@ with Device("/dev/ttyUSB0") as device:
     register_address = 32
 
     # Read from register
-    reply = device.send(HarpMessage.create(MessageType.READ, register_address, PayloadType.U8))
+    reply = device.send(HarpMessage(MessageType.READ, PayloadType.U8, register_address))
 
     # Write to register
-    device.send(HarpMessage.create(MessageType.WRITE, register_address, PayloadType.U8, reply.payload))
+    device.send(HarpMessage(MessageType.WRITE, PayloadType.U8, register_address, reply.payload))
 ```
 
 ## for Linux
