@@ -1,6 +1,6 @@
 site_name: pyharp
-repo_url: "https://github.com/fchampalimaud/pyharp"
-# repo_name: "pyharp"
+repo_url: https://github.com/fchampalimaud/pyharp
+repo_name: "fchampalimaud/pyharp"
 copyright: Copyright &copy; 2025, Hardware and Software Platform, Champalimaud Foundation
 
 plugins:
@@ -50,9 +50,8 @@ theme:
     - content.tooltips
     - toc.follow
     - content.code.copy
-    # - navigation.sections
+    - navigation.sections
     - navigation.indexes
-    - navigation.expand
     - navigation.footer
   palette:
     - media: "(prefers-color-scheme)"
@@ -76,16 +75,15 @@ theme:
 
 nav:
   - Home: index.md
-  - API:
-    - Protocol: api/protocol.md
-    - Serial: api/serial.md
   - Examples:
     - examples/index.md
     - Getting Device Info: examples/get_info/get_info.md
-    - Wait for Events: examples/wait_for_events/wait_for_events.md
     - Read and Write from Registers: examples/read_and_write_from_registers/read_and_write_from_registers.md
-    - Olfactometer Example: examples/olfactometer_example/olfactometer_example.md
-  - Devices: '*include ./harp.devices/*/mkdocs.yml'
+    - Devices: '*include ./harp.devices/*/docs/examples.mkdocs.yml'
+  - API:
+    - Devices: '*include ./harp.devices/*/mkdocs.yml'
+    - Protocol: api/protocol.md
+    - Serial: api/serial.md
 
 extra:
   social:
