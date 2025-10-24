@@ -222,10 +222,11 @@ class Device:
         replies = []
         while True:
             msg = self._read()
-            if msg is not None:
-                replies.append(msg)
-            else:
+            if msg is None:
                 break
+            else:
+                replies.append(msg)
+                self._dump_reply(msg.frame)
         return replies
 
     def read_operation_ctrl(self):
@@ -602,9 +603,8 @@ class Device:
 
         strategy = timeout_strategy or self._timeout_strategy
 
-        try:
-            reply = self._read()
-        except TimeoutError:
+        reply = self._read()
+        if reply is None:
             hte = HarpTimeoutException(self._timeout, message)
             if strategy in (
                 TimeoutStrategy.LOG_AND_RAISE,
@@ -613,18 +613,17 @@ class Device:
                 self.log.warning(str(hte))
             if strategy in (TimeoutStrategy.RAISE, TimeoutStrategy.LOG_AND_RAISE):
                 raise hte
-            return None
-
-        self._dump_reply(reply.frame)
+        else:
+            self._dump_reply(reply.frame)
         return reply
 
-    def _read(self) -> HarpMessage:
+    def _read(self) -> HarpMessage | None:
         """
         Reads an incoming serial message in a blocking way.
 
         Returns
         -------
-        HarpMessage
+        HarpMessage | None
             The incoming Harp message in case it exists
 
         Raises
@@ -635,7 +634,7 @@ class Device:
         try:
             return self._ser.msg_q.get(block=True, timeout=self._timeout)
         except queue.Empty:
-            raise TimeoutError("No reply received within the timeout period.")
+            return None
 
     def _dump_reply(self, reply: bytearray):
         """
