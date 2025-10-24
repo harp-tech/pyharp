@@ -1,6 +1,6 @@
 [project]
 name = "harp-protocol"
-version = "0.3.0"
+version = "0.4.0"
 description = "Library with the base types for Harp protocol usage."
 authors = [{ name= "Hardware and Software Platform, Champalimaud Foundation", email="software@research.fchampalimaud.org"}]
 license = "MIT"
