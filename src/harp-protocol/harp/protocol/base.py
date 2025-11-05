@@ -30,7 +30,14 @@ class MessageType(IntEnum):
     READ_ERROR = READ | ERROR
     WRITE_ERROR = WRITE | ERROR
 
-    def is_error(self):
+    def is_error(self) -> bool:
+        """
+        Check if the message type is an error message.
+        Returns
+        -------
+        bool
+            Returns True if the message type is an error message, False otherwise.
+        """
         return bool(self & MessageType.ERROR)
 
 
@@ -123,6 +130,10 @@ class PayloadType(IntEnum):
 
     def has_timestamp(self):
         """
+        Check if this PayloadType has a timestamp.
+
+        Returns
+        -------
         bool
             Returns True if this PayloadType has a timestamp, False otherwise.
         """
@@ -130,19 +141,35 @@ class PayloadType(IntEnum):
 
     def is_float(self):
         """
+        Check if this `PayloadType` is a float.
+
+        Returns
+        -------
         bool
-            Returns True if this PayloadType is a float, False otherwise.
+            Returns True if this `PayloadType` is a float, False otherwise.
         """
         return bool(self & _PayloadTypeFlags.IS_FLOAT)
 
     def is_signed(self):
         """
+        Check if this PayloadType is signed.
+
+        Returns
+        -------
         bool
             Returns True if this PayloadType is signed, False otherwise.
         """
         return bool(self & _PayloadTypeFlags.IS_SIGNED)
 
     def type_size(self):
+        """
+        Get the size of this PayloadType in bytes.
+
+        Returns
+        -------
+        int
+            The size of this PayloadType in bytes.
+        """
         return self & _PayloadTypeFlags.TYPE_SIZE
 
 
