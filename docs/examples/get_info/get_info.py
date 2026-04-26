@@ -1,8 +1,6 @@
 from pyharp.protocol.device import Device
 
-SERIAL_PORT = (
-    "/dev/ttyUSB0"  # or "COMx" in Windows ("x" is the number of the serial port)
-)
+SERIAL_PORT = "/dev/ttyUSB0"  # or "COMx" in Windows ("x" is the number of the serial port)
 
 # Open serial connection and save communication to a file
 device = Device(SERIAL_PORT, "dump.bin")
