@@ -6,6 +6,11 @@ authors = [{ name= "Hardware and Software Platform, Champalimaud Foundation", em
 license = "MIT"
 keywords = ['python', 'harp']
 requires-python = ">=3.10,<4.0"
+dependencies = [
+    "numpy>=1.24",
+    "pandas>=2.0",
+    "typing-extensions>=4.0",
+]
 
 [build-system]
 requires = ["uv_build>=0.9.5,<0.10.0"]
