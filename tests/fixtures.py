@@ -1,5 +1,3 @@
-
-
 TIMESTAMP_1S: bytes = b"\x01\x00\x00\x00\x00\x00"
 
 
@@ -12,7 +10,6 @@ def make_frame_from_raw(
     *,
     timestamp: bytes | None = None,
 ) -> bytes:
-    """Build a raw Harp frame from individual byte-level fields (for tests)."""
     ts = timestamp if timestamp is not None else b""
     pt_byte = payload_type | (0x10 if ts else 0)
     body = bytes([address, port, pt_byte]) + ts + payload
