@@ -68,12 +68,10 @@ class PayloadBase(Generic[NpStructT]):
     @property
     def value(self) -> NpStructT:
         """Returns a single scalar if the array has one element, otherwise the full array."""
-        if len(self._arr) == 1:
-            return self._arr[0]  # type: ignore[return-value]
         return self._arr  # type: ignore[return-value]  # ty: ignore[invalid-return-type]
 
     @property
-    def payload(self) -> NDArray[np.void]:
+    def raw_payload(self) -> NDArray[np.void]:
         """Raw structured numpy array."""
         return self._arr
 

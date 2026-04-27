@@ -120,7 +120,7 @@ class RegisterBase(ABC, Generic[P]):
             mt = MessageType.Write if message_type is None else message_type
             if isinstance(value, PayloadBase):
                 # Payload instance — use its backing array bytes directly
-                raw = value.payload.tobytes()
+                raw = value.raw_payload.tobytes()
             elif isinstance(value, np.ndarray) and value.dtype != cls.payload_type.numpy_dtype:
                 # Structured numpy array passed by hand
                 raw = value.tobytes()

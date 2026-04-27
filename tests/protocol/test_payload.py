@@ -12,11 +12,11 @@ class SimplePayload(PayloadBase):
 
     @property
     def x(self) -> NDArray[np.int16]:
-        return self.payload["x"]
+        return self.raw_payload["x"]
 
     @property
     def y(self) -> NDArray[np.uint8]:
-        return self.payload["y"]
+        return self.raw_payload["y"]
 
 
 class BitPackedPayload(PayloadBase):
@@ -25,8 +25,8 @@ class BitPackedPayload(PayloadBase):
     def to_dataframe(self) -> pd.DataFrame:
         return pd.DataFrame(
             {
-                "flag_a": (self.payload["packed"] & 0x01).astype(bool),
-                "flag_b": ((self.payload["packed"] >> 1) & 0x01).astype(bool),
+                "flag_a": (self.raw_payload["packed"] & 0x01).astype(bool),
+                "flag_b": ((self.raw_payload["packed"] >> 1) & 0x01).astype(bool),
             }
         )
 
@@ -72,9 +72,9 @@ def test_from_buffer_zero_copy():
     p = SimplePayload.from_buffer(data)
     # np.frombuffer returns a read-only view — writes should raise
     with pytest.raises((ValueError, TypeError)):
-        p.payload["x"][0] = 999
+        p.raw_payload["x"][0] = 999
 
 
 def test_payload_property():
     p = SimplePayload.from_buffer(_make_simple_bytes(2))
-    assert p.payload.dtype == SimplePayload._dtype
+    assert p.raw_payload.dtype == SimplePayload._dtype

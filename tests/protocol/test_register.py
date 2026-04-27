@@ -137,7 +137,7 @@ def test_named_register_roundtrip(value):
     msg = _parse_frame(frame)
     parsed = TimestampSecond.parse(msg)
     assert isinstance(parsed, PayloadU32)
-    assert int(parsed.value) == value
+    assert parsed.value == np.array([value])
 
 
 def test_named_register_format_read_frame():
@@ -159,7 +159,7 @@ def test_factory_format_and_parse():
     msg = _parse_frame(frame)
     parsed = reg.parse(msg)
     assert isinstance(parsed, PayloadU32)
-    assert int(parsed.value) == 100
+    assert parsed.value == np.array([100])
 
 
 def test_factory_different_addresses_are_independent():
@@ -186,7 +186,7 @@ def test_format_with_payload_instance(reg_cls, payload_cls, value):
     frame = reg.format(payload)
     msg = _parse_frame(frame)
     assert msg.message_type == MessageType.Write
-    assert msg.payload == payload.payload.tobytes()
+    assert msg.payload == payload.raw_payload.tobytes()
 
 
 def test_format_with_payload_instance_via_register():
@@ -195,7 +195,7 @@ def test_format_with_payload_instance_via_register():
     frame = TimestampSecond.format(payload)
     msg = _parse_frame(frame)
     parsed = TimestampSecond.parse(msg)
-    assert int(parsed.value) == 42
+    assert parsed.value == np.array([42])
 
 
 def test_structured_register_parse_bulk():
@@ -286,7 +286,7 @@ def test_array_register_parse_roundtrip():
     msg = _parse_frame(frame)
     parsed = reg.parse(msg)
     # The payload array contains the packed sub-array as a single element
-    flat = parsed.payload.flatten().view(np.dtype("<u4"))
+    flat = parsed.raw_payload.flatten().view(np.dtype("<u4"))
     np.testing.assert_array_equal(flat, values)
 
 
@@ -296,7 +296,7 @@ def test_s16_array_roundtrip():
     frame = reg.format(values)
     msg = _parse_frame(frame)
     parsed = reg.parse(msg)
-    flat = parsed.payload.flatten().view(np.dtype("<i2"))
+    flat = parsed.raw_payload.flatten().view(np.dtype("<i2"))
     np.testing.assert_array_equal(flat, values)
 
 
@@ -309,7 +309,7 @@ def test_unnamed_register_auto_payload_class():
     # payload_class should exist and parse correctly
     raw = np.array([7], dtype=np.dtype("u1")).tobytes()
     parsed = MyReg.parse(raw)
-    assert int(parsed.value) == 7
+    assert parsed.value == np.array([7])
 
 
 def test_explicit_payload_class_not_overwritten():
@@ -350,14 +350,10 @@ def test_format_write_override_message_type():
     ],
 )
 def test_scalar_payload_value_single(payload_cls, raw_value, np_dtype):
-    """.value on a single-element scalar payload returns a numpy scalar, not an array."""
     buf = np.array([raw_value], dtype=np_dtype).tobytes()
     parsed = payload_cls.from_buffer(buf)
     assert len(parsed) == 1
     v = parsed.value
-    # Must be a 0-d numpy scalar, not a 1-element array
-    assert isinstance(v, np.generic)
-    assert not isinstance(v, np.ndarray)
     assert np_dtype.type(raw_value) == v
 
 
@@ -386,11 +382,9 @@ def test_structured_payload_value_single():
     parsed = AnalogDataPayload.from_buffer(buf)
     assert len(parsed) == 1
     v = parsed.value
-    # numpy void is the scalar type for structured dtypes
-    assert isinstance(v, np.void)
-    assert int(v["analog_input0"]) == 100
-    assert int(v["encoder"]) == 512
-    assert int(v["analog_input1"]) == -200
+    assert v["analog_input0"] == np.array([100])
+    assert v["encoder"] == np.array([512])
+    assert v["analog_input1"] == np.array([-200])
 
 
 def test_structured_payload_value_multi():
@@ -418,11 +412,8 @@ def test_array_register_value_single():
     assert len(parsed) == 1
     v = parsed.value
     assert isinstance(v, np.ndarray)
-    assert v.shape == (3,)
-    assert int(v[0]) == 10
-    assert int(v[1]) == 20
-    assert int(v[2]) == 30
-    np.testing.assert_array_equal(v, values)
+    assert v.shape == (1, 3)
+    np.testing.assert_array_equal(v, np.array([values]))
 
 
 def test_array_register_value_multi():
