@@ -22,9 +22,15 @@ class PayloadBase(Generic[ScalarT]):
                 ("analog_input0", "<i2"),
                 ("encoder", "<i2"),
             ])
+
+    To customise the string representation, set ``_repr_fields`` to a tuple of
+    property (or attribute) names that should appear in ``repr``/``str``.  When
+    not set the base class falls back to the dtype field names for structured
+    dtypes, or ``"value"`` for scalar dtypes.
     """
 
     _dtype: ClassVar[np.dtype]
+    _repr_fields: ClassVar[tuple[str, ...] | None] = None
     _arr: NDArray[np.void]
 
     def __init__(self, *args: object, **kwargs: object) -> None:
@@ -91,6 +97,23 @@ class PayloadBase(Generic[ScalarT]):
 
     def __len__(self) -> int:
         return len(self._arr)
+
+    def _repr_kwargs(self) -> str:
+        """Return the ``key=value`` portion used by ``__repr__`` and ``__str__``."""
+        fields: tuple[str, ...]
+        if self._repr_fields is not None:
+            fields = self._repr_fields
+        elif self._dtype.names is not None:
+            fields = self._dtype.names
+        else:
+            return f"value={self.value!r}"
+        return ", ".join(f"{f}={getattr(self, f)!r}" for f in fields)
+
+    def __repr__(self) -> str:
+        return f"{type(self).__name__}({self._repr_kwargs()})"
+
+    def __str__(self) -> str:
+        return repr(self)
 
 
 # ------------------------------------------------------------------

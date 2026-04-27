@@ -18,6 +18,14 @@ class OperationMode(enum.IntEnum):
 
 class OperationControlPayload(PayloadBase[np.void]):
     _dtype: ClassVar = np.dtype([("operation_control", "u1")])
+    _repr_fields: ClassVar = (
+        "operation_mode",
+        "dump_registers",
+        "mute_replies",
+        "visual_indicators",
+        "operation_led",
+        "heartbeat",
+    )
 
     def __init__(
         self,
@@ -141,4 +149,9 @@ class SerialNumber(RegisterU16):
 
 
 class TimestampOffset(RegisterU8):
+    address: ClassVar[int] = 15
+    address: ClassVar[int] = 15
+    address: ClassVar[int] = 15
+    address: ClassVar[int] = 15
+    address: ClassVar[int] = 15
     address: ClassVar[int] = 15
