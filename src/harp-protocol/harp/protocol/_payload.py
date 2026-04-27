@@ -1,18 +1,15 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, ClassVar, Generic, Self, TypeVar, final
+from typing import ClassVar, Generic, Self, TypeVar, final
 
 import numpy as np
 import pandas as pd
 from numpy.typing import NDArray
 
-if TYPE_CHECKING:
-    from ._payload_type import PayloadType
-
-ScalarT = TypeVar("ScalarT", bound=np.generic | np.ndarray)
+NpStructT = TypeVar("NpStructT", bound=np.generic | np.ndarray)
 
 
-class PayloadBase(Generic[ScalarT]):
+class PayloadBase(Generic[NpStructT]):
     """Base class for typed Harp register payloads.
 
     Subclasses define ``_dtype: ClassVar[np.dtype]`` for the register layout::
@@ -43,13 +40,17 @@ class PayloadBase(Generic[ScalarT]):
                 )
             unknown = set(kwargs) - set(self._dtype.names)
             if unknown:
-                raise TypeError(f"{type(self).__name__}() got unexpected kwargs: {sorted(unknown)}")
+                raise TypeError(
+                    f"{type(self).__name__}() got unexpected kwargs: {sorted(unknown)}"
+                )
             values = tuple(kwargs[n] for n in self._dtype.names)
             self._arr = np.array([values], dtype=self._dtype)
         else:
             # Scalar dtype — single positional value
             if len(args) != 1 or kwargs:
-                raise TypeError(f"{type(self).__name__}() takes exactly one positional argument")
+                raise TypeError(
+                    f"{type(self).__name__}() takes exactly one positional argument"
+                )
             self._arr = np.array([args[0]], dtype=self._dtype)
 
     def __init_subclass__(cls, **kwargs: object) -> None:
@@ -61,15 +62,6 @@ class PayloadBase(Generic[ScalarT]):
                 cls._dtype = np.dtype(raw)
 
     @classmethod
-    def scalar(cls, payload_type: "PayloadType") -> type[PayloadBase]:
-        """Return a dynamically-generated ``PayloadBase`` subclass for a scalar type."""
-        ## TODO we should prob consider removing this and just require explicit payload classes for all registers, even scalars. It's only a few lines of boilerplate to define a new one, and it would simplify the codebase by eliminating this dynamic class generation logic.
-
-        dtype = payload_type.numpy_dtype
-        name = f"_Scalar{payload_type.name}Payload"
-        return type(name, (PayloadBase,), {"_dtype": dtype})
-
-    @classmethod
     def from_buffer(cls, buf: bytes | bytearray | memoryview) -> Self:
         """Construct from a raw byte buffer interpreted as an array of ``_dtype`` records."""
         arr = np.frombuffer(buf, dtype=cls._dtype)
@@ -78,7 +70,7 @@ class PayloadBase(Generic[ScalarT]):
         return obj
 
     @property
-    def value(self) -> ScalarT:
+    def value(self) -> NpStructT:
         """Returns a single scalar if the array has one element, otherwise the full array."""
         if len(self._arr) == 1:
             return self._arr[0]  # type: ignore[return-value]

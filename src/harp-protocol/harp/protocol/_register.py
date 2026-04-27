@@ -71,12 +71,6 @@ class RegisterBase(ABC, Generic[P]):
     payload_class: ClassVar[type[Any]]
     length: ClassVar[int | None] = None
 
-    def __init_subclass__(cls, **kwargs: object) -> None:
-        super().__init_subclass__(**kwargs)
-        # Auto-generate scalar payload class if not explicitly defined
-        if "payload_class" not in cls.__dict__ and "payload_type" in cls.__dict__:
-            cls.payload_class = PayloadBase.scalar(cls.payload_type)
-
     @classmethod
     def parse(cls, value: HarpMessage | bytes | bytearray | memoryview) -> P:  # type: ignore[type-var]
         """Parse the payload from a ``HarpMessage`` or raw bytes."""
@@ -127,13 +121,18 @@ class RegisterBase(ABC, Generic[P]):
             if isinstance(value, PayloadBase):
                 # Payload instance — use its backing array bytes directly
                 raw = value._arr.tobytes()
-            elif isinstance(value, np.ndarray) and value.dtype != cls.payload_type.numpy_dtype:
+            elif (
+                isinstance(value, np.ndarray)
+                and value.dtype != cls.payload_type.numpy_dtype
+            ):
                 # Structured numpy array passed by hand
                 raw = value.tobytes()
             else:
                 # Scalar or array castable to the register's primitive dtype
                 raw = np.asarray(value, dtype=cls.payload_type.numpy_dtype).tobytes()
-            return build_message_frame(mt, cls.address, cls.payload_type, raw, port=port)
+            return build_message_frame(
+                mt, cls.address, cls.payload_type, raw, port=port
+            )
 
 
 # ------------------------------------------------------------------
