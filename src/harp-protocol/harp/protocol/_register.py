@@ -143,47 +143,47 @@ class RegisterBase(ABC, Generic[P]):
 # ------------------------------------------------------------------
 
 
-class RegisterU8(RegisterBase[PayloadU8], metaclass=_RegisterMeta):  # type: ignore[misc]
+class RegisterU8(RegisterBase[PayloadU8], metaclass=_RegisterMeta):
     payload_type: ClassVar[PayloadType] = PayloadType.U8
     payload_class: ClassVar[type[PayloadU8]] = PayloadU8
 
 
-class RegisterU16(RegisterBase[PayloadU16], metaclass=_RegisterMeta):  # type: ignore[misc]
+class RegisterU16(RegisterBase[PayloadU16], metaclass=_RegisterMeta):
     payload_type: ClassVar[PayloadType] = PayloadType.U16
     payload_class: ClassVar[type[PayloadU16]] = PayloadU16
 
 
-class RegisterU32(RegisterBase[PayloadU32], metaclass=_RegisterMeta):  # type: ignore[misc]
+class RegisterU32(RegisterBase[PayloadU32], metaclass=_RegisterMeta):
     payload_type: ClassVar[PayloadType] = PayloadType.U32
     payload_class: ClassVar[type[PayloadU32]] = PayloadU32
 
 
-class RegisterU64(RegisterBase[PayloadU64], metaclass=_RegisterMeta):  # type: ignore[misc]
+class RegisterU64(RegisterBase[PayloadU64], metaclass=_RegisterMeta):
     payload_type: ClassVar[PayloadType] = PayloadType.U64
     payload_class: ClassVar[type[PayloadU64]] = PayloadU64
 
 
-class RegisterS8(RegisterBase[PayloadS8], metaclass=_RegisterMeta):  # type: ignore[misc]
+class RegisterS8(RegisterBase[PayloadS8], metaclass=_RegisterMeta):
     payload_type: ClassVar[PayloadType] = PayloadType.S8
     payload_class: ClassVar[type[PayloadS8]] = PayloadS8
 
 
-class RegisterS16(RegisterBase[PayloadS16], metaclass=_RegisterMeta):  # type: ignore[misc]
+class RegisterS16(RegisterBase[PayloadS16], metaclass=_RegisterMeta):
     payload_type: ClassVar[PayloadType] = PayloadType.S16
     payload_class: ClassVar[type[PayloadS16]] = PayloadS16
 
 
-class RegisterS32(RegisterBase[PayloadS32], metaclass=_RegisterMeta):  # type: ignore[misc]
+class RegisterS32(RegisterBase[PayloadS32], metaclass=_RegisterMeta):
     payload_type: ClassVar[PayloadType] = PayloadType.S32
     payload_class: ClassVar[type[PayloadS32]] = PayloadS32
 
 
-class RegisterS64(RegisterBase[PayloadS64], metaclass=_RegisterMeta):  # type: ignore[misc]
+class RegisterS64(RegisterBase[PayloadS64], metaclass=_RegisterMeta):
     payload_type: ClassVar[PayloadType] = PayloadType.S64
     payload_class: ClassVar[type[PayloadS64]] = PayloadS64
 
 
-class RegisterFloat(RegisterBase[PayloadFloat], metaclass=_RegisterMeta):  # type: ignore[misc]
+class RegisterFloat(RegisterBase[PayloadFloat], metaclass=_RegisterMeta):
     payload_type: ClassVar[PayloadType] = PayloadType.Float
     payload_class: ClassVar[type[PayloadFloat]] = PayloadFloat
 
@@ -206,7 +206,7 @@ class RegisterFloat(RegisterBase[PayloadFloat], metaclass=_RegisterMeta):  # typ
 class _ArrayRegisterMeta(ABCMeta):
     """Calling with address and length creates a concrete subclass: ``RegisterU16Array(0x28, length=3)``."""
 
-    def __call__(cls: "type[_AR]", address: int, *, length: int) -> "type[_AR]":  # type: ignore[override]
+    def __call__(cls: "type[_AR]", address: int, *, length: int) -> "type[_AR]":  # type: ignore[override, misc]
         base_payload = cls.payload_class  # type: ignore[attr-defined]
         concrete_payload = type(
             f"{base_payload.__name__}_{length}",
@@ -227,46 +227,46 @@ class _ArrayRegisterMeta(ABCMeta):
         )
 
 
-class RegisterU8Array(RegisterBase[PayloadU8Array], metaclass=_ArrayRegisterMeta):  # type: ignore[misc]
+class RegisterU8Array(RegisterBase[PayloadU8Array], metaclass=_ArrayRegisterMeta):
     payload_type: ClassVar[PayloadType] = PayloadType.U8
     payload_class: ClassVar[type[Any]] = PayloadU8Array
 
 
-class RegisterU16Array(RegisterBase[PayloadU16Array], metaclass=_ArrayRegisterMeta):  # type: ignore[misc]
+class RegisterU16Array(RegisterBase[PayloadU16Array], metaclass=_ArrayRegisterMeta):
     payload_type: ClassVar[PayloadType] = PayloadType.U16
     payload_class: ClassVar[type[Any]] = PayloadU16Array
 
 
-class RegisterU32Array(RegisterBase[PayloadU32Array], metaclass=_ArrayRegisterMeta):  # type: ignore[misc]
+class RegisterU32Array(RegisterBase[PayloadU32Array], metaclass=_ArrayRegisterMeta):
     payload_type: ClassVar[PayloadType] = PayloadType.U32
     payload_class: ClassVar[type[Any]] = PayloadU32Array
 
 
-class RegisterU64Array(RegisterBase[PayloadU64Array], metaclass=_ArrayRegisterMeta):  # type: ignore[misc]
+class RegisterU64Array(RegisterBase[PayloadU64Array], metaclass=_ArrayRegisterMeta):
     payload_type: ClassVar[PayloadType] = PayloadType.U64
     payload_class: ClassVar[type[Any]] = PayloadU64Array
 
 
-class RegisterS8Array(RegisterBase[PayloadS8Array], metaclass=_ArrayRegisterMeta):  # type: ignore[misc]
+class RegisterS8Array(RegisterBase[PayloadS8Array], metaclass=_ArrayRegisterMeta):
     payload_type: ClassVar[PayloadType] = PayloadType.S8
     payload_class: ClassVar[type[Any]] = PayloadS8Array
 
 
-class RegisterS16Array(RegisterBase[PayloadS16Array], metaclass=_ArrayRegisterMeta):  # type: ignore[misc]
+class RegisterS16Array(RegisterBase[PayloadS16Array], metaclass=_ArrayRegisterMeta):
     payload_type: ClassVar[PayloadType] = PayloadType.S16
     payload_class: ClassVar[type[Any]] = PayloadS16Array
 
 
-class RegisterS32Array(RegisterBase[PayloadS32Array], metaclass=_ArrayRegisterMeta):  # type: ignore[misc]
+class RegisterS32Array(RegisterBase[PayloadS32Array], metaclass=_ArrayRegisterMeta):
     payload_type: ClassVar[PayloadType] = PayloadType.S32
     payload_class: ClassVar[type[Any]] = PayloadS32Array
 
 
-class RegisterS64Array(RegisterBase[PayloadS64Array], metaclass=_ArrayRegisterMeta):  # type: ignore[misc]
+class RegisterS64Array(RegisterBase[PayloadS64Array], metaclass=_ArrayRegisterMeta):
     payload_type: ClassVar[PayloadType] = PayloadType.S64
     payload_class: ClassVar[type[Any]] = PayloadS64Array
 
 
-class RegisterFloatArray(RegisterBase[PayloadFloatArray], metaclass=_ArrayRegisterMeta):  # type: ignore[misc]
+class RegisterFloatArray(RegisterBase[PayloadFloatArray], metaclass=_ArrayRegisterMeta):
     payload_type: ClassVar[PayloadType] = PayloadType.Float
     payload_class: ClassVar[type[Any]] = PayloadFloatArray
