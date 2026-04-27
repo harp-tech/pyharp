@@ -46,7 +46,7 @@ _MISSING = Sentinel("_MISSING")
 
 P = TypeVar("P", bound=PayloadBase[Any])
 _R = TypeVar("_R")
-_AR = TypeVar("_AR", bound="RegisterBase[Any]")  # type: ignore[type-arg]
+_AR = TypeVar("_AR", bound="RegisterBase[Any]")
 
 
 class _RegisterMeta(ABCMeta):
@@ -72,13 +72,13 @@ class RegisterBase(ABC, Generic[P]):
     length: ClassVar[int | None] = None
 
     @classmethod
-    def parse(cls, value: HarpMessage | bytes | bytearray | memoryview) -> P:  # type: ignore[type-var]
+    def parse(cls, value: HarpMessage | bytes | bytearray | memoryview) -> P:
         """Parse the payload from a ``HarpMessage`` or raw bytes."""
         buf = value.payload if isinstance(value, HarpMessage) else value
         return cast(P, cls.payload_class.from_buffer(buf))
 
     @classmethod
-    def parse_bulk(cls, data: bytes | bytearray | memoryview | list[HarpMessage]) -> P:  # type: ignore[type-var]
+    def parse_bulk(cls, data: bytes | bytearray | memoryview | list[HarpMessage]) -> P:
         """Parse a batch of payloads from concatenated bytes or a list of messages."""
         if isinstance(data, list):
             data = b"".join(msg.payload for msg in data)
@@ -120,7 +120,7 @@ class RegisterBase(ABC, Generic[P]):
             mt = MessageType.Write if message_type is None else message_type
             if isinstance(value, PayloadBase):
                 # Payload instance — use its backing array bytes directly
-                raw = value._arr.tobytes()
+                raw = value.payload.tobytes()
             elif isinstance(value, np.ndarray) and value.dtype != cls.payload_type.numpy_dtype:
                 # Structured numpy array passed by hand
                 raw = value.tobytes()
