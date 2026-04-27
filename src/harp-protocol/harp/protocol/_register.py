@@ -52,7 +52,7 @@ _AR = TypeVar("_AR", bound="RegisterBase[Any]")  # type: ignore[type-arg]
 class _RegisterMeta(ABCMeta):
     """Calling a register class with an address creates a one-off subclass: ``RegisterU32(0x08)``."""
 
-    def __call__(cls: "type[_R]", address: int) -> "type[_R]":  # type: ignore[override]
+    def __call__(cls: "type[_R]", address: int) -> "type[_R]":
         return cast(
             "type[_R]",
             type(f"{cls.__name__}_{address:#04x}", (cls,), {"address": address}),
@@ -68,21 +68,21 @@ class RegisterBase(ABC, Generic[P]):
 
     address: ClassVar[int]
     payload_type: ClassVar[PayloadType]
-    payload_class: ClassVar[type[Any]]
+    payload_class: ClassVar[type[Any]]  # Gotta keep Any so children can override without warning.
     length: ClassVar[int | None] = None
 
     @classmethod
     def parse(cls, value: HarpMessage | bytes | bytearray | memoryview) -> P:  # type: ignore[type-var]
         """Parse the payload from a ``HarpMessage`` or raw bytes."""
         buf = value.payload if isinstance(value, HarpMessage) else value
-        return cls.payload_class.from_buffer(buf)
+        return cast(P, cls.payload_class.from_buffer(buf))
 
     @classmethod
     def parse_bulk(cls, data: bytes | bytearray | memoryview | list[HarpMessage]) -> P:  # type: ignore[type-var]
         """Parse a batch of payloads from concatenated bytes or a list of messages."""
         if isinstance(data, list):
             data = b"".join(msg.payload for msg in data)
-        return cls.payload_class.from_buffer(data)
+        return cast(P, cls.payload_class.from_buffer(data))
 
     @overload
     @classmethod
