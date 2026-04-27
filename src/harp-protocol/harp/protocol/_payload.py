@@ -40,17 +40,13 @@ class PayloadBase(Generic[NpStructT]):
                 )
             unknown = set(kwargs) - set(self._dtype.names)
             if unknown:
-                raise TypeError(
-                    f"{type(self).__name__}() got unexpected kwargs: {sorted(unknown)}"
-                )
+                raise TypeError(f"{type(self).__name__}() got unexpected kwargs: {sorted(unknown)}")
             values = tuple(kwargs[n] for n in self._dtype.names)
             self._arr = np.array([values], dtype=self._dtype)
         else:
             # Scalar dtype — single positional value
             if len(args) != 1 or kwargs:
-                raise TypeError(
-                    f"{type(self).__name__}() takes exactly one positional argument"
-                )
+                raise TypeError(f"{type(self).__name__}() takes exactly one positional argument")
             self._arr = np.array([args[0]], dtype=self._dtype)
 
     def __init_subclass__(cls, **kwargs: object) -> None:

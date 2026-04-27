@@ -121,18 +121,13 @@ class RegisterBase(ABC, Generic[P]):
             if isinstance(value, PayloadBase):
                 # Payload instance — use its backing array bytes directly
                 raw = value._arr.tobytes()
-            elif (
-                isinstance(value, np.ndarray)
-                and value.dtype != cls.payload_type.numpy_dtype
-            ):
+            elif isinstance(value, np.ndarray) and value.dtype != cls.payload_type.numpy_dtype:
                 # Structured numpy array passed by hand
                 raw = value.tobytes()
             else:
                 # Scalar or array castable to the register's primitive dtype
                 raw = np.asarray(value, dtype=cls.payload_type.numpy_dtype).tobytes()
-            return build_message_frame(
-                mt, cls.address, cls.payload_type, raw, port=port
-            )
+            return build_message_frame(mt, cls.address, cls.payload_type, raw, port=port)
 
 
 # ------------------------------------------------------------------

@@ -38,12 +38,12 @@ class OperationControlPayload(PayloadBase[np.void]):
         heartbeat: int | np.uint8 = 0,
     ) -> None:
         arr = np.zeros(1, dtype=self._dtype)
-        arr["operation_control"] |= np.uint8(operation_mode) & np.uint8(0x03)
-        arr["operation_control"] |= np.uint8(dump_registers) << np.uint8(3)
-        arr["operation_control"] |= np.uint8(mute_replies) << np.uint8(4)
-        arr["operation_control"] |= (np.uint8(visual_indicators) & np.uint8(0x01)) << np.uint8(5)
-        arr["operation_control"] |= (np.uint8(operation_led) & np.uint8(0x01)) << np.uint8(6)
-        arr["operation_control"] |= (np.uint8(heartbeat) & np.uint8(0x01)) << np.uint8(7)
+        arr["operation_control"] |= np.uint8(operation_mode) & 0x03
+        arr["operation_control"] |= np.uint8(dump_registers) << 3
+        arr["operation_control"] |= np.uint8(mute_replies) << 4
+        arr["operation_control"] |= (np.uint8(visual_indicators) & 0x01) << 5
+        arr["operation_control"] |= (np.uint8(operation_led) & 0x01) << 6
+        arr["operation_control"] |= (np.uint8(heartbeat) & 0x01) << 7
         self._arr = arr
 
     @property
@@ -60,15 +60,15 @@ class OperationControlPayload(PayloadBase[np.void]):
 
     @property
     def visual_indicators(self) -> NDArray[np.bool_]:
-        return ((self._arr["operation_control"] >> np.uint8(5)) & np.uint8(0x01)) != 0
+        return ((self._arr["operation_control"] >> 5) & np.uint8(0x01)) != 0
 
     @property
     def operation_led(self) -> NDArray[np.bool_]:
-        return ((self._arr["operation_control"] >> np.uint8(6)) & np.uint8(0x01)) != 0
+        return ((self._arr["operation_control"] >> 6) & np.uint8(0x01)) != 0
 
     @property
     def heartbeat(self) -> NDArray[np.bool_]:
-        return ((self._arr["operation_control"] >> np.uint8(7)) & np.uint8(0x01)) != 0
+        return ((self._arr["operation_control"] >> 7) & np.uint8(0x01)) != 0
 
     def to_dataframe(self) -> pd.DataFrame:
         return pd.DataFrame(
@@ -149,9 +149,6 @@ class SerialNumber(RegisterU16):
 
 
 class TimestampOffset(RegisterU8):
-    address: ClassVar[int] = 15
-    address: ClassVar[int] = 15
-    address: ClassVar[int] = 15
     address: ClassVar[int] = 15
     address: ClassVar[int] = 15
     address: ClassVar[int] = 15
