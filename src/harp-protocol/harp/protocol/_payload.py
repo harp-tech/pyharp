@@ -6,8 +6,7 @@ import numpy as np
 import pandas as pd
 from numpy.typing import NDArray
 
-NpStructT = TypeVar("NpStructT", bound=np.generic | np.ndarray)
-
+NpStructT = TypeVar("NpStructT", bound=np.generic)
 
 class PayloadBase(Generic[NpStructT]):
     """Base class for typed Harp register payloads.
@@ -20,6 +19,23 @@ class PayloadBase(Generic[NpStructT]):
                 ("encoder", "<i2"),
             ])
 
+    The type parameter ``NpStructT`` is the numpy scalar type that corresponds
+    to ``_dtype`` at the type-checker level.  For scalar dtypes the two are
+    equivalent — ``np.dtype("<u4").type is np.uint32`` — so a scalar subclass
+    should declare both together::
+
+        class PayloadU32(PayloadBase[np.uint32]):
+            _dtype: ClassVar = np.dtype("<u4")
+
+    For structured dtypes use ``np.void``::
+
+        class AnalogDataPayload(PayloadBase[np.void]):
+            _dtype: ClassVar = np.dtype([("analog_input0", "<i2"), ...])
+
+    ``NpStructT`` is a runtime-invisible type-checker hint; it only affects the
+    inferred type of ``value`` and ``raw_payload``.  ``_dtype`` is the runtime
+    source of truth used for all array construction and field access.
+
     To customise the string representation, set ``_repr_fields`` to a tuple of
     property (or attribute) names that should appear in ``repr``/``str``.  When
     not set the base class falls back to the dtype field names for structured
@@ -28,7 +44,7 @@ class PayloadBase(Generic[NpStructT]):
 
     _dtype: ClassVar[np.dtype]
     _repr_fields: ClassVar[tuple[str, ...] | None] = None
-    _arr: NDArray[np.void]
+    _arr: NDArray[NpStructT]
 
     def __init__(self, *args: object, **kwargs: object) -> None:
         """Construct a single-sample payload. Structured dtypes use keyword arguments; scalar dtypes use a single positional argument."""
@@ -66,13 +82,13 @@ class PayloadBase(Generic[NpStructT]):
         return obj
 
     @property
-    def value(self) -> NpStructT:
-        """Returns a single scalar if the array has one element, otherwise the full array."""
-        return self._arr  # type: ignore[return-value]  # ty: ignore[invalid-return-type]
+    def value(self) -> NDArray[NpStructT]:
+        """Returns the backing array of ``_dtype`` records."""
+        return self._arr
 
     @property
-    def raw_payload(self) -> NDArray[np.void]:
-        """Raw structured numpy array."""
+    def raw_payload(self) -> NDArray[NpStructT]:
+        """Raw structured numpy array (alias for ``value``; useful for explicit byte serialisation)."""
         return self._arr
 
     def to_dataframe(self) -> pd.DataFrame:
