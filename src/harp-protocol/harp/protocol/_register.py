@@ -77,19 +77,13 @@ class RegisterBase(ABC, Generic[P]):
         buf = value.payload if isinstance(value, HarpMessage) else value
         return cast(P, cls.payload_class.from_buffer(buf))
 
-    @classmethod
-    def parse_bulk(cls, data: bytes | bytearray | memoryview | list[HarpMessage]) -> P:
-        """Parse a batch of payloads from concatenated bytes or a list of messages."""
-        if isinstance(data, list):
-            data = b"".join(msg.payload for msg in data)
-        return cast(P, cls.payload_class.from_buffer(data))
-
     @overload
     @classmethod
     def format(
         cls,
         *,
         message_type: MessageType = MessageType.Read,
+        timestamp: float | None = None,
         port: int = 0xFF,
     ) -> bytes: ...
 
@@ -100,6 +94,7 @@ class RegisterBase(ABC, Generic[P]):
         value: Any,
         *,
         message_type: MessageType = MessageType.Write,
+        timestamp: float | None = None,
         port: int = 0xFF,
     ) -> bytes: ...
 
@@ -110,12 +105,15 @@ class RegisterBase(ABC, Generic[P]):
         value: Any = _MISSING,
         *,
         message_type: MessageType | None = None,
+        timestamp: float | None = None,
         port: int = 0xFF,
     ) -> bytes:
         """Build a Harp frame for this register. No value → Read; with value → Write."""
         if value is _MISSING:
             mt = MessageType.Read if message_type is None else message_type
-            return build_message_frame(mt, cls.address, cls.payload_type, port=port)
+            return build_message_frame(
+                mt, cls.address, cls.payload_type, port=port, timestamp=timestamp
+            )
         else:
             mt = MessageType.Write if message_type is None else message_type
             if isinstance(value, PayloadBase):
@@ -127,20 +125,9 @@ class RegisterBase(ABC, Generic[P]):
             else:
                 # Scalar or array castable to the register's primitive dtype
                 raw = np.asarray(value, dtype=cls.payload_type.numpy_dtype).tobytes()
-            return build_message_frame(mt, cls.address, cls.payload_type, raw, port=port)
-
-
-# ------------------------------------------------------------------
-# Typed scalar classes — one per PayloadType.
-# These can be used both as base classes for named registers:
-#
-#     class TimestampSecond(RegisterU32):
-#         address: ClassVar[int] = 8
-#
-# and as on-the-fly register classes for raw addresses:
-#
-#     dev.read(RegisterU32(0x08))
-# ------------------------------------------------------------------
+            return build_message_frame(
+                mt, cls.address, cls.payload_type, raw, port=port, timestamp=timestamp
+            )
 
 
 class RegisterU8(RegisterBase[PayloadU8], metaclass=_RegisterMeta):
@@ -186,21 +173,6 @@ class RegisterS64(RegisterBase[PayloadS64], metaclass=_RegisterMeta):
 class RegisterFloat(RegisterBase[PayloadFloat], metaclass=_RegisterMeta):
     payload_type: ClassVar[PayloadType] = PayloadType.Float
     payload_class: ClassVar[type[PayloadFloat]] = PayloadFloat
-
-
-# ------------------------------------------------------------------
-# Array register classes — fixed-length element arrays per message.
-#
-# Named register usage:
-#
-#     class DigitalOutputs(RegisterU16Array):
-#         address: ClassVar[int] = 0x28
-#         length: ClassVar[int] = 3
-#
-# On-the-fly usage:
-#
-#     dev.read(RegisterU16Array(0x28, length=3))
-# ------------------------------------------------------------------
 
 
 class _ArrayRegisterMeta(ABCMeta):

@@ -198,40 +198,6 @@ def test_format_with_payload_instance_via_register():
     assert parsed.value == np.array([42])
 
 
-def test_structured_register_parse_bulk():
-    raw = np.array(
-        [(100, 512, -200), (110, 513, -210), (120, 514, -220)],
-        dtype=AnalogDataPayload._dtype,
-    ).tobytes()
-
-    bulk = AnalogData.parse_bulk(raw)
-    assert isinstance(bulk, AnalogDataPayload)
-    assert len(bulk) == 3
-    np.testing.assert_array_equal(bulk.analog_input0, [100, 110, 120])
-    np.testing.assert_array_equal(bulk.encoder, [512, 513, 514])
-    np.testing.assert_array_equal(bulk.analog_input1, [-200, -210, -220])
-
-
-def test_structured_register_parse_from_message_list():
-    records = [(100, 512, -200), (110, 513, -210)]
-    messages = []
-    for rec in records:
-        payload_bytes = np.array([rec], dtype=AnalogDataPayload._dtype).tobytes()
-        msg = HarpMessage(
-            MessageType.Event,
-            AnalogData.address,
-            AnalogData.payload_type,
-            payload_bytes,
-        )
-        messages.append(msg)
-
-    bulk = AnalogData.parse_bulk(messages)
-    assert len(bulk) == 2
-    np.testing.assert_array_equal(bulk.analog_input0, [100, 110])
-    np.testing.assert_array_equal(bulk.encoder, [512, 513])
-    np.testing.assert_array_equal(bulk.analog_input1, [-200, -210])
-
-
 def test_structured_register_format_single_sample():
     sample = np.array([(100, 512, -200)], dtype=AnalogDataPayload._dtype)
     frame = AnalogData.format(sample)
@@ -248,7 +214,7 @@ def test_structured_register_to_dataframe():
         [(1, 2, 3), (4, 5, 6)],
         dtype=AnalogDataPayload._dtype,
     ).tobytes()
-    bulk = AnalogData.parse_bulk(raw)
+    bulk = AnalogData.parse(raw)
     df = bulk.to_dataframe()
     assert list(df.columns) == ["analog_input0", "encoder", "analog_input1"]
     assert len(df) == 2
@@ -328,6 +294,26 @@ def test_format_write_override_message_type():
     frame = TimestampSecond.format(42, message_type=MessageType.Event)
     msg = _parse_frame(frame)
     assert msg.message_type == MessageType.Event
+
+
+def test_format_read_with_timestamp():
+    ts = 12.5
+    frame = TimestampSecond.format(timestamp=ts)
+    msg = _parse_frame(frame)
+    assert msg.message_type == MessageType.Read
+    assert msg.has_timestamp
+    assert msg.timestamp == pytest.approx(ts, abs=1e-4)
+
+
+def test_format_write_with_timestamp():
+    ts = 100.0
+    frame = TimestampSecond.format(42, timestamp=ts)
+    msg = _parse_frame(frame)
+    assert msg.message_type == MessageType.Write
+    assert msg.has_timestamp
+    assert msg.timestamp == pytest.approx(ts, abs=1e-4)
+    parsed = TimestampSecond.parse(msg)
+    assert parsed.value == 42
 
 
 # ---------------------------------------------------------------------------
@@ -419,9 +405,9 @@ def test_array_register_value_single():
 def test_array_register_value_multi():
     """.value on a multi-record array-register payload returns the full 2-D array."""
     reg = RegisterU32Array(0x08, length=3)
-    # Two rows of 3 elements each; pass as flat bytes via parse_bulk
+    # Two rows of 3 elements each; pass as flat bytes
     rows = np.array([[10, 20, 30], [40, 50, 60]], dtype=np.dtype("<u4"))
-    bulk = reg.parse_bulk(rows.tobytes())
+    bulk = reg.parse(rows.tobytes())
     # Two sub-array records => len == 2 => .value returns the full array
     assert len(bulk) == 2
     v = bulk.value

@@ -32,13 +32,24 @@ class SerialDevice:
         )
         self._thread.start()
 
-    def read_register(self, register: type[RegisterBase[P]]) -> ParsedHarpMessage[P]:
-        frame = register.format()
+    def read_register(
+        self, register: type[RegisterBase[P]], *, timestamp: float | None = None, port: int = 255
+    ) -> ParsedHarpMessage[P]:
+        frame = register.format(message_type=MessageType.Read, timestamp=timestamp, port=port)
         msg = self._request(register.address, frame)
         return ParsedHarpMessage.from_message(msg, register.parse(msg))
 
-    def write_register(self, register: type[RegisterBase[P]], value: Any) -> ParsedHarpMessage[P]:
-        frame = register.format(value)
+    def write_register(
+        self,
+        register: type[RegisterBase[P]],
+        value: Any,
+        *,
+        timestamp: float | None = None,
+        port: int = 255,
+    ) -> ParsedHarpMessage[P]:
+        frame = register.format(
+            value, message_type=MessageType.Write, timestamp=timestamp, port=port
+        )
         msg = self._request(register.address, frame)
         return ParsedHarpMessage.from_message(msg, register.parse(msg))
 
