@@ -30,4 +30,3 @@ def build_message_frame(
     frame = header + body
     checksum = sum(frame) & 0xFF
     return frame + bytes([checksum])
-    return frame + bytes([checksum])

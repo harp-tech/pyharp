@@ -3,7 +3,7 @@ from typing import ClassVar
 
 import numpy as np
 import pandas as pd
-from harp.protocol._payload import PayloadBase
+from harp.protocol._payload import PayloadBase, _BitFlag, _GroupMask
 from harp.protocol._payload_type import PayloadType
 from harp.protocol._register import RegisterBase, RegisterU8, RegisterU16, RegisterU32
 
@@ -38,6 +38,13 @@ class OperationControlPayload(PayloadBase[np.uint8]):
         "heartbeat",
     )
 
+    operation_mode    = _GroupMask(0x03, 0, OperationMode)
+    dump_registers    = _BitFlag(0x08)
+    mute_replies      = _BitFlag(0x10)
+    visual_indicators = _GroupMask(0x20, 5, EnableFlag)
+    operation_led     = _GroupMask(0x40, 6, EnableFlag)
+    heartbeat         = _GroupMask(0x80, 7, EnableFlag)
+
     def __init__(
         self,
         *,
@@ -57,42 +64,6 @@ class OperationControlPayload(PayloadBase[np.uint8]):
         val |= (np.uint8(heartbeat) & np.uint8(0x01)) << np.uint8(7)
         self._arr = np.array([val], dtype=self._dtype)
 
-    @property
-    def operation_mode(self) -> np.ndarray:
-        return self._arr & np.uint8(0x03)
-
-    @property
-    def dump_registers(self) -> np.ndarray:
-        return (self._arr >> 3) & np.uint8(0x01)
-
-    @property
-    def mute_replies(self) -> np.ndarray:
-        return (self._arr >> 4) & np.uint8(0x01)
-
-    @property
-    def visual_indicators(self) -> np.ndarray:
-        return (self._arr >> 5) & np.uint8(0x01)
-
-    @property
-    def operation_led(self) -> np.ndarray:
-        return (self._arr >> 6) & np.uint8(0x01)
-
-    @property
-    def heartbeat(self) -> np.ndarray:
-        return (self._arr >> 7) & np.uint8(0x01)
-
-    def to_dataframe(self) -> pd.DataFrame:
-        return pd.DataFrame(
-            {
-                "operation_mode": [self.operation_mode],
-                "dump_registers": [self.dump_registers],
-                "mute_replies": [self.mute_replies],
-                "visual_indicators": [self.visual_indicators],
-                "operation_led": [self.operation_led],
-                "heartbeat": [self.heartbeat],
-            }
-        )
-
 
 class ResetDevicePayload(PayloadBase[np.uint8]):
     """Payload for the ResetDevice register (address 11)."""
@@ -107,6 +78,14 @@ class ResetDevicePayload(PayloadBase[np.uint8]):
         "boot_from_default",
         "boot_from_eeprom",
     )
+
+    restore_default   = _BitFlag(0x01)
+    restore_eeprom    = _BitFlag(0x02)
+    save              = _BitFlag(0x04)
+    restore_name      = _BitFlag(0x08)
+    update_firmware   = _BitFlag(0x20)
+    boot_from_default = _BitFlag(0x40)
+    boot_from_eeprom  = _BitFlag(0x80)
 
     def __init__(
         self,
@@ -128,47 +107,6 @@ class ResetDevicePayload(PayloadBase[np.uint8]):
         val |= np.uint8(boot_from_default) << np.uint8(6)
         val |= np.uint8(boot_from_eeprom) << np.uint8(7)
         self._arr = np.array([val], dtype=self._dtype)
-
-    @property
-    def restore_default(self) -> bool:
-        return bool(self._arr & np.uint8(0x01))
-
-    @property
-    def restore_eeprom(self) -> bool:
-        return bool(self._arr & np.uint8(0x02))
-
-    @property
-    def save(self) -> bool:
-        return bool(self._arr & np.uint8(0x04))
-
-    @property
-    def restore_name(self) -> bool:
-        return bool(self._arr & np.uint8(0x08))
-
-    @property
-    def update_firmware(self) -> bool:
-        return bool(self._arr & np.uint8(0x20))
-
-    @property
-    def boot_from_default(self) -> bool:
-        return bool(self._arr & np.uint8(0x40))
-
-    @property
-    def boot_from_eeprom(self) -> bool:
-        return bool(self._arr & np.uint8(0x80))
-
-    def to_dataframe(self) -> pd.DataFrame:
-        return pd.DataFrame(
-            {
-                "restore_default": self.restore_default,
-                "restore_eeprom": self.restore_eeprom,
-                "save": self.save,
-                "restore_name": self.restore_name,
-                "update_firmware": self.update_firmware,
-                "boot_from_default": self.boot_from_default,
-                "boot_from_eeprom": self.boot_from_eeprom,
-            }
-        )
 
 
 class DeviceNamePayload(PayloadBase[np.uint8]):
@@ -208,6 +146,13 @@ class ClockConfigPayload(PayloadBase[np.uint8]):
         "clock_lock",
     )
 
+    clock_repeater       = _BitFlag(0x01)
+    clock_generator      = _BitFlag(0x02)
+    repeater_capability  = _BitFlag(0x08)
+    generator_capability = _BitFlag(0x10)
+    clock_unlock         = _BitFlag(0x40)
+    clock_lock           = _BitFlag(0x80)
+
     def __init__(
         self,
         *,
@@ -226,42 +171,6 @@ class ClockConfigPayload(PayloadBase[np.uint8]):
         val |= np.uint8(clock_unlock) << np.uint8(6)
         val |= np.uint8(clock_lock) << np.uint8(7)
         self._arr = np.array([val], dtype=self._dtype)
-
-    @property
-    def clock_repeater(self) -> np.ndarray:
-        return self._arr & np.uint8(0x01)
-
-    @property
-    def clock_generator(self) -> np.ndarray:
-        return self._arr & np.uint8(0x02)
-
-    @property
-    def repeater_capability(self) -> np.ndarray:
-        return self._arr & np.uint8(0x08)
-
-    @property
-    def generator_capability(self) -> np.ndarray:
-        return self._arr & np.uint8(0x10)
-
-    @property
-    def clock_unlock(self) -> np.ndarray:
-        return self._arr & np.uint8(0x40)
-
-    @property
-    def clock_lock(self) -> np.ndarray:
-        return self._arr & np.uint8(0x80)
-
-    def to_dataframe(self) -> pd.DataFrame:
-        return pd.DataFrame(
-            {
-                "clock_repeater": [self.clock_repeater],
-                "clock_generator": [self.clock_generator],
-                "repeater_capability": [self.repeater_capability],
-                "generator_capability": [self.generator_capability],
-                "clock_unlock": [self.clock_unlock],
-                "clock_lock": [self.clock_lock],
-            }
-        )
 
 
 # ---------------------------------------------------------------------------

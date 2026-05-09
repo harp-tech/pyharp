@@ -11,6 +11,7 @@ Define a register by subclassing the appropriate typed class::
 """
 
 from abc import ABC, ABCMeta
+from pathlib import Path
 from typing import Any, ClassVar, Generic, TypeVar, cast, final, overload
 
 import numpy as np
@@ -76,6 +77,68 @@ class RegisterBase(ABC, Generic[P]):
         """Parse the payload from a ``HarpMessage`` or raw bytes."""
         buf = value.payload if isinstance(value, HarpMessage) else value
         return cast(P, cls.payload_class.from_buffer(buf))
+
+    @classmethod
+    def read_frames(
+        cls,
+        source: bytes | bytearray | memoryview | Path | str,
+    ) -> "tuple[np.ndarray, P]":
+        """Read all frames from a single-register Harp binary buffer or file.
+
+        Parameters
+        ----------
+        source:
+            Raw bytes, a bytes-like object, or a path to a ``.bin`` file
+            containing packed Harp frames for a single register.
+
+        Returns
+        -------
+        timestamps : np.ndarray
+            1-D float64 array of timestamps in seconds, one per frame.
+        payload : P
+            Payload object whose ``_arr`` is a zero-copy strided view into
+            the raw buffer (shape ``(N,)`` for scalar/bitfield registers,
+            ``(N, length)`` for array registers).
+        """
+        if isinstance(source, (str, Path)):
+            data = np.fromfile(source, dtype=np.uint8)
+        else:
+            data = np.frombuffer(source, dtype=np.uint8)
+
+        if len(data) == 0:
+            obj = cls.payload_class.__new__(cls.payload_class)
+            obj._arr = np.empty(0, dtype=cls.payload_class._dtype.base)
+            return np.empty(0, dtype=np.float64), cast(P, obj)
+
+        stride = int(data[1]) + 2
+        nrows = len(data) // stride
+        is_timestamped = bool(int(data[4]) & 0x10)
+        payload_offset = 11 if is_timestamped else 5
+
+        if is_timestamped:
+            ts_s = np.ndarray(nrows, dtype="<u4", buffer=data, offset=5, strides=stride)
+            ts_us = np.ndarray(nrows, dtype="<u2", buffer=data, offset=9, strides=stride)
+            timestamps = ts_s.astype(np.float64) + ts_us.astype(np.float64) * 32e-6
+        else:
+            timestamps = np.arange(nrows, dtype=np.float64)
+
+        # Use .base to unwrap sub-array dtypes created by _ArrayRegisterMeta
+        elem_dtype = cls.payload_class._dtype.base
+        elem_size = elem_dtype.itemsize
+        length = cls.length or 1
+        payload_arr = np.ndarray(
+            (nrows, length),
+            dtype=elem_dtype,
+            buffer=data,
+            offset=payload_offset,
+            strides=(stride, elem_size),
+        )
+        if length == 1:
+            payload_arr = payload_arr[:, 0]  # shape (N,) not (N, 1)
+
+        obj = cls.payload_class.__new__(cls.payload_class)
+        obj._arr = payload_arr
+        return timestamps, cast(P, obj)
 
     @overload
     @classmethod

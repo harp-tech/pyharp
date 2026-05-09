@@ -8,6 +8,49 @@ from numpy.typing import NDArray
 
 NpStructT = TypeVar("NpStructT", bound=np.generic)
 
+
+class _BitFlag:
+    """Single-bit boolean descriptor for bitfield payload classes.
+
+    Returns a plain ``bool`` when the payload holds a single record
+    (``len(_arr) == 1``), or a boolean ``np.ndarray`` for bulk reads.
+    """
+
+    def __init__(self, mask: int) -> None:
+        self._mask = mask
+
+    def __set_name__(self, owner: object, name: str) -> None:
+        self._name = name
+
+    def __get__(self, obj: PayloadBase | None, owner: object = None) -> bool | np.ndarray:
+        if obj is None:
+            return self  # type: ignore[return-value]
+        v = (obj._arr & self._mask) != 0  # shape (N,)
+        return bool(v[0]) if len(v) == 1 else v
+
+
+class _GroupMask:
+    """Multi-bit enum descriptor for bitfield payload classes.
+
+    Returns an ``IntEnum`` member when the payload holds a single record,
+    or a raw integer ``np.ndarray`` for bulk reads.
+    """
+
+    def __init__(self, mask: int, shift: int, enum: type) -> None:
+        self._mask = mask
+        self._shift = shift
+        self._enum = enum
+
+    def __set_name__(self, owner: object, name: str) -> None:
+        self._name = name
+
+    def __get__(self, obj: PayloadBase | None, owner: object = None) -> object:
+        if obj is None:
+            return self
+        v = (obj._arr & self._mask) >> self._shift  # shape (N,)
+        return self._enum(int(v[0])) if len(v) == 1 else v
+
+
 class PayloadBase(Generic[NpStructT]):
     """Base class for typed Harp register payloads.
 
@@ -92,7 +135,17 @@ class PayloadBase(Generic[NpStructT]):
         return self._arr
 
     def to_dataframe(self) -> pd.DataFrame:
-        """Convert to a DataFrame. Structured dtypes produce one column per field; scalar dtypes produce a ``"value"`` column."""
+        """Convert to a DataFrame.
+
+        * Bitfield payloads with ``_repr_fields``: one column per descriptor,
+          shape-polymorphic (bool scalars promoted to length-1 arrays).
+        * Structured dtypes: one column per dtype field.
+        * Scalar dtypes: a single ``"value"`` column.
+        """
+        if self._repr_fields is not None:
+            return pd.DataFrame(
+                {f: np.atleast_1d(getattr(self, f)) for f in self._repr_fields}
+            )
         if self._dtype.names is not None:
             return pd.DataFrame({name: self._arr[name] for name in self._dtype.names})
         return pd.DataFrame({"value": self._arr})

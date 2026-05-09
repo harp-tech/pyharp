@@ -1,98 +1,217 @@
-# import time
+﻿"""Tests for the device layer: descriptors, to_dataframe, and read_frames."""
 
-# from pyharp import MessageType, PayloadType
-# from pyharp.device import Device
-# from pyharp.messages import HarpMessage
+from typing import ClassVar
 
-# DEFAULT_ADDRESS = 42
+import numpy as np
+import pytest
 
-# # FIXME
-# # def test_create_device() -> None:
-# #     # open serial connection and load info
-# #     device = Device("COM74", "dump.bin")
-# #     assert device._ser.is_open
-# #     device.info()
-# #     device.disconnect()
-# #     assert not device._ser.is_open
+from harp.protocol._builder import build_message_frame
+from harp.protocol._message_type import MessageType
+from harp.protocol._payload import PayloadBase, _BitFlag, _GroupMask
+from harp.protocol._payload_type import PayloadType
 
-
-# def test_read_U8() -> None:
-#     # open serial connection and load info
-#     device = Device("/dev/ttyUSB0", "dump.bin")
-
-#     # read register 38
-#     register: int = 38
-#     read_size: int = 35  # TODO: automatically calculate this!
-
-#     reply: HarpMessage = device.send(
-#         HarpMessage(MessageType.READ, PayloadType.U8, register)
-#     )
-#     assert reply is not None
-#     # assert reply.payload == write_value
-
-#     print(reply)
-#     assert device._dump_file_path.exists()
-#     device.disconnect()
-
-# # FIXME: this seems to be testing the Behavior device, not a generic harp device.
-# def test_U8() -> None:
-#     # open serial connection and load info
-#     device = Device("/dev/ttyUSB0", "dump.bin")
-#     assert device._dump_file_path.exists()
-
-#     register: int = 38
-#     read_size: int = 20  # TODO: automatically calculate this!
-#     write_value: int = 65
-
-#     # assert reply[11] == 0  # what is the default register value?!
-
-#     # write 65 on register 38
-#     reply = device.send(
-#         HarpMessage(
-#             MessageType.WRITE, PayloadType.U8, register, write_value
-#         )
-#     )
-#     assert reply is not None
-
-#     # read register 38
-#     reply = device.read_u8(register)
-#     assert reply is not None
-#     assert reply.payload == write_value
-
-#     device.disconnect()
+from harp.device._registers import (
+    ClockConfigPayload,
+    EnableFlag,
+    OperationControl,
+    OperationControlPayload,
+    OperationMode,
+    ResetDevicePayload,
+)
+from harp.device.cuttlefish import PinsPayload
 
 
-# # def test_read_hw_version_integration() -> None:
-# #
-# #     # serial settings
-# #     ser = serial.Serial(
-# #         "/dev/tty.usbserial-A106C8O9",
-# #         baudrate=1000000,
-# #         timeout=5,
-# #         parity=serial.PARITY_NONE,
-# #         stopbits=1,
-# #         bytesize=8,
-# #         rtscts=True,
-# #     )
-# #
-# #     assert ser.is_open
-# #
-# #     ser.write(b"\x01\x04\x01\xff\x01\x06")  # read HW major version (register 1)
-# #     ser.write(b"\x01\x04\x02\xff\x01\x07")  # read HW minor version (register 2)
-# #     # print(f"In waiting: <{ser.in_waiting}>")
-# #
-# #     data = ser.read(100)
-# #     print(f"Data: {data}")
-# #     ser.close()
-# #     assert not ser.is_open
-# #
-# #     # assert data[0] == '\t'
+# --- Minimal fixture payload class ------------------------------------------
 
 
-# # FIXME
-# # def test_device_events(device: Device) -> None:
-# #     while True:
-# #         print(device.event_count())
-# #         for msg in device.get_events():
-# #             print(msg)
-# #         time.sleep(0.3)
+class _FlagPayload(PayloadBase[np.uint8]):
+    _dtype: ClassVar = np.dtype("u1")
+    _repr_fields: ClassVar = ("flag", "group")
+
+    flag  = _BitFlag(0x01)
+    group = _GroupMask(0x06, 1, OperationMode)
+
+
+# --- _BitFlag behaviour ------------------------------------------------------
+
+
+def test_bitflag_single_returns_bool_true():
+    p = _FlagPayload.from_buffer(bytes([0x01]))
+    assert p.flag is True
+    assert type(p.flag) is bool
+
+
+def test_bitflag_single_returns_bool_false():
+    p = _FlagPayload.from_buffer(bytes([0x00]))
+    assert p.flag is False
+    assert type(p.flag) is bool
+
+
+def test_bitflag_batch_returns_ndarray():
+    p = _FlagPayload.from_buffer(bytes([0x01, 0x00, 0x01]))
+    result = p.flag
+    assert isinstance(result, np.ndarray)
+    np.testing.assert_array_equal(result, [True, False, True])
+
+
+# --- _GroupMask behaviour ----------------------------------------------------
+
+
+def test_groupmask_single_returns_enum():
+    p = _FlagPayload.from_buffer(bytes([0x02]))  # bits 1-2 = 01 -> Active
+    result = p.group
+    assert result == OperationMode.Active
+    assert isinstance(result, OperationMode)
+
+
+def test_groupmask_batch_returns_ndarray():
+    p = _FlagPayload.from_buffer(bytes([0x00, 0x02, 0x06]))  # groups: 0, 1, 3
+    result = p.group
+    assert isinstance(result, np.ndarray)
+    np.testing.assert_array_equal(result, [0, 1, 3])
+
+
+# --- OperationControlPayload -------------------------------------------------
+
+
+def _make_op_ctrl_byte(
+    mode: OperationMode = OperationMode.Standby,
+    heartbeat: EnableFlag = EnableFlag.Disabled,
+) -> int:
+    val = int(mode) & 0x03
+    val |= (int(heartbeat) & 0x01) << 7
+    return val
+
+
+def test_op_ctrl_scalar_from_buffer():
+    val = _make_op_ctrl_byte(OperationMode.Active, EnableFlag.Enabled)
+    p = OperationControlPayload.from_buffer(bytes([val]))
+    assert p.operation_mode == OperationMode.Active
+    assert p.heartbeat == EnableFlag.Enabled
+    assert p.dump_registers is False
+
+
+def test_op_ctrl_init_matches_from_buffer():
+    p_init = OperationControlPayload(
+        operation_mode=OperationMode.Active, heartbeat=EnableFlag.Enabled
+    )
+    val = _make_op_ctrl_byte(OperationMode.Active, EnableFlag.Enabled)
+    p_buf = OperationControlPayload.from_buffer(bytes([val]))
+    assert p_init.operation_mode == p_buf.operation_mode
+    assert p_init.heartbeat == p_buf.heartbeat
+
+
+def test_op_ctrl_batch_descriptor_returns_ndarray():
+    vals = [
+        _make_op_ctrl_byte(OperationMode.Active, EnableFlag.Enabled),
+        _make_op_ctrl_byte(OperationMode.Standby, EnableFlag.Disabled),
+    ]
+    p = OperationControlPayload.from_buffer(bytes(vals))
+    assert isinstance(p.heartbeat, np.ndarray)
+    np.testing.assert_array_equal(p.heartbeat, [True, False])
+
+
+def test_op_ctrl_to_dataframe():
+    vals = [
+        _make_op_ctrl_byte(OperationMode.Active, EnableFlag.Enabled),
+        _make_op_ctrl_byte(OperationMode.Standby, EnableFlag.Disabled),
+    ]
+    p = OperationControlPayload.from_buffer(bytes(vals))
+    df = p.to_dataframe()
+    assert list(df.columns) == list(OperationControlPayload._repr_fields)
+    assert len(df) == 2
+    np.testing.assert_array_equal(df["heartbeat"], [True, False])
+    np.testing.assert_array_equal(
+        df["operation_mode"],
+        [int(OperationMode.Active), int(OperationMode.Standby)],
+    )
+
+
+# --- PinsPayload (cuttlefish) ------------------------------------------------
+
+
+def test_pins_single_scalar():
+    p = PinsPayload.from_buffer(bytes([0b00000101]))
+    assert p.pin0 is True
+    assert p.pin1 is False
+    assert p.pin2 is True
+    assert p.pin7 is False
+
+
+def test_pins_batch_ndarray():
+    p = PinsPayload.from_buffer(bytes([0b00000001, 0b00000010]))
+    np.testing.assert_array_equal(p.pin0, [True, False])
+    np.testing.assert_array_equal(p.pin1, [False, True])
+
+
+def test_pins_to_dataframe():
+    p = PinsPayload.from_buffer(bytes([0b00000101, 0b00000010]))
+    df = p.to_dataframe()
+    assert list(df.columns) == list(PinsPayload._repr_fields)
+    assert len(df) == 2
+
+
+# --- read_frames round-trip --------------------------------------------------
+
+
+def _make_frames(values: list, base_time: float = 1.0) -> bytes:
+    """Build a raw binary buffer of N timestamped OperationControl frames."""
+    frames = b""
+    for i, v in enumerate(values):
+        frames += build_message_frame(
+            MessageType.Read,
+            address=OperationControl.address,
+            payload_type=PayloadType.U8,
+            payload=bytes([v]),
+            timestamp=base_time + i,
+        )
+    return frames
+
+
+def test_read_frames_count():
+    raw = _make_frames([0x01, 0x00, 0x81])
+    timestamps, payload = OperationControl.read_frames(raw)
+    assert len(timestamps) == 3
+    assert len(payload) == 3
+
+
+def test_read_frames_timestamps():
+    raw = _make_frames([0x01, 0x00, 0x81], base_time=10.0)
+    timestamps, _ = OperationControl.read_frames(raw)
+    np.testing.assert_allclose(timestamps, [10.0, 11.0, 12.0], atol=1e-4)
+
+
+def test_read_frames_payload_type():
+    raw = _make_frames([0x01])
+    _, payload = OperationControl.read_frames(raw)
+    assert isinstance(payload, OperationControlPayload)
+
+
+def test_read_frames_bitfield_batch():
+    vals = [
+        _make_op_ctrl_byte(OperationMode.Active, EnableFlag.Enabled),
+        _make_op_ctrl_byte(OperationMode.Standby, EnableFlag.Disabled),
+    ]
+    raw = _make_frames(vals)
+    _, payload = OperationControl.read_frames(raw)
+    np.testing.assert_array_equal(payload.heartbeat, [True, False])
+    np.testing.assert_array_equal(
+        payload.operation_mode,
+        [int(OperationMode.Active), int(OperationMode.Standby)],
+    )
+
+
+def test_read_frames_to_dataframe():
+    vals = [_make_op_ctrl_byte(OperationMode.Active), _make_op_ctrl_byte(), _make_op_ctrl_byte()]
+    raw = _make_frames(vals)
+    _, payload = OperationControl.read_frames(raw)
+    df = payload.to_dataframe()
+    assert len(df) == 3
+    assert "heartbeat" in df.columns
+    assert "operation_mode" in df.columns
+
+
+def test_read_frames_empty():
+    timestamps, payload = OperationControl.read_frames(b"")
+    assert len(timestamps) == 0
+    assert len(payload) == 0
