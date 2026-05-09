@@ -38,10 +38,7 @@ CORE_REGISTERS = [
     ("ResetDevice", ResetDevice),
     ("SerialNumber", SerialNumber),
     ("ClockConfig", ClockConfig),
-    (
-        "Heartbeat",
-        Heartbeat,
-    ),  # TODO This is erroring out in pico devices. May be something with the serial class
+    ("Heartbeat", Heartbeat),
 ]
 
 
@@ -53,12 +50,16 @@ def read_core_registers(dev: Device) -> None:
         msg = dev.read(reg)
         print(f"{name:<20} {reg.address}   {msg.parsed}")
 
-    # TODO just noticed the alias properties inside complex structs payloads like OperationControlPayload
-    # are returning [value] instead of value. Prob decorate them with something and keep the internal array representation
-    # hidden internally?
+    # Bitfield properties return plain Python scalars — no [0] indexing needed
+    ctrl = dev.read(OperationControl).parsed
+    print("\n  OperationControl breakdown:")
+    print(f"    operation_mode    = {ctrl.operation_mode}")
+    print(f"    heartbeat         = {ctrl.heartbeat}")
+    print(f"    dump_registers    = {ctrl.dump_registers}")
+    print(f"    visual_indicators = {ctrl.visual_indicators}")
 
 
-def whoa_latency_benchmark(dev: Device, n: int = N_READS) -> None:
+def latency_benchmark(dev: Device, n: int = N_READS) -> None:
     print(f"\n=== WhoAmI round-trip benchmark  (n={n:,}) ===")
     print("Collecting timestamps …")
 
@@ -93,6 +94,7 @@ def whoa_latency_benchmark(dev: Device, n: int = N_READS) -> None:
 # ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
+    # Live device reads (requires hardware)
     with Device(PORT) as dev:
         read_core_registers(dev)
-        whoa_latency_benchmark(dev)
+        latency_benchmark(dev)

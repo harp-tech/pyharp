@@ -7,6 +7,7 @@ from harp.protocol._payload import PayloadBase, _BitFlag, _GroupMask
 from harp.protocol._payload_type import PayloadType
 from harp.protocol._register import RegisterBase, RegisterU8, RegisterU16, RegisterU32
 
+
 class OperationMode(enum.IntEnum):
     """Specifies the operation mode of the device."""
 
@@ -38,12 +39,12 @@ class OperationControlPayload(PayloadBase[np.uint8]):
         "heartbeat",
     )
 
-    operation_mode    = _GroupMask(0x03, 0, OperationMode)
-    dump_registers    = _BitFlag(0x08)
-    mute_replies      = _BitFlag(0x10)
+    operation_mode = _GroupMask(0x03, 0, OperationMode)
+    dump_registers = _BitFlag(0x08)
+    mute_replies = _BitFlag(0x10)
     visual_indicators = _GroupMask(0x20, 5, EnableFlag)
-    operation_led     = _GroupMask(0x40, 6, EnableFlag)
-    heartbeat         = _GroupMask(0x80, 7, EnableFlag)
+    operation_led = _GroupMask(0x40, 6, EnableFlag)
+    heartbeat = _GroupMask(0x80, 7, EnableFlag)
 
     def __init__(
         self,
@@ -79,13 +80,13 @@ class ResetDevicePayload(PayloadBase[np.uint8]):
         "boot_from_eeprom",
     )
 
-    restore_default   = _BitFlag(0x01)
-    restore_eeprom    = _BitFlag(0x02)
-    save              = _BitFlag(0x04)
-    restore_name      = _BitFlag(0x08)
-    update_firmware   = _BitFlag(0x20)
+    restore_default = _BitFlag(0x01)
+    restore_eeprom = _BitFlag(0x02)
+    save = _BitFlag(0x04)
+    restore_name = _BitFlag(0x08)
+    update_firmware = _BitFlag(0x20)
     boot_from_default = _BitFlag(0x40)
-    boot_from_eeprom  = _BitFlag(0x80)
+    boot_from_eeprom = _BitFlag(0x80)
 
     def __init__(
         self,
@@ -146,12 +147,12 @@ class ClockConfigPayload(PayloadBase[np.uint8]):
         "clock_lock",
     )
 
-    clock_repeater       = _BitFlag(0x01)
-    clock_generator      = _BitFlag(0x02)
-    repeater_capability  = _BitFlag(0x08)
+    clock_repeater = _BitFlag(0x01)
+    clock_generator = _BitFlag(0x02)
+    repeater_capability = _BitFlag(0x08)
     generator_capability = _BitFlag(0x10)
-    clock_unlock         = _BitFlag(0x40)
-    clock_lock           = _BitFlag(0x80)
+    clock_unlock = _BitFlag(0x40)
+    clock_lock = _BitFlag(0x80)
 
     def __init__(
         self,

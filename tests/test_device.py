@@ -1,9 +1,8 @@
-﻿"""Tests for the device layer: descriptors, to_dataframe, and read_frames."""
+"""Tests for the device layer: descriptors, to_dataframe, and read_frames."""
 
 from typing import ClassVar
 
 import numpy as np
-import pytest
 
 from harp.protocol._builder import build_message_frame
 from harp.protocol._message_type import MessageType
@@ -11,12 +10,10 @@ from harp.protocol._payload import PayloadBase, _BitFlag, _GroupMask
 from harp.protocol._payload_type import PayloadType
 
 from harp.device._registers import (
-    ClockConfigPayload,
     EnableFlag,
     OperationControl,
     OperationControlPayload,
     OperationMode,
-    ResetDevicePayload,
 )
 from harp.device.cuttlefish import PinsPayload
 
@@ -28,7 +25,7 @@ class _FlagPayload(PayloadBase[np.uint8]):
     _dtype: ClassVar = np.dtype("u1")
     _repr_fields: ClassVar = ("flag", "group")
 
-    flag  = _BitFlag(0x01)
+    flag = _BitFlag(0x01)
     group = _GroupMask(0x06, 1, OperationMode)
 
 
