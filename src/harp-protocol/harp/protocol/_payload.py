@@ -145,7 +145,7 @@ class PayloadBase(Generic[NpStructT]):
         if self._repr_fields is not None:
             return pd.DataFrame({f: np.atleast_1d(getattr(self, f)) for f in self._repr_fields})
         if self._dtype.names is not None:
-            return pd.DataFrame({name: self._arr[name] for name in self._dtype.names})
+            return pd.DataFrame(self._arr)
         return pd.DataFrame({"value": self._arr})
 
     def __len__(self) -> int:
