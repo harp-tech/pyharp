@@ -137,7 +137,9 @@ def test_named_register_roundtrip(value):
     msg = _parse_frame(frame)
     parsed = TimestampSecond.parse(msg)
     assert isinstance(parsed, PayloadU32)
-    assert parsed.value == np.array([value])
+    # parse() returns a 0-D scalar; compare to the Python value directly.
+    assert parsed.value == value
+    assert parsed.value.ndim == 0
 
 
 def test_named_register_format_read_frame():
@@ -159,7 +161,8 @@ def test_factory_format_and_parse():
     msg = _parse_frame(frame)
     parsed = reg.parse(msg)
     assert isinstance(parsed, PayloadU32)
-    assert parsed.value == np.array([100])
+    assert parsed.value == 100
+    assert parsed.value.ndim == 0
 
 
 def test_factory_different_addresses_are_independent():
@@ -195,7 +198,7 @@ def test_format_with_payload_instance_via_register():
     frame = TimestampSecond.format(payload)
     msg = _parse_frame(frame)
     parsed = TimestampSecond.parse(msg)
-    assert parsed.value == np.array([42])
+    assert parsed.value == 42
 
 
 def test_structured_register_format_single_sample():
@@ -204,9 +207,10 @@ def test_structured_register_format_single_sample():
     msg = _parse_frame(frame)
     parsed = AnalogData.parse(msg)
     assert isinstance(parsed, AnalogDataPayload)
-    assert int(parsed.analog_input0[0]) == 100
-    assert int(parsed.encoder[0]) == 512
-    assert int(parsed.analog_input1[0]) == -200
+    # parse() yields a 0-D record; @property accessors return numpy scalars.
+    assert int(parsed.analog_input0) == 100
+    assert int(parsed.encoder) == 512
+    assert int(parsed.analog_input1) == -200
 
 
 def test_structured_register_to_dataframe():
@@ -214,7 +218,8 @@ def test_structured_register_to_dataframe():
         [(1, 2, 3), (4, 5, 6)],
         dtype=AnalogDataPayload._dtype,
     ).tobytes()
-    bulk = AnalogData.parse(raw)
+    # Bulk decode goes through .Batch; from_buffer handles the redirect.
+    bulk = AnalogDataPayload.from_buffer(raw)
     df = bulk.to_dataframe()
     assert list(df.columns) == ["analog_input0", "encoder", "analog_input1"]
     assert len(df) == 2
@@ -251,9 +256,9 @@ def test_array_register_parse_roundtrip():
     frame = reg.format(values)
     msg = _parse_frame(frame)
     parsed = reg.parse(msg)
-    # The payload array contains the packed sub-array as a single element
-    flat = parsed.raw_payload.flatten().view(np.dtype("<u4"))
-    np.testing.assert_array_equal(flat, values)
+    # parse() yields a 0-D record holding one length-3 sub-array.
+    np.testing.assert_array_equal(parsed.value, values)
+    assert parsed.value.shape == (3,)
 
 
 def test_s16_array_roundtrip():
@@ -262,8 +267,8 @@ def test_s16_array_roundtrip():
     frame = reg.format(values)
     msg = _parse_frame(frame)
     parsed = reg.parse(msg)
-    flat = parsed.raw_payload.flatten().view(np.dtype("<i2"))
-    np.testing.assert_array_equal(flat, values)
+    np.testing.assert_array_equal(parsed.value, values)
+    assert parsed.value.shape == (4,)
 
 
 def test_unnamed_register_auto_payload_class():
@@ -275,7 +280,7 @@ def test_unnamed_register_auto_payload_class():
     # payload_class should exist and parse correctly
     raw = np.array([7], dtype=np.dtype("u1")).tobytes()
     parsed = MyReg.parse(raw)
-    assert parsed.value == np.array([7])
+    assert parsed.value == 7
 
 
 def test_explicit_payload_class_not_overwritten():
@@ -388,30 +393,101 @@ def test_structured_payload_value_multi():
 
 
 def test_array_register_value_single():
-    """.value on a single-record array-register payload returns a 1-D ndarray of the elements."""
+    """.value on a parse() result for an array register: 1-D length-N sub-array."""
     reg = RegisterU32Array(0x08, length=3)
     values = np.array([10, 20, 30], dtype=np.dtype("<u4"))
     frame = reg.format(values)
     msg = _parse_frame(frame)
     parsed = reg.parse(msg)
-    # One sub-array record => len == 1 => .value returns arr[0], shape (3,)
     assert len(parsed) == 1
     v = parsed.value
     assert isinstance(v, np.ndarray)
-    assert v.shape == (1, 3)
-    np.testing.assert_array_equal(v, np.array([values]))
+    assert v.shape == (3,)
+    np.testing.assert_array_equal(v, values)
 
 
 def test_array_register_value_multi():
-    """.value on a multi-record array-register payload returns the full 2-D array."""
+    """.value on a Batch payload for an array register: 2-D (N, length) ndarray."""
     reg = RegisterU32Array(0x08, length=3)
-    # Two rows of 3 elements each; pass as flat bytes
     rows = np.array([[10, 20, 30], [40, 50, 60]], dtype=np.dtype("<u4"))
-    bulk = reg.parse(rows.tobytes())
-    # Two sub-array records => len == 2 => .value returns the full array
+    # Bulk decode → goes through .Batch (1-D _arr of length 2).
+    bulk = reg.payload_class.from_buffer(rows.tobytes())
     assert len(bulk) == 2
     v = bulk.value
     assert isinstance(v, np.ndarray)
     assert v.shape == (2, 3)
     np.testing.assert_array_equal(v[0], [10, 20, 30])
     np.testing.assert_array_equal(v[1], [40, 50, 60])
+
+
+# ---------------------------------------------------------------------------
+# 10. parse vs read_frames / .Batch contract
+# ---------------------------------------------------------------------------
+
+
+def test_parse_returns_zero_dim_arr():
+    """parse() always wraps a single record in a 0-D _arr."""
+    frame = TimestampSecond.format(42)
+    msg = _parse_frame(frame)
+    parsed = TimestampSecond.parse(msg)
+    assert parsed._arr.ndim == 0
+    assert isinstance(parsed, PayloadU32)
+    # parse() returns the scalar payload class, not the Batch sibling.
+    assert type(parsed) is PayloadU32
+
+
+def test_parse_does_not_overrun_buffer():
+    """parse() reads exactly one record even if the buffer is larger."""
+    # Two-record buffer in raw form (no Harp header — exercise PayloadBase path).
+    raw = np.array([42, 99], dtype=np.dtype("<u4")).tobytes()
+    parsed = TimestampSecond.parse(raw)
+    assert parsed.value == 42
+    assert parsed._arr.ndim == 0
+    assert len(parsed) == 1
+
+
+def test_batch_class_is_subclass_with_swapped_descriptors():
+    """payload_class.Batch is a subclass with batch-typed accessors."""
+    reg = RegisterU32Array(0x08, length=3)
+    batch_cls = reg.payload_class.Batch
+    assert issubclass(batch_cls, reg.payload_class)
+
+    rows = np.array([[1, 2, 3], [4, 5, 6]], dtype=np.dtype("<u4"))
+    batch = reg.payload_class.from_buffer(rows.tobytes())
+    assert isinstance(batch, batch_cls)
+    assert batch._arr.ndim == 1
+
+
+def test_struct_payload_auto_field_descriptors_for_codegen_style():
+    """A struct payload that does not declare per-field properties gets them auto-generated."""
+
+    class GeneratedAnalogPayload(PayloadBase):
+        _dtype: ClassVar = np.dtype(
+            [
+                ("a", "<i2"),
+                ("b", "<i2"),
+                ("c", "<i2"),
+            ]
+        )
+
+    p = GeneratedAnalogPayload.from_array(np.array((1, 2, 3), dtype=GeneratedAnalogPayload._dtype))
+    # Auto-generated _Field descriptors return 0-D scalars.
+    assert int(p.a) == 1
+    assert int(p.b) == 2
+    assert int(p.c) == 3
+
+    # Batch sibling auto-generated; descriptors return ndarrays.
+    batch_arr = np.array([(1, 2, 3), (4, 5, 6)], dtype=GeneratedAnalogPayload._dtype)
+    batch = GeneratedAnalogPayload.from_buffer(batch_arr.tobytes())
+    np.testing.assert_array_equal(batch.a, [1, 4])
+    np.testing.assert_array_equal(batch.b, [2, 5])
+    assert batch._arr.ndim == 1
+
+
+def test_repr_fields_auto_derived_from_dtype():
+    """A struct payload that doesn't set _repr_fields gets them from _dtype.names."""
+
+    class P(PayloadBase):
+        _dtype: ClassVar = np.dtype([("alpha", "<i2"), ("beta", "<u1")])
+
+    assert P._repr_fields == ("alpha", "beta")

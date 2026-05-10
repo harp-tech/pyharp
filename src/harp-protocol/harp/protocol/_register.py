@@ -75,9 +75,16 @@ class RegisterBase(ABC, Generic[P]):
 
     @classmethod
     def parse(cls, value: HarpMessage | bytes | bytearray | memoryview) -> P:
-        """Parse the payload from a ``HarpMessage`` or raw bytes."""
+        """Parse a single message into a scalar-typed payload (``_arr.ndim == 0``).
+
+        Reads exactly one record's worth of bytes via ``np.frombuffer(...,
+        count=1)[0]``; descriptors on the resulting payload return Python /
+        0-D scalars (``int``, ``bool``, ``IntEnum``, etc.). Use
+        :py:meth:`read_frames` for bulk file/buffer reads.
+        """
         buf = value.payload if isinstance(value, HarpMessage) else value
-        return cast(P, cls.payload_class.from_buffer(buf))
+        record = np.frombuffer(buf, dtype=cls.payload_class._dtype, count=1)[0]
+        return cast(P, cls.payload_class.from_array(record))
 
     @classmethod
     def _parse_buffer(
@@ -88,20 +95,21 @@ class RegisterBase(ABC, Generic[P]):
     ) -> "tuple[np.ndarray, np.ndarray | None, np.ndarray | None, P]":
         """Internal: parse a buffer once, returning (data, timestamps, msgtype_view, payload).
 
-        ``timestamps`` is None when the register is not timestamped **or**
-        when ``parse_timestamp`` is False (skips the float64 conversion).
-        ``msgtype_view`` is a strided uint8 view (zero-copy, always computed).
-        Returns ``data`` so its lifetime anchors the strided views.
+        Always wraps the result in ``payload_class.Batch`` (ndarray-typed
+        accessors). ``timestamps`` is None when the register is not
+        timestamped or when ``parse_timestamp`` is False. ``msgtype_view``
+        is a strided uint8 view (zero-copy, always computed). Returns
+        ``data`` so its lifetime anchors the strided views.
         """
+        batch_cls = cls.payload_class.Batch
         if isinstance(source, (str, Path)):
             data = np.fromfile(source, dtype=np.uint8)
         else:
             data = np.frombuffer(source, dtype=np.uint8)
 
         if len(data) == 0:
-            obj = cls.payload_class.__new__(cls.payload_class)
-            obj._arr = np.empty(0, dtype=cls.payload_class._dtype.base)
-            return data, None, None, cast(P, obj)
+            payload = batch_cls.from_array(np.empty(0, dtype=batch_cls._dtype))
+            return data, None, None, cast(P, payload)
 
         stride = int(data[1]) + 2
         nrows = len(data) // stride
@@ -117,22 +125,20 @@ class RegisterBase(ABC, Generic[P]):
 
         msgtype_view = np.ndarray(nrows, dtype=np.uint8, buffer=data, offset=0, strides=stride)
 
-        elem_dtype = cls.payload_class._dtype.base
-        elem_size = elem_dtype.itemsize
-        length = cls.length or 1
+        # Single zero-copy strided view: one structured record per frame.
+        # Sub-array fields (array registers) and multi-field payloads are
+        # both byte-packed in the file, so the structured dtype itemsize
+        # equals the payload byte length.
         payload_arr = np.ndarray(
-            (nrows, length),
-            dtype=elem_dtype,
+            nrows,
+            dtype=batch_cls._dtype,
             buffer=data,
             offset=payload_offset,
-            strides=(stride, elem_size),
+            strides=stride,
         )
-        if length == 1:
-            payload_arr = payload_arr[:, 0]
 
-        obj = cls.payload_class.__new__(cls.payload_class)
-        obj._arr = payload_arr
-        return data, timestamps, msgtype_view, cast(P, obj)
+        payload = batch_cls.from_array(payload_arr)
+        return data, timestamps, msgtype_view, cast(P, payload)
 
     @classmethod
     def read_frames(
@@ -154,9 +160,10 @@ class RegisterBase(ABC, Generic[P]):
             For non-timestamped registers, a synthetic ``arange(N)`` is
             returned.
         payload : P
-            Payload object whose ``_arr`` is a zero-copy strided view into
-            the raw buffer (shape ``(N,)`` for scalar/bitfield registers,
-            ``(N, length)`` for array registers).
+            Instance of ``payload_class.Batch`` whose ``_arr`` is a
+            zero-copy strided view into the raw buffer (shape ``(N,)`` for
+            scalar/bitfield registers, ``(N, length)`` for array
+            registers). Descriptor reads return ``ndarray`` columns.
         """
         _data, timestamps, _msg, payload = cls._parse_buffer(source, parse_timestamp=True)
         if timestamps is None:
@@ -306,10 +313,14 @@ class _ArrayRegisterMeta(ABCMeta):
 
     def __call__(cls: "type[_AR]", address: int, *, length: int) -> "type[_AR]":  # type: ignore[override, misc]
         base_payload = cls.payload_class  # type: ignore[attr-defined]
+        # ``base_payload._dtype`` is the auto-promoted single-field structured
+        # dtype ``[("value", primitive)]``; extract the primitive and rebuild
+        # with a sub-array field of the requested length.
+        inner = base_payload._dtype.fields["value"][0]
         concrete_payload = type(
             f"{base_payload.__name__}_{length}",
             (base_payload,),
-            {"_dtype": np.dtype((base_payload._dtype, length))},  # type: ignore[attr-defined]
+            {"_dtype": np.dtype([("value", inner, (length,))])},
         )
         return cast(
             "type[_AR]",

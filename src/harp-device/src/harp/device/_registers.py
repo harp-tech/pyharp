@@ -30,14 +30,6 @@ class EnableFlag(enum.IntEnum):
 
 class OperationControlPayload(PayloadBase[np.uint8]):
     _dtype: ClassVar = np.dtype("u1")
-    _repr_fields: ClassVar = (
-        "operation_mode",
-        "dump_registers",
-        "mute_replies",
-        "visual_indicators",
-        "operation_led",
-        "heartbeat",
-    )
 
     operation_mode = _GroupMask(0x03, 0, OperationMode)
     dump_registers = _BitFlag(0x08)
@@ -63,22 +55,13 @@ class OperationControlPayload(PayloadBase[np.uint8]):
         val |= (np.uint8(visual_indicators) & np.uint8(0x01)) << np.uint8(5)
         val |= (np.uint8(operation_led) & np.uint8(0x01)) << np.uint8(6)
         val |= (np.uint8(heartbeat) & np.uint8(0x01)) << np.uint8(7)
-        self._arr = np.array([val], dtype=self._dtype)
+        self._arr = np.array((val,), dtype=self._dtype)
 
 
 class ResetDevicePayload(PayloadBase[np.uint8]):
     """Payload for the ResetDevice register (address 11)."""
 
     _dtype: ClassVar = np.dtype("u1")
-    _repr_fields: ClassVar = (
-        "restore_default",
-        "restore_eeprom",
-        "save",
-        "restore_name",
-        "update_firmware",
-        "boot_from_default",
-        "boot_from_eeprom",
-    )
 
     restore_default = _BitFlag(0x01)
     restore_eeprom = _BitFlag(0x02)
@@ -107,7 +90,7 @@ class ResetDevicePayload(PayloadBase[np.uint8]):
         val |= np.uint8(update_firmware) << np.uint8(5)
         val |= np.uint8(boot_from_default) << np.uint8(6)
         val |= np.uint8(boot_from_eeprom) << np.uint8(7)
-        self._arr = np.array([val], dtype=self._dtype)
+        self._arr = np.array((val,), dtype=self._dtype)
 
 
 class DeviceNamePayload(PayloadBase[np.uint8]):
@@ -117,35 +100,36 @@ class DeviceNamePayload(PayloadBase[np.uint8]):
     Access the decoded string via ``.name``; ``.value`` returns the raw byte array.
     """
 
-    _dtype: ClassVar = np.dtype("u1")
-    _repr_fields: ClassVar = ("name",)
     _MAX_LEN: ClassVar[int] = 25
+    _dtype: ClassVar = np.dtype([("value", "u1", (_MAX_LEN,))])
+    _repr_fields: ClassVar = ("name",)
 
     def __init__(self, name: str) -> None:
         encoded = name.encode("ascii")[: self._MAX_LEN]
         padded = encoded.ljust(self._MAX_LEN, b"\x00")
-        self._arr = np.frombuffer(padded, dtype=self._dtype).copy()
+        arr = np.zeros((), dtype=self._dtype)
+        arr["value"] = np.frombuffer(padded, dtype="u1")
+        self._arr = arr
 
     @property
     def name(self) -> str:
-        return self._arr.tobytes().rstrip(b"\x00").decode("ascii")
+        # 0-D _arr (parse / __init__): _arr["value"] is shape (_MAX_LEN,).
+        # 1-D _arr (batch): take row 0 — Batch users should iterate rows
+        # explicitly via _arr["value"] if they need every name.
+        raw = self._arr["value"] if self._arr.ndim == 0 else self._arr["value"][0]
+        return raw.tobytes().rstrip(b"\x00").decode("ascii")
 
     def to_dataframe(self) -> pd.DataFrame:
-        return pd.DataFrame({"name": [self.name]})
+        if self._arr.ndim == 0:
+            return pd.DataFrame({"name": [self.name]})
+        names = [row.tobytes().rstrip(b"\x00").decode("ascii") for row in self._arr["value"]]
+        return pd.DataFrame({"name": names})
 
 
 class ClockConfigPayload(PayloadBase[np.uint8]):
     """Payload for the ClockConfiguration register (address 14)."""
 
     _dtype: ClassVar = np.dtype("u1")
-    _repr_fields: ClassVar = (
-        "clock_repeater",
-        "clock_generator",
-        "repeater_capability",
-        "generator_capability",
-        "clock_unlock",
-        "clock_lock",
-    )
 
     clock_repeater = _BitFlag(0x01)
     clock_generator = _BitFlag(0x02)
@@ -171,7 +155,7 @@ class ClockConfigPayload(PayloadBase[np.uint8]):
         val |= np.uint8(generator_capability) << np.uint8(4)
         val |= np.uint8(clock_unlock) << np.uint8(6)
         val |= np.uint8(clock_lock) << np.uint8(7)
-        self._arr = np.array([val], dtype=self._dtype)
+        self._arr = np.array((val,), dtype=self._dtype)
 
 
 # ---------------------------------------------------------------------------
