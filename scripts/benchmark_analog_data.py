@@ -21,8 +21,6 @@ Run with:
     uv run python scripts/benchmark_analog_data.py
 """
 
-from __future__ import annotations
-
 import sys
 import timeit
 from pathlib import Path
@@ -80,6 +78,11 @@ def pyharp_read(path: Path, *, include_timestamp: bool = True):
     if include_timestamp:
         df.insert(0, "timestamp", timestamps)
     return df
+
+
+def pyharp_read_dataframe(path: Path, *, timestamp: bool = True):
+    """pyharp one-call path: read_dataframe."""
+    return AnalogData.read_dataframe(path, timestamp=timestamp)
 
 
 def harp_python_read(path: Path):
@@ -156,14 +159,29 @@ if __name__ == "__main__":
         lambda p: pyharp_read(p, include_timestamp=False),
         BIN_FILE,
     )
+    t_py_rd = benchmark(
+        "pyharp       read_dataframe(timestamp=True)",
+        pyharp_read_dataframe,
+        BIN_FILE,
+    )
+    t_py_rd_no_ts = benchmark(
+        "pyharp       read_dataframe(timestamp=False)",
+        lambda p: pyharp_read_dataframe(p, timestamp=False),
+        BIN_FILE,
+    )
 
     print("")
-    for label, t_py in [("with timestamp", t_py_ts), ("without timestamp", t_py_no_ts)]:
+    for label, t_py in [
+        ("read_frames + to_dataframe + ts", t_py_ts),
+        ("read_frames + to_dataframe (no ts)", t_py_no_ts),
+        ("read_dataframe(timestamp=True)", t_py_rd),
+        ("read_dataframe(timestamp=False)", t_py_rd_no_ts),
+    ]:
         ratio_min = t_py.min() / t_harp.min()
         ratio_mean = t_py.mean() / t_harp.mean()
         direction = "slower" if ratio_mean > 1 else "faster"
         print(
-            f"  pyharp ({label}) vs harp-python :"
+            f"  {label:<40s} vs harp-python :"
             f"  min={ratio_min:.2f}x  mean={ratio_mean:.2f}x"
             f"  ({direction} by {abs(ratio_mean - 1) * 100:.0f}% on mean)"
         )

@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any, ClassVar, Generic, TypeVar, cast, final, overload
 
 import numpy as np
+import pandas as pd
 from typing_extensions import Sentinel
 
 from ._builder import build_message_frame
@@ -79,6 +80,61 @@ class RegisterBase(ABC, Generic[P]):
         return cast(P, cls.payload_class.from_buffer(buf))
 
     @classmethod
+    def _parse_buffer(
+        cls,
+        source: bytes | bytearray | memoryview | Path | str,
+        *,
+        parse_timestamp: bool = True,
+    ) -> "tuple[np.ndarray, np.ndarray | None, np.ndarray | None, P]":
+        """Internal: parse a buffer once, returning (data, timestamps, msgtype_view, payload).
+
+        ``timestamps`` is None when the register is not timestamped **or**
+        when ``parse_timestamp`` is False (skips the float64 conversion).
+        ``msgtype_view`` is a strided uint8 view (zero-copy, always computed).
+        Returns ``data`` so its lifetime anchors the strided views.
+        """
+        if isinstance(source, (str, Path)):
+            data = np.fromfile(source, dtype=np.uint8)
+        else:
+            data = np.frombuffer(source, dtype=np.uint8)
+
+        if len(data) == 0:
+            obj = cls.payload_class.__new__(cls.payload_class)
+            obj._arr = np.empty(0, dtype=cls.payload_class._dtype.base)
+            return data, None, None, cast(P, obj)
+
+        stride = int(data[1]) + 2
+        nrows = len(data) // stride
+        is_timestamped = bool(int(data[4]) & 0x10)
+        payload_offset = 11 if is_timestamped else 5
+
+        if is_timestamped and parse_timestamp:
+            ts_s = np.ndarray(nrows, dtype="<u4", buffer=data, offset=5, strides=stride)
+            ts_us = np.ndarray(nrows, dtype="<u2", buffer=data, offset=9, strides=stride)
+            timestamps = ts_s.astype(np.float64) + ts_us.astype(np.float64) * 32e-6
+        else:
+            timestamps = None
+
+        msgtype_view = np.ndarray(nrows, dtype=np.uint8, buffer=data, offset=0, strides=stride)
+
+        elem_dtype = cls.payload_class._dtype.base
+        elem_size = elem_dtype.itemsize
+        length = cls.length or 1
+        payload_arr = np.ndarray(
+            (nrows, length),
+            dtype=elem_dtype,
+            buffer=data,
+            offset=payload_offset,
+            strides=(stride, elem_size),
+        )
+        if length == 1:
+            payload_arr = payload_arr[:, 0]
+
+        obj = cls.payload_class.__new__(cls.payload_class)
+        obj._arr = payload_arr
+        return data, timestamps, msgtype_view, cast(P, obj)
+
+    @classmethod
     def read_frames(
         cls,
         source: bytes | bytearray | memoryview | Path | str,
@@ -95,50 +151,57 @@ class RegisterBase(ABC, Generic[P]):
         -------
         timestamps : np.ndarray
             1-D float64 array of timestamps in seconds, one per frame.
+            For non-timestamped registers, a synthetic ``arange(N)`` is
+            returned.
         payload : P
             Payload object whose ``_arr`` is a zero-copy strided view into
             the raw buffer (shape ``(N,)`` for scalar/bitfield registers,
             ``(N, length)`` for array registers).
         """
-        if isinstance(source, (str, Path)):
-            data = np.fromfile(source, dtype=np.uint8)
-        else:
-            data = np.frombuffer(source, dtype=np.uint8)
+        _data, timestamps, _msg, payload = cls._parse_buffer(source, parse_timestamp=True)
+        if timestamps is None:
+            timestamps = np.arange(len(payload), dtype=np.float64)
+        return timestamps, payload
 
-        if len(data) == 0:
-            obj = cls.payload_class.__new__(cls.payload_class)
-            obj._arr = np.empty(0, dtype=cls.payload_class._dtype.base)
-            return np.empty(0, dtype=np.float64), cast(P, obj)
+    @classmethod
+    def read_dataframe(
+        cls,
+        source: bytes | bytearray | memoryview | Path | str,
+        *,
+        timestamp: bool = True,
+        message_type: bool = False,
+        decode_enums: bool = True,
+    ) -> "pd.DataFrame":
+        """One-call read: parse all frames into a DataFrame.
 
-        stride = int(data[1]) + 2
-        nrows = len(data) // stride
-        is_timestamped = bool(int(data[4]) & 0x10)
-        payload_offset = 11 if is_timestamped else 5
+        Parameters
+        ----------
+        timestamp:
+            Insert a ``timestamp`` column (float seconds). For non-timestamped
+            registers this falls back to a synthetic frame index.
+        message_type:
+            Insert a ``message_type`` column as a ``pd.Categorical`` with
+            categories ``["Read", "Write", "Event"]`` (high bits masked off).
+        decode_enums:
+            If True (default), ``_GroupMask`` payload fields are decoded to
+            ``pd.Categorical`` columns using the enum member names.
+            Set False for raw integer columns and minimum overhead.
+        """
 
-        if is_timestamped:
-            ts_s = np.ndarray(nrows, dtype="<u4", buffer=data, offset=5, strides=stride)
-            ts_us = np.ndarray(nrows, dtype="<u2", buffer=data, offset=9, strides=stride)
-            timestamps = ts_s.astype(np.float64) + ts_us.astype(np.float64) * 32e-6
-        else:
-            timestamps = np.arange(nrows, dtype=np.float64)
-
-        # Use .base to unwrap sub-array dtypes created by _ArrayRegisterMeta
-        elem_dtype = cls.payload_class._dtype.base
-        elem_size = elem_dtype.itemsize
-        length = cls.length or 1
-        payload_arr = np.ndarray(
-            (nrows, length),
-            dtype=elem_dtype,
-            buffer=data,
-            offset=payload_offset,
-            strides=(stride, elem_size),
-        )
-        if length == 1:
-            payload_arr = payload_arr[:, 0]  # shape (N,) not (N, 1)
-
-        obj = cls.payload_class.__new__(cls.payload_class)
-        obj._arr = payload_arr
-        return timestamps, cast(P, obj)
+        _data, timestamps, msg_view, payload = cls._parse_buffer(source, parse_timestamp=timestamp)
+        df = payload.to_dataframe(decode_enums=decode_enums)
+        if message_type and msg_view is not None:
+            _msg_names = np.array(["", "Read", "Write", "Event"])
+            df.insert(
+                0,
+                "message_type",
+                pd.Categorical(_msg_names[msg_view & 0x03], categories=_msg_names[1:]),
+            )
+        if timestamp:
+            if timestamps is None:
+                timestamps = np.arange(len(payload), dtype=np.float64)
+            df.insert(0, "timestamp", timestamps)
+        return df
 
     @overload
     @classmethod
