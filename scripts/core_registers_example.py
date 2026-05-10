@@ -1,7 +1,7 @@
 """Example: construct and parse every core Harp register payload.
 
 Run with:
-    uv run python core_registers_example.py
+    uv run python scripts/core_registers_example.py
 """
 
 from pathlib import Path
@@ -91,7 +91,7 @@ print(f"  visual_indicators : {ctrl.visual_indicators}")  # EnableFlag.Enabled
 # ---------------------------------------------------------------------------
 # Bulk read from a .bin file (zero-copy, vectorised)
 # ---------------------------------------------------------------------------
-BIN_FILE = Path("notes/Behavior.harp/Behavior_10.bin")
+BIN_FILE = Path(__file__).parent.parent / "notes/Behavior.harp/Behavior_10.bin"
 print(f"\n=== Bulk read from {BIN_FILE.name} ===")
 timestamps, payload = OperationControl.read_frames(BIN_FILE)
 print(f"  {len(timestamps)} frame(s) read")
