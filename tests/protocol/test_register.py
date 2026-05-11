@@ -410,14 +410,14 @@ def test_array_register_value_multi():
 
 
 def test_parse_returns_zero_dim_arr():
-    """parse() always wraps a single record in a 0-D _arr."""
+    """parse() always wraps a single record in a 0-D _arr on the scalar class."""
     frame = TimestampSecond.format(42)
     msg = _parse_frame(frame)
     parsed = TimestampSecond.parse(msg)
     assert parsed._arr.ndim == 0
     assert isinstance(parsed, PayloadU32)
-    # All descriptors are ndim-aware — parse() and read_frames() both
-    # return the same payload class; there is no Batch sibling.
+    # parse() routes 0-D records to the scalar twin (PayloadU32); the auto-
+    # derived PayloadU32.Batch only handles 1-D buffers.
     assert type(parsed) is PayloadU32
 
 
@@ -431,17 +431,18 @@ def test_parse_does_not_overrun_buffer():
     assert len(parsed) == 1
 
 
-def test_batch_payload_is_same_class_with_1d_arr():
-    """from_buffer wraps a 1-D _arr in the same class — no Batch sibling.
+def test_batch_payload_routes_to_batch_twin():
+    """from_buffer wraps a 1-D _arr in the auto-derived ``Batch`` twin.
 
-    All descriptors inspect ``_arr.ndim`` at access time, so one class
-    handles both the 0-D scalar (``parse``) and 1-D batch (``read_frames``
-    / ``from_buffer``) paths.
+    The Batch class is a subclass of the scalar class with each descriptor
+    swapped to its ``*Batch`` counterpart, so ``isinstance(batch, scalar_cls)``
+    still holds while ``type(batch)`` is the Batch sibling.
     """
     reg = RegisterU32Array(0x08, length=3)
     rows = np.array([[1, 2, 3], [4, 5, 6]], dtype=np.dtype("<u4"))
     batch = reg.payload_class.from_buffer(rows.tobytes())
-    assert type(batch) is reg.payload_class
+    assert type(batch) is reg.payload_class.Batch
+    assert isinstance(batch, reg.payload_class)
     assert batch._arr.ndim == 1
 
 

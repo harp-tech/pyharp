@@ -2,13 +2,12 @@ import enum
 from typing import ClassVar
 
 import numpy as np
-import pandas as pd
 from harp.protocol._payload import (
     PayloadBase,
     _BitFlag,
     _Field,
     _GroupMask,
-    _IdentityConverter,
+    _StringConverter,
 )
 from harp.protocol._payload_type import PayloadType
 from harp.protocol._register import RegisterBase, RegisterU8, RegisterU16, RegisterU32
@@ -58,37 +57,13 @@ class ResetDevicePayload(PayloadBase[np.uint8]):
 class DeviceNamePayload(PayloadBase[np.uint8]):
     """Payload for the DeviceName register (address 12).
 
-    Stores a user-specified ASCII device name padded to 25 bytes.
-    Access the decoded string via ``.name``; ``.value`` (inherited) returns
-    the raw byte sub-array.
+    Stores a user-specified ASCII device name padded to 25 bytes. Encoding,
+    decoding, and the dataframe column are all handled by ``_StringConverter``.
     """
 
     _MAX_LEN: ClassVar[int] = 25
 
-    value = _Field(_IdentityConverter(np.dtype((np.uint8, (_MAX_LEN,)))))
-
-    _repr_fields: ClassVar = ("name",)
-
-    def __init__(self, name: str) -> None:
-        encoded = name.encode("ascii")[: self._MAX_LEN]
-        padded = encoded.ljust(self._MAX_LEN, b"\x00")
-        arr = np.zeros((), dtype=self._dtype)
-        arr["value"] = np.frombuffer(padded, dtype="u1")
-        self._arr = arr
-
-    @property
-    def name(self) -> str:
-        # 0-D _arr (parse / __init__): _arr["value"] is shape (_MAX_LEN,).
-        # 1-D _arr (batch): take row 0 — Batch users should iterate rows
-        # explicitly via _arr["value"] if they need every name.
-        raw = self._arr["value"] if self._arr.ndim == 0 else self._arr["value"][0]
-        return raw.tobytes().rstrip(b"\x00").decode("ascii")
-
-    def to_dataframe(self) -> pd.DataFrame:
-        if self._arr.ndim == 0:
-            return pd.DataFrame({"name": [self.name]})
-        names = [row.tobytes().rstrip(b"\x00").decode("ascii") for row in self._arr["value"]]
-        return pd.DataFrame({"name": names})
+    value = _Field(_StringConverter(_MAX_LEN))
 
 
 class ClockConfigPayload(PayloadBase[np.uint8]):

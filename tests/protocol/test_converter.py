@@ -183,7 +183,7 @@ def test_value_field_name_allowed():
 
 
 def test_bitfield_payloads_ndim_aware():
-    """One descriptor handles both 0-D and 1-D _arr — no Batch sibling."""
+    """Scalar records stay on the declared class; batches route to the auto-derived ``Batch`` twin."""
 
     class _Flags(PayloadBase):
         flag = _BitFlag(0x01, dtype=np.uint8)
@@ -191,12 +191,14 @@ def test_bitfield_payloads_ndim_aware():
 
     # 0-D scalar record: flag=1, group bits=01 (Green)
     scalar = _Flags.from_array(np.array((0x03,), dtype=_Flags._dtype))
+    assert type(scalar) is _Flags
     assert scalar.flag is True
     assert scalar.group is _Color.Green
 
-    # 1-D batch — same class, ndarray-typed accessors.
+    # 1-D batch — Batch sibling, ndarray-typed accessors.
     batch = _Flags.from_buffer(bytes([0x01, 0x02]))
-    assert type(batch) is _Flags
+    assert type(batch) is _Flags.Batch
+    assert isinstance(batch, _Flags)
     np.testing.assert_array_equal(batch.flag, [True, False])
     np.testing.assert_array_equal(batch.group, [0, 1])
 

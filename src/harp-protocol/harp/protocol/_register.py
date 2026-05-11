@@ -22,6 +22,7 @@ from ._builder import build_message_frame
 from ._message import HarpMessage
 from ._message_type import MessageType
 from ._payload import (
+    Batch,
     PayloadBase,
     PayloadFloat,
     PayloadFloatArray,
@@ -86,7 +87,7 @@ class RegisterBase(ABC, Generic[P]):
         source: bytes | bytearray | memoryview | Path | str,
         *,
         parse_timestamp: bool = True,
-    ) -> "tuple[np.ndarray, np.ndarray | None, np.ndarray | None, P]":
+    ) -> "tuple[np.ndarray, np.ndarray | None, np.ndarray | None, Batch[P]]":
         # Returns (data, timestamps, msgtype_view, payload). ``data`` is
         # returned so its lifetime anchors the zero-copy strided views.
         payload_cls = cls.payload_class
@@ -97,7 +98,7 @@ class RegisterBase(ABC, Generic[P]):
 
         if len(data) == 0:
             payload = payload_cls.from_array(np.empty(0, dtype=payload_cls._dtype))
-            return data, None, None, cast(P, payload)
+            return data, None, None, cast("Batch[P]", payload)
 
         stride = int(data[1]) + 2
         nrows = len(data) // stride
@@ -122,13 +123,13 @@ class RegisterBase(ABC, Generic[P]):
         )
 
         payload = payload_cls.from_array(payload_arr)
-        return data, timestamps, msgtype_view, cast(P, payload)
+        return data, timestamps, msgtype_view, cast("Batch[P]", payload)
 
     @classmethod
     def read_frames(
         cls,
         source: bytes | bytearray | memoryview | Path | str,
-    ) -> "tuple[np.ndarray, P]":
+    ) -> "tuple[np.ndarray, Batch[P]]":
         """Read all frames from a single-register binary buffer or file.
 
         Returns ``(timestamps, payload)``. For non-timestamped registers a
