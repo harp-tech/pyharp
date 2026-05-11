@@ -3,7 +3,8 @@ import threading
 from typing import Any, ClassVar, Self, TypeVar
 
 import serial
-from harp.protocol import HarpFramer, HarpMessage, MessageType
+from harp.device._framer import HarpFramer
+from harp.protocol import HarpMessage, MessageType
 from harp.protocol._message import ParsedHarpMessage
 from harp.protocol._payload import PayloadBase
 from harp.protocol._register import RegisterBase

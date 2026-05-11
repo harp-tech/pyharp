@@ -1,6 +1,6 @@
 import struct
 
-from harp.protocol._framer import HarpFramer
+from harp.device._framer import HarpFramer
 from harp.protocol._message_type import MessageType
 
 from tests.fixtures import TIMESTAMP_1S, make_frame_from_raw

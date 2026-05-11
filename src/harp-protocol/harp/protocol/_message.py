@@ -40,7 +40,7 @@ class HarpMessage:
 
     @classmethod
     def parse(cls, data: bytes | bytearray | memoryview) -> "HarpMessage":
-        """Parse and validate a complete Harp frame. Raises ``HarpParseError`` on failure."""
+        """Parse and validate a complete Harp Message from a byte sequence. Raises ``HarpParseError`` on failure."""
         raw = data if isinstance(data, bytes) else bytes(data)
 
         if len(raw) < 6:

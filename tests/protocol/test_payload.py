@@ -3,7 +3,6 @@ import pandas as pd
 import pytest
 from harp.protocol._payload import PayloadBase, _Field, _IdentityConverter
 
-
 class SimplePayload(PayloadBase):
     x = _Field(_IdentityConverter("<i2"))
     y = _Field(_IdentityConverter("<u1"))

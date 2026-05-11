@@ -1,6 +1,5 @@
 from ._builder import build_message_frame
 from ._checksum import compute as compute_checksum, validate as validate_checksum
-from ._framer import HarpFramer
 from ._message import HarpMessage, HarpParseError, ParsedHarpMessage, parse as parse_message
 from ._message_type import (
     MessageType,
@@ -69,8 +68,6 @@ __all__ = [
     "ParsedHarpMessage",
     "HarpParseError",
     "parse_message",
-    # Framer
-    "HarpFramer",
     # Payload DSL
     "PayloadBase",
     "PayloadU8",

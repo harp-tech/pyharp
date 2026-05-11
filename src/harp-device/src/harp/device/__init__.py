@@ -1,4 +1,5 @@
 from ._device import Device
+from ._framer import HarpFramer
 from ._registers import (
     AssemblyVersion,
     ClockConfig,
@@ -23,6 +24,7 @@ from ._serial import SerialDevice
 
 __all__ = [
     "Device",
+    "HarpFramer",
     "SerialDevice",
     "WhoAmI",
     "HwVersionH",
