@@ -2,7 +2,7 @@ from collections.abc import Iterator
 from pathlib import Path
 
 from harp.protocol._message import HarpMessage, HarpParseError, parse
-from harp.protocol._message_type import from_byte as _validate_message_type
+from harp.protocol._message_type import message_type_from_byte as _validate_message_type
 
 
 class HarpFramer:

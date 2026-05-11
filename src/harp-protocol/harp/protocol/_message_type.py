@@ -12,16 +12,26 @@ _RESERVED_MASK = 0b11110100
 _VALID_TYPES = frozenset(t.value for t in MessageType)
 
 
-def from_byte(b: int) -> tuple["MessageType", bool]:
-    """Decode a MessageType byte into ``(MessageType, has_error)``. Raises ``ValueError`` on invalid input."""
+def _message_type_from_byte_safe(b: int) -> "tuple[MessageType, bool] | None":
+    """Decode a MessageType byte into ``(MessageType, has_error)``, or ``None`` if invalid."""
     if b & _RESERVED_MASK:
-        raise ValueError(f"Reserved bits set in MessageType byte: 0x{b:02x}")
+        return None
     type_bits = b & 0x03
     if type_bits not in _VALID_TYPES:
-        raise ValueError(f"Invalid MessageType value {type_bits} in byte: 0x{b:02x}")
+        return None
     return MessageType(type_bits), bool(b & 0x08)
 
 
-def to_byte(message_type: MessageType, has_error: bool = False) -> int:
+def message_type_from_byte(b: int) -> tuple["MessageType", bool]:
+    """Decode a MessageType byte into ``(MessageType, has_error)``. Raises ``ValueError`` on invalid input."""
+    result = _message_type_from_byte_safe(b)
+    if result is None:
+        type_bits = b & 0x03
+        if b & _RESERVED_MASK:
+            raise ValueError(f"Reserved bits set in MessageType byte: 0x{b:02x}")
+        raise ValueError(f"Invalid MessageType value {type_bits} in byte: 0x{b:02x}")
+    return result
+
+def message_type_to_byte(message_type: MessageType, has_error: bool = False) -> int:
     """Encode MessageType + error flag to a single byte."""
     return message_type.value | (0x08 if has_error else 0)

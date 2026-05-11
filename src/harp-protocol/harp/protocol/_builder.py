@@ -3,7 +3,7 @@
 import struct
 
 from ._message_type import MessageType
-from ._message_type import to_byte as _msg_type_byte
+from ._message_type import message_type_to_byte as _msg_type_byte
 from ._payload_type import PayloadType, encode_payload_type
 
 

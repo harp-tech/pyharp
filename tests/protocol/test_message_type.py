@@ -1,5 +1,5 @@
 import pytest
-from harp.protocol._message_type import MessageType, from_byte, to_byte
+from harp.protocol._message_type import MessageType, message_type_from_byte, message_type_to_byte
 
 
 @pytest.mark.parametrize(
@@ -14,7 +14,7 @@ from harp.protocol._message_type import MessageType, from_byte, to_byte
     ],
 )
 def test_from_byte_valid(byte, expected_type, expected_error):
-    msg_type, has_error = from_byte(byte)
+    msg_type, has_error = message_type_from_byte(byte)
     assert msg_type == expected_type
     assert has_error == expected_error
 
@@ -33,24 +33,24 @@ def test_from_byte_valid(byte, expected_type, expected_error):
 )
 def test_from_byte_invalid(byte):
     with pytest.raises(ValueError):
-        from_byte(byte)
+        message_type_from_byte(byte)
 
 
 def test_to_byte_no_error():
-    assert to_byte(MessageType.Read) == 0x01
-    assert to_byte(MessageType.Write) == 0x02
-    assert to_byte(MessageType.Event) == 0x03
+    assert message_type_to_byte(MessageType.Read) == 0x01
+    assert message_type_to_byte(MessageType.Write) == 0x02
+    assert message_type_to_byte(MessageType.Event) == 0x03
 
 
 def test_to_byte_with_error():
-    assert to_byte(MessageType.Read, has_error=True) == 0x09
-    assert to_byte(MessageType.Write, has_error=True) == 0x0A
+    assert message_type_to_byte(MessageType.Read, has_error=True) == 0x09
+    assert message_type_to_byte(MessageType.Write, has_error=True) == 0x0A
 
 
 def test_roundtrip():
     for mt in MessageType:
         for err in (False, True):
-            b = to_byte(mt, err)
-            mt2, err2 = from_byte(b)
+            b = message_type_to_byte(mt, err)
+            mt2, err2 = message_type_from_byte(b)
             assert mt2 == mt
             assert err2 == err

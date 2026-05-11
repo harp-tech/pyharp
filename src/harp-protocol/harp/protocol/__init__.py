@@ -3,8 +3,8 @@ from ._checksum import compute as compute_checksum, validate as validate_checksu
 from ._message import HarpMessage, HarpParseError, ParsedHarpMessage, parse as parse_message
 from ._message_type import (
     MessageType,
-    from_byte as message_type_from_byte,
-    to_byte as message_type_to_byte,
+    message_type_from_byte as message_type_from_byte,
+    message_type_to_byte as message_type_to_byte,
 )
 from ._payload import (
     PayloadBase,
