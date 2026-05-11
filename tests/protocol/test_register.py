@@ -17,6 +17,8 @@ from harp.protocol._payload import (
     PayloadU16,
     PayloadU32,
     PayloadU64,
+    _Field,
+    _IdentityConverter,
 )
 from harp.protocol._payload_type import PayloadType
 from harp.protocol._register import (
@@ -33,8 +35,6 @@ from harp.protocol._register import (
     RegisterU32Array,
     RegisterU64,
 )
-from numpy.typing import NDArray
-
 # ---------------------------------------------------------------------------
 # Fixtures / helpers
 # ---------------------------------------------------------------------------
@@ -49,25 +49,9 @@ class DigitalOutputSet(RegisterU16):
 
 
 class AnalogDataPayload(PayloadBase):
-    _dtype: ClassVar = np.dtype(
-        [
-            ("analog_input0", "<i2"),
-            ("encoder", "<i2"),
-            ("analog_input1", "<i2"),
-        ]
-    )
-
-    @property
-    def analog_input0(self) -> NDArray[np.int16]:
-        return self._arr["analog_input0"]
-
-    @property
-    def encoder(self) -> NDArray[np.int16]:
-        return self._arr["encoder"]
-
-    @property
-    def analog_input1(self) -> NDArray[np.int16]:
-        return self._arr["analog_input1"]
+    analog_input0 = _Field(_IdentityConverter("<i2"))
+    encoder = _Field(_IdentityConverter("<i2"))
+    analog_input1 = _Field(_IdentityConverter("<i2"))
 
 
 class AnalogData(RegisterBase[AnalogDataPayload]):
@@ -432,7 +416,8 @@ def test_parse_returns_zero_dim_arr():
     parsed = TimestampSecond.parse(msg)
     assert parsed._arr.ndim == 0
     assert isinstance(parsed, PayloadU32)
-    # parse() returns the scalar payload class, not the Batch sibling.
+    # All descriptors are ndim-aware — parse() and read_frames() both
+    # return the same payload class; there is no Batch sibling.
     assert type(parsed) is PayloadU32
 
 
@@ -446,37 +431,35 @@ def test_parse_does_not_overrun_buffer():
     assert len(parsed) == 1
 
 
-def test_batch_class_is_subclass_with_swapped_descriptors():
-    """payload_class.Batch is a subclass with batch-typed accessors."""
-    reg = RegisterU32Array(0x08, length=3)
-    batch_cls = reg.payload_class.Batch
-    assert issubclass(batch_cls, reg.payload_class)
+def test_batch_payload_is_same_class_with_1d_arr():
+    """from_buffer wraps a 1-D _arr in the same class — no Batch sibling.
 
+    All descriptors inspect ``_arr.ndim`` at access time, so one class
+    handles both the 0-D scalar (``parse``) and 1-D batch (``read_frames``
+    / ``from_buffer``) paths.
+    """
+    reg = RegisterU32Array(0x08, length=3)
     rows = np.array([[1, 2, 3], [4, 5, 6]], dtype=np.dtype("<u4"))
     batch = reg.payload_class.from_buffer(rows.tobytes())
-    assert isinstance(batch, batch_cls)
+    assert type(batch) is reg.payload_class
     assert batch._arr.ndim == 1
 
 
-def test_struct_payload_auto_field_descriptors_for_codegen_style():
-    """A struct payload that does not declare per-field properties gets them auto-generated."""
+def test_struct_payload_field_descriptors_codegen_style():
+    """A struct payload declared via _Field descriptors decodes both ndim modes."""
 
     class GeneratedAnalogPayload(PayloadBase):
-        _dtype: ClassVar = np.dtype(
-            [
-                ("a", "<i2"),
-                ("b", "<i2"),
-                ("c", "<i2"),
-            ]
-        )
+        a = _Field(_IdentityConverter("<i2"))
+        b = _Field(_IdentityConverter("<i2"))
+        c = _Field(_IdentityConverter("<i2"))
 
     p = GeneratedAnalogPayload.from_array(np.array((1, 2, 3), dtype=GeneratedAnalogPayload._dtype))
-    # Auto-generated _Field descriptors return 0-D scalars.
+    # 0-D _arr → numpy scalar per field.
     assert int(p.a) == 1
     assert int(p.b) == 2
     assert int(p.c) == 3
 
-    # Batch sibling auto-generated; descriptors return ndarrays.
+    # 1-D _arr → ndarray columns. Same descriptor handles both.
     batch_arr = np.array([(1, 2, 3), (4, 5, 6)], dtype=GeneratedAnalogPayload._dtype)
     batch = GeneratedAnalogPayload.from_buffer(batch_arr.tobytes())
     np.testing.assert_array_equal(batch.a, [1, 4])
@@ -488,6 +471,7 @@ def test_repr_fields_auto_derived_from_dtype():
     """A struct payload that doesn't set _repr_fields gets them from _dtype.names."""
 
     class P(PayloadBase):
-        _dtype: ClassVar = np.dtype([("alpha", "<i2"), ("beta", "<u1")])
+        alpha = _Field(_IdentityConverter("<i2"))
+        beta = _Field(_IdentityConverter("<u1"))
 
     assert P._repr_fields == ("alpha", "beta")

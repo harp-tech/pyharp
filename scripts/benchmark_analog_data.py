@@ -37,7 +37,7 @@ sys.path.insert(0, str(REPO_ROOT))
 
 from scripts._harp_io import read as harp_read  # vendored harp-python read()
 
-from harp.protocol._payload import PayloadBase
+from harp.protocol._payload import PayloadBase, _Field, _IdentityConverter
 from harp.protocol._payload_type import PayloadType
 from harp.protocol._register import RegisterBase
 
@@ -51,9 +51,9 @@ ANALOG_COLUMNS = ["analog_input0", "encoder", "analog_input1"]
 class AnalogDataPayload(PayloadBase[np.void]):
     """Payload for AnalogData (register 44): three signed 16-bit channels."""
 
-    _dtype: ClassVar = np.dtype(
-        [("analog_input0", "<i2"), ("encoder", "<i2"), ("analog_input1", "<i2")]
-    )
+    analog_input0 = _Field(_IdentityConverter("<i2"))
+    encoder = _Field(_IdentityConverter("<i2"))
+    analog_input1 = _Field(_IdentityConverter("<i2"))
 
 
 class AnalogData(RegisterBase[AnalogDataPayload]):

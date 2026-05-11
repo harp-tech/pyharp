@@ -1,26 +1,16 @@
-from typing import ClassVar
-
 import numpy as np
 import pandas as pd
 import pytest
-from harp.protocol._payload import PayloadBase
-from numpy.typing import NDArray
+from harp.protocol._payload import PayloadBase, _Field, _IdentityConverter
 
 
 class SimplePayload(PayloadBase):
-    _dtype: ClassVar = np.dtype([("x", "<i2"), ("y", "<u1")])
-
-    @property
-    def x(self) -> NDArray[np.int16]:
-        return self.raw_payload["x"]
-
-    @property
-    def y(self) -> NDArray[np.uint8]:
-        return self.raw_payload["y"]
+    x = _Field(_IdentityConverter("<i2"))
+    y = _Field(_IdentityConverter("<u1"))
 
 
 class BitPackedPayload(PayloadBase):
-    _dtype: ClassVar = np.dtype([("packed", "u1")])
+    packed = _Field(_IdentityConverter("u1"))
 
     def to_dataframe(self) -> pd.DataFrame:
         return pd.DataFrame(

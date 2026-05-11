@@ -1,0 +1,215 @@
+"""Tests for the unified _Field + _Converter machinery in _payload.py.
+
+Covers:
+* IdentityConverter via auto-generated _Field (parity with previous _Field).
+* StringConverter (sub-array uint8 ↔ str).
+* EnumConverter (full-byte enum decoding).
+* Declarations-build-dtype direction (no _dtype on the subclass).
+* Reserved-name collision check.
+"""
+
+import enum
+
+import numpy as np
+import pytest
+from harp.protocol._payload import (
+    PayloadBase,
+    _BitFlag,
+    _Field,
+    _GroupMask,
+    _IdentityConverter,
+    _StringConverter,
+)
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+
+class _Color(enum.IntEnum):
+    Red = 0
+    Green = 1
+    Blue = 2
+
+
+# ---------------------------------------------------------------------------
+# IdentityConverter — pass-through field
+# ---------------------------------------------------------------------------
+
+
+class _NumericPayload(PayloadBase):
+    a = _Field(_IdentityConverter("<i2"))
+    b = _Field(_IdentityConverter("<u4"))
+
+
+def test_identity_converter_scalar_view():
+    rec = np.array((-7, 99), dtype=_NumericPayload._dtype)
+    p = _NumericPayload.from_array(rec)
+    assert int(p.a) == -7
+    assert int(p.b) == 99
+
+
+def test_identity_converter_batch_view():
+    arr = np.array([(-7, 99), (1, 2)], dtype=_NumericPayload._dtype)
+    p = _NumericPayload.from_buffer(arr.tobytes())
+    np.testing.assert_array_equal(p.a, [-7, 1])
+    np.testing.assert_array_equal(p.b, [99, 2])
+
+
+# ---------------------------------------------------------------------------
+# Declarations-build-dtype direction
+# ---------------------------------------------------------------------------
+
+
+class DeclaredPayload(PayloadBase):
+    delta = _Field(_IdentityConverter(np.uint32))
+    flag = _Field(_IdentityConverter(np.uint8))
+
+
+def test_declared_dtype_synthesised_from_fields():
+    # Field declarations alone build a structured dtype in declaration order.
+    assert DeclaredPayload._dtype.names == ("delta", "flag")
+    assert DeclaredPayload._dtype.fields["delta"][0] == np.dtype(np.uint32)
+    assert DeclaredPayload._dtype.fields["flag"][0] == np.dtype(np.uint8)
+
+
+def test_declared_dtype_kwarg_init_round_trip():
+    p = DeclaredPayload(delta=42, flag=1)
+    assert int(p.delta) == 42
+    assert int(p.flag) == 1
+    # raw bytes round-trip via Batch
+    p2 = DeclaredPayload.from_buffer(p.raw_payload.tobytes())
+    np.testing.assert_array_equal(p2.delta, [42])
+    np.testing.assert_array_equal(p2.flag, [1])
+
+
+# ---------------------------------------------------------------------------
+# StringConverter
+# ---------------------------------------------------------------------------
+
+
+class _NamedPayload(PayloadBase):
+    name = _Field(_StringConverter(8))
+    delta = _Field(_IdentityConverter(np.uint16))
+
+
+def test_string_converter_dtype_synthesis():
+    # name should occupy 8 bytes, delta 2 bytes.
+    assert _NamedPayload._dtype.itemsize == 10
+    assert _NamedPayload._dtype.fields["name"][0].subdtype is not None
+
+
+def test_string_converter_scalar_decode_roundtrip():
+    p = _NamedPayload(name="abc", delta=7)
+    assert p.name == "abc"
+    assert int(p.delta) == 7
+    # raw bytes are zero-padded
+    raw = bytes(p.raw_payload["name"])
+    assert raw == b"abc\x00\x00\x00\x00\x00"
+
+
+def test_string_converter_batch_decode():
+    rec1 = _NamedPayload(name="hi", delta=1).raw_payload.tobytes()
+    rec2 = _NamedPayload(name="bye", delta=2).raw_payload.tobytes()
+    batch = _NamedPayload.from_buffer(rec1 + rec2)
+    names = batch.name
+    assert list(names) == ["hi", "bye"]
+    np.testing.assert_array_equal(batch.delta, [1, 2])
+
+
+def test_string_converter_to_dataframe():
+    rec1 = _NamedPayload(name="hi", delta=1).raw_payload.tobytes()
+    rec2 = _NamedPayload(name="bye", delta=2).raw_payload.tobytes()
+    batch = _NamedPayload.from_buffer(rec1 + rec2)
+    df = batch.to_dataframe()
+    # Non-identity converter produces one column per field — no sub-array
+    # expansion for the string field.
+    assert list(df.columns) == ["name", "delta"]
+    assert df["name"].tolist() == ["hi", "bye"]
+    assert df["delta"].tolist() == [1, 2]
+
+
+# ---------------------------------------------------------------------------
+# GroupMask in struct-field role (full-byte enum, non-default slot).
+# Demonstrates that _GroupMask subsumes the previous _EnumConverter.
+# ---------------------------------------------------------------------------
+
+
+class _ConfigPayload(PayloadBase):
+    # Full-byte enum slot named "color"; mask=0xFF, shift=0.
+    color = _GroupMask(0xFF, 0, _Color, slot="color", dtype=np.uint8)
+    delta = _Field(_IdentityConverter(np.uint8))
+
+
+def test_groupmask_struct_field_scalar_decode():
+    p = _ConfigPayload(color=_Color.Green, delta=3)
+    assert p.color is _Color.Green
+    assert isinstance(p.color, _Color)
+    assert int(p.delta) == 3
+
+
+def test_groupmask_struct_field_batch_decode_returns_ints():
+    p1 = _ConfigPayload(color=_Color.Red, delta=1).raw_payload.tobytes()
+    p2 = _ConfigPayload(color=_Color.Blue, delta=2).raw_payload.tobytes()
+    batch = _ConfigPayload.from_buffer(p1 + p2)
+    np.testing.assert_array_equal(batch.color, [int(_Color.Red), int(_Color.Blue)])
+
+
+# ---------------------------------------------------------------------------
+# Reserved-name collision
+# ---------------------------------------------------------------------------
+
+
+def test_reserved_field_name_raises():
+    with pytest.raises(TypeError, match="reserved"):
+
+        class _Bad(PayloadBase):
+            _dtype = _Field(_IdentityConverter(np.uint8))  # type: ignore[assignment]
+
+
+def test_value_field_name_allowed():
+    # ``value`` is intentionally overridable — the descriptor wins via MRO.
+    class _Single(PayloadBase):
+        value = _Field(_StringConverter(4))
+
+    p = _Single(value="ok")
+    assert p.value == "ok"
+
+
+# ---------------------------------------------------------------------------
+# Sanity: bitfield path is unaffected by the converter refactor
+# ---------------------------------------------------------------------------
+
+
+def test_bitfield_payloads_ndim_aware():
+    """One descriptor handles both 0-D and 1-D _arr — no Batch sibling."""
+
+    class _Flags(PayloadBase):
+        flag = _BitFlag(0x01, dtype=np.uint8)
+        group = _GroupMask(0x06, 1, _Color, dtype=np.uint8)
+
+    # 0-D scalar record: flag=1, group bits=01 (Green)
+    scalar = _Flags.from_array(np.array((0x03,), dtype=_Flags._dtype))
+    assert scalar.flag is True
+    assert scalar.group is _Color.Green
+
+    # 1-D batch — same class, ndarray-typed accessors.
+    batch = _Flags.from_buffer(bytes([0x01, 0x02]))
+    assert type(batch) is _Flags
+    np.testing.assert_array_equal(batch.flag, [True, False])
+    np.testing.assert_array_equal(batch.group, [0, 1])
+
+
+def test_bitfield_kwarg_init_round_trip():
+    """PayloadBase.__init__ supports bitfield kwargs with OR-into-slot encoding."""
+
+    class _Flags(PayloadBase):
+        flag = _BitFlag(0x01, dtype=np.uint8)
+        group = _GroupMask(0x06, 1, _Color, dtype=np.uint8)
+
+    p = _Flags(flag=True, group=_Color.Green)
+    assert p.flag is True
+    assert p.group is _Color.Green
+    # Wire byte: flag bit + (Green << 1) = 0x01 | 0x02 = 0x03
+    assert int(p.raw_payload["value"]) == 0x03
