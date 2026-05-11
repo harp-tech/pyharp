@@ -32,6 +32,7 @@ def message_type_from_byte(b: int) -> tuple["MessageType", bool]:
         raise ValueError(f"Invalid MessageType value {type_bits} in byte: 0x{b:02x}")
     return result
 
+
 def message_type_to_byte(message_type: MessageType, has_error: bool = False) -> int:
     """Encode MessageType + error flag to a single byte."""
     return message_type.value | (0x08 if has_error else 0)

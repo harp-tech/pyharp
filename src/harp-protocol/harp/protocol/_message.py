@@ -125,6 +125,7 @@ class HarpMessage:
             f"payload_type={self.payload_type!r}, timestamp={self.timestamp!r})"
         )
 
+
 class ParsedHarpMessage(HarpMessage, Generic[P]):
     """A ``HarpMessage`` with a typed parsed payload attached."""
 
