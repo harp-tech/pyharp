@@ -93,7 +93,7 @@ print(f"  visual_indicators : {ctrl.visual_indicators}")  # EnableFlag.Enabled
 # ---------------------------------------------------------------------------
 BIN_FILE = Path(__file__).parent.parent / "notes/Behavior.harp/Behavior_10.bin"
 print(f"\n=== Bulk read from {BIN_FILE.name} ===")
-timestamps, payload = OperationControl.read_frames(BIN_FILE)
+_data, timestamps, msg_type, payload = OperationControl.parse_bulk(BIN_FILE.read_bytes())
 print(f"  {len(timestamps)} frame(s) read")
 print(f"  timestamps (s) : {timestamps}")
 print(f"  operation_mode : {payload.operation_mode}")

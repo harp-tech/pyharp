@@ -3,12 +3,11 @@
 from typing import Any, TypeVar
 
 from harp.protocol._message import ParsedHarpMessage
-from harp.protocol._payload import PayloadBase
 from harp.protocol._register import RegisterBase
 
 from ._serial import SerialDevice
 
-P = TypeVar("P", bound=PayloadBase[Any])
+P = TypeVar("P")
 
 
 class Device:

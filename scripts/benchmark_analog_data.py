@@ -27,19 +27,14 @@ from pathlib import Path
 from typing import ClassVar
 
 import numpy as np
-
-# ---------------------------------------------------------------------------
-# Add repo root to sys.path so this script works whether invoked from root or
-# from within scripts/.
-# ---------------------------------------------------------------------------
-REPO_ROOT = Path(__file__).parent.parent
-sys.path.insert(0, str(REPO_ROOT))
-
 from scripts._harp_io import read as harp_read  # vendored harp-python read()
 
 from harp.protocol._payload import PayloadBase, _Field, _IdentityConverter
 from harp.protocol._payload_type import PayloadType
 from harp.protocol._register import RegisterBase
+
+
+REPO_ROOT = Path(__file__).parent.parent
 
 # ---------------------------------------------------------------------------
 # AnalogData register definition (hand-written; would come from codegen)
@@ -72,8 +67,9 @@ BIN_FILE = REPO_ROOT / "notes" / "Behavior.harp" / "Behavior_44.bin"
 
 
 def pyharp_read(path: Path, *, include_timestamp: bool = True):
-    """pyharp path: read_frames → to_dataframe."""
-    timestamps, payload = AnalogData.read_frames(path)
+    """pyharp path: parse_bulk → to_dataframe."""
+    bytes_2_parse = path.read_bytes()
+    _data, timestamps, msg_type, payload = AnalogData.parse_bulk(bytes_2_parse)
     df = payload.to_dataframe()
     if include_timestamp:
         df.insert(0, "timestamp", timestamps)

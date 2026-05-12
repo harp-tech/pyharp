@@ -7,79 +7,24 @@ import pandas as pd
 from numpy.typing import NDArray
 from typing_extensions import Self
 
+from ._payload_converters import Converter as _Converter
+from ._payload_converters import IdentityConverter as _IdentityConverter
+
 NpStructT = TypeVar("NpStructT", bound=np.generic)
 T = TypeVar("T")
 E = TypeVar("E", bound=enum.IntEnum)
-NpScalarT = TypeVar("NpScalarT", bound=np.generic)
-
-
-# ---------------------------------------------------------------------------
-# Converters
-# ---------------------------------------------------------------------------
-
-
-class _Converter(ABC, Generic[T]):
-    dtype: np.dtype
-    python_type: type
-
-    @abstractmethod
-    def decode_scalar(self, view: Any) -> T: ...
-
-    @abstractmethod
-    def decode_batch(self, view: Any) -> Any: ...
-
-    @abstractmethod
-    def encode_into(self, view: Any, value: Any) -> None: ...
-
-
-class _IdentityConverter(_Converter[NpScalarT]):
-    def __init__(self, dtype: "np.dtype[NpScalarT] | str | type[NpScalarT]") -> None:
-        self.dtype = np.dtype(dtype)
-        self.python_type = self.dtype.type
-
-    def decode_scalar(self, view: Any) -> NpScalarT:
-        return view
-
-    def decode_batch(self, view: Any) -> "NDArray[NpScalarT]":
-        return view
-
-    def encode_into(self, view: Any, value: NpScalarT) -> None:
-        view[...] = value
-
-
-class _StringConverter(_Converter[str]):
-    python_type = str
-
-    def __init__(self, length: int, encoding: str = "ascii") -> None:
-        self._length = length
-        self._encoding = encoding
-        self.dtype = np.dtype((np.uint8, (length,)))
-
-    def decode_scalar(self, view: Any) -> str:
-        return bytes(view).rstrip(b"\x00").decode(self._encoding)
-
-    def decode_batch(self, view: Any) -> Any:
-        return np.array(
-            [bytes(row).rstrip(b"\x00").decode(self._encoding) for row in view],
-            dtype=object,
-        )
-
-    def encode_into(self, view: Any, value: str) -> None:
-        encoded = value.encode(self._encoding)[: self._length]
-        padded = encoded.ljust(self._length, b"\x00")
-        view[...] = np.frombuffer(padded, dtype=np.uint8)
 
 
 # ---------------------------------------------------------------------------
 # Descriptors — scalar variants (return Python / 0-D types)
 # ---------------------------------------------------------------------------
-# A PayloadBase subclass declares fields with the scalar descriptors below.
-# `__init_subclass__` auto-derives a Batch sibling whose descriptors are
-# swapped to the matching ``*Batch`` counterpart via ``_to_batch()`` and
-# return ``NDArray`` views instead.
 
 
 class _Field(Generic[T]):
+    """Descriptor for a payload field with a Converter.
+    Note: The name of the field is used as the slot name in the underlying numpy structured array.
+    """
+
     def __init__(self, converter: _Converter[T], *, name: str | None = None) -> None:
         self._converter = converter
         self._name = name
@@ -102,6 +47,12 @@ class _Field(Generic[T]):
 
 
 class _BitFlag:
+    """Descriptor for a bit flag within a payload field.
+    Notes:
+    1) ensure dtype of the slot can hold the mask (e.g. uint8 for mask 0x01, uint16 for mask 0x100, etc.)
+    2) An additional "slot" name can be provided if the bit flag is not stored in the same-named slot as the field descriptors (e.g. if multiple bit flags are packed into a single byte slot).
+    """
+
     def __init__(
         self,
         mask: int,
@@ -127,6 +78,7 @@ class _BitFlag:
 
 
 def _build_enum_lookup(enum_cls: type) -> "tuple[list[str], np.ndarray]":
+    """Helper for _GroupMask to build the category list and code lookup table for a given enum.IntEnum class."""
     members = list(enum_cls)
     categories = [m.name for m in members]
     max_val = max(int(m) for m in members)
@@ -138,6 +90,12 @@ def _build_enum_lookup(enum_cls: type) -> "tuple[list[str], np.ndarray]":
 
 
 class _GroupMask(Generic[E]):
+    """Descriptor for a group of bits representing an enum value within a payload field.
+    Notes:
+    1) ensure dtype of the slot can hold the mask (e.g. uint8 for mask 0x01, uint16 for mask 0x100, etc.)
+    2) An additional "slot" name can be provided if the group mask is not stored in the same-named slot as the field descriptors (e.g. if multiple group masks are packed into a single byte slot).
+    """
+
     def __init__(
         self,
         mask: int,
@@ -176,10 +134,13 @@ class _GroupMask(Generic[E]):
 
 # ---------------------------------------------------------------------------
 # Descriptors — batch variants (return ndarray views)
+# These are mostly used for batch operations like `to_dataframe`
 # ---------------------------------------------------------------------------
 
 
 class _FieldBatch(Generic[T]):
+    """Same as _Field but returns an NDArray view for batch payloads rather than a scalar value."""
+
     def __init__(self, converter: _Converter[T], *, name: str | None = None) -> None:
         self._converter = converter
         self._name = name
@@ -199,6 +160,8 @@ class _FieldBatch(Generic[T]):
 
 
 class _BitFlagBatch:
+    """Same as _BitFlag but returns an NDArray view for batch payloads rather than a scalar value."""
+
     def __init__(
         self,
         mask: int,
@@ -221,6 +184,8 @@ class _BitFlagBatch:
 
 
 class _GroupMaskBatch(Generic[E]):
+    """Same as _GroupMask but returns an NDArray view for batch payloads rather than a scalar value."""
+
     def __init__(
         self,
         mask: int,
@@ -248,10 +213,12 @@ class _GroupMaskBatch(Generic[E]):
 
 
 _PT = TypeVar("_PT", bound="PayloadBase[Any]")
+_MISSING_INIT = object()
 
 
-class Batch(Generic[_PT]):
-    """Phantom type for batched payloads.
+class Batch(Generic[_PT], ABC):
+    """Alias type for batched payloads so we can have nice type-hinting
+    for batch operations like `read_frames` and `to_dataframe`.
 
     Statically, ``Batch[P]`` is a distinct type from ``P`` so the type
     checker knows ``read_frames`` returns an ndarray-shaped view rather
@@ -266,14 +233,17 @@ class Batch(Generic[_PT]):
     raw_payload: "NDArray[Any]"
     value: "NDArray[Any]"
 
+    @abstractmethod
     def __len__(self) -> int: ...  # type: ignore[empty-body]
 
+    @abstractmethod
     def to_dataframe(self, *, decode_enums: bool = True) -> "pd.DataFrame": ...  # type: ignore[empty-body]
 
+    @abstractmethod
     def __getattr__(self, name: str) -> "NDArray[Any]": ...  # type: ignore[empty-body]
 
 
-# Tuples used by isinstance() checks throughout the module.
+# Helpers for type checking using isinstance()
 _SCALAR_DECLARATION_TYPES = (_Field, _BitFlag, _GroupMask)
 _BATCH_DECLARATION_TYPES = (_FieldBatch, _BitFlagBatch, _GroupMaskBatch)
 _DECLARATION_TYPES = _SCALAR_DECLARATION_TYPES + _BATCH_DECLARATION_TYPES
@@ -306,7 +276,7 @@ class PayloadBase(Generic[NpStructT]):
     buffers become Batch.
     """
 
-    _dtype: ClassVar[np.dtype]
+    dtype: ClassVar[np.dtype]
     _repr_fields: ClassVar[tuple[str, ...]]
     _scalar_cls: ClassVar["type[PayloadBase]"]
     _batch_cls: ClassVar["type[PayloadBase]"]
@@ -315,9 +285,10 @@ class PayloadBase(Generic[NpStructT]):
 
     def __init__(self, *args: object, **kwargs: object) -> None:
         cls = type(self)
-        names = self._dtype.names
+        names = self.dtype.names
         assert names is not None
 
+        # TODO this is just to allow; PayloadU16(foo) syntax. Not sure if it is worth it?
         if args and kwargs:
             raise TypeError(
                 f"{cls.__name__}() does not accept positional and keyword args together"
@@ -335,7 +306,7 @@ class PayloadBase(Generic[NpStructT]):
         if unknown:
             raise TypeError(f"{cls.__name__}() got unexpected kwargs: {sorted(unknown)}")
 
-        arr = np.zeros((), dtype=self._dtype)
+        arr = np.zeros((), dtype=self.dtype)
 
         for name in names:
             if name not in slot_kwargs:
@@ -388,7 +359,7 @@ class PayloadBase(Generic[NpStructT]):
         if _batch_of is not None:
             # Auto-generated Batch sibling: borrow dtype/_repr_fields from its
             # scalar twin and wire the scalar↔batch pointers.
-            cls._dtype = _batch_of._dtype
+            cls.dtype = _batch_of.dtype
             cls._repr_fields = _batch_of._repr_fields
             cls._scalar_cls = _batch_of
             cls._batch_cls = cls
@@ -422,7 +393,7 @@ class PayloadBase(Generic[NpStructT]):
                         )
                 else:
                     slots[slot] = dtype
-            cls._dtype = np.dtype(list(slots.items()))
+            cls.dtype = np.dtype(list(slots.items()))
 
         if "_repr_fields" not in cls.__dict__:
             bitfield_names = tuple(
@@ -431,7 +402,7 @@ class PayloadBase(Generic[NpStructT]):
             if bitfield_names:
                 cls._repr_fields = bitfield_names
             else:
-                names = cls._dtype.names if hasattr(cls, "_dtype") else None
+                names = cls.dtype.names if hasattr(cls, "dtype") else None
                 if names is not None and names != ("value",):
                     cls._repr_fields = names
                 else:
@@ -440,7 +411,7 @@ class PayloadBase(Generic[NpStructT]):
         cls._scalar_cls = cls
         cls._batch_cls = cls  # rebound below once Batch is generated
 
-        if hasattr(cls, "_dtype"):
+        if hasattr(cls, "dtype"):
             batch_attrs: dict[str, Any] = {"__init__": _batch_init_disabled}
             for name, val in cls.__dict__.items():
                 if isinstance(val, _SCALAR_DECLARATION_TYPES):
@@ -461,15 +432,8 @@ class PayloadBase(Generic[NpStructT]):
 
     @classmethod
     def from_buffer(cls, buf: bytes | bytearray | memoryview) -> Self:
-        arr = np.frombuffer(buf, dtype=cls._dtype)
+        arr = np.frombuffer(buf, dtype=cls.dtype)
         return cls.from_array(arr)
-
-    @property
-    def value(self) -> "NDArray[NpStructT]":
-        arr = self._arr
-        if arr.dtype.names == ("value",):
-            return arr["value"]
-        return arr
 
     @property
     def raw_payload(self) -> NDArray[NpStructT]:
@@ -501,7 +465,7 @@ class PayloadBase(Generic[NpStructT]):
             return pd.DataFrame(cols)
 
         cols = {}
-        names = self._dtype.names
+        names = self.dtype.names
         single_value_slot = names == ("value",)
         for name in names:
             desc = cls._mro_descriptor(name)
@@ -512,7 +476,7 @@ class PayloadBase(Generic[NpStructT]):
                 cols[name] = np.atleast_1d(getattr(self, name))
                 continue
 
-            field_dtype, _ = self._dtype.fields[name]
+            field_dtype, _ = self.dtype.fields[name]
             sub = arr[name]
             if field_dtype.subdtype is None:
                 cols[name] = sub
@@ -537,83 +501,166 @@ class PayloadBase(Generic[NpStructT]):
     def __str__(self) -> str:
         return repr(self)
 
+    @classmethod
+    def unwrap(cls, arr: "np.ndarray") -> Any:
+        """Dispatch hook used by ``RegisterBase.parse``.
 
-class PayloadU8(PayloadBase[np.uint8]):
-    value = _Field(_IdentityConverter(np.dtype("u1")))
-
-
-class PayloadU16(PayloadBase[np.uint16]):
-    value = _Field(_IdentityConverter(np.dtype("<u2")))
-
-
-class PayloadU32(PayloadBase[np.uint32]):
-    value = _Field(_IdentityConverter(np.dtype("<u4")))
+        Struct payloads return a typed wrapper so descriptors like
+        ``payload.Channel0`` work. Anonymous payloads override this to
+        return the raw numpy scalar/ndarray directly.
+        """
+        return cls.from_array(arr)
 
 
-class PayloadU64(PayloadBase[np.uint64]):
-    value = _Field(_IdentityConverter(np.dtype("<u8")))
+# ---------------------------------------------------------------------------
+# AnonymousPayload — single unnamed slot, no user-facing descriptors
+# ---------------------------------------------------------------------------
 
 
-class PayloadS8(PayloadBase[np.int8]):
-    value = _Field(_IdentityConverter(np.dtype("i1")))
+class AnonymousPayload(PayloadBase[NpStructT]):
+    """Payload backed by a single unnamed numpy dtype (scalar or sub-array).
 
+    Subclasses declare the dtype via class kwargs, not descriptors:
 
-class PayloadS16(PayloadBase[np.int16]):
-    value = _Field(_IdentityConverter(np.dtype("<i2")))
+        class PayloadU16(AnonymousPayload, scalar_dtype="<u2"): ...
 
+    Used for scalar/array Harp registers whose payload has no internal
+    structure. ``RegisterBase.parse`` unwraps these to a raw numpy scalar
+    (for 0-D) or ndarray (for sub-array / batch) — there is no
+    ``.value`` accessor and the slot name ``value`` is free for use by
+    struct payloads.
+    """
 
-class PayloadS32(PayloadBase[np.int32]):
-    value = _Field(_IdentityConverter(np.dtype("<i4")))
+    _is_anonymous: ClassVar[bool] = True
 
+    def __init_subclass__(
+        cls,
+        *,
+        scalar_dtype: "np.dtype | str | type | None" = None,
+        **kwargs: object,
+    ) -> None:
+        if scalar_dtype is not None:
+            cls.dtype = np.dtype(scalar_dtype)
+            cls._repr_fields = ()
+        super().__init_subclass__(**kwargs)
 
-class PayloadS64(PayloadBase[np.int64]):
-    value = _Field(_IdentityConverter(np.dtype("<i8")))
+    def __init__(self, value: object = _MISSING_INIT, /, **kwargs: object) -> None:  # type: ignore[override]
+        if value is _MISSING_INIT:
+            if "value" in kwargs:
+                value = kwargs.pop("value")
+            else:
+                raise TypeError(f"{type(self).__name__}() requires a value")
+        if kwargs:
+            raise TypeError(f"{type(self).__name__}() got unexpected kwargs: {sorted(kwargs)}")
+        self._arr = np.asarray(value, dtype=self.dtype)
 
+    @classmethod
+    def unwrap(cls, arr: "np.ndarray") -> Any:
+        # 0-D → numpy scalar via item-like access (preserves dtype).
+        # 1-D / sub-array → return the ndarray as-is.
+        return arr if arr.ndim > 0 else arr[()]
 
-class PayloadFloat(PayloadBase[np.float32]):
-    value = _Field(_IdentityConverter(np.dtype("<f4")))
+    def _repr_kwargs(self) -> str:
+        return repr(self._arr.tolist() if self._arr.ndim > 0 else self._arr[()])
 
+    def __repr__(self) -> str:
+        return f"{type(self).__name__}({self._repr_kwargs()})"
 
-@final
-class PayloadU8Array(PayloadBase[NDArray[np.uint8]]):
-    value = _Field(_IdentityConverter(np.dtype("u1")))
-
-
-@final
-class PayloadU16Array(PayloadBase[NDArray[np.uint16]]):
-    value = _Field(_IdentityConverter(np.dtype("<u2")))
-
-
-@final
-class PayloadU32Array(PayloadBase[NDArray[np.uint32]]):
-    value = _Field(_IdentityConverter(np.dtype("<u4")))
-
-
-@final
-class PayloadU64Array(PayloadBase[NDArray[np.uint64]]):
-    value = _Field(_IdentityConverter(np.dtype("<u8")))
-
-
-@final
-class PayloadS8Array(PayloadBase[NDArray[np.int8]]):
-    value = _Field(_IdentityConverter(np.dtype("i1")))
-
-
-@final
-class PayloadS16Array(PayloadBase[NDArray[np.int16]]):
-    value = _Field(_IdentityConverter(np.dtype("<i2")))
-
-
-@final
-class PayloadS32Array(PayloadBase[NDArray[np.int32]]):
-    value = _Field(_IdentityConverter(np.dtype("<i4")))
-
-
-@final
-class PayloadS64Array(PayloadBase[NDArray[np.int64]]):
-    value = _Field(_IdentityConverter(np.dtype("<i8")))
+    def to_dataframe(self, *, decode_enums: bool = True) -> pd.DataFrame:
+        arr = np.atleast_1d(self._arr)
+        # Sub-array dtype (array register): shape is already (N, length).
+        if arr.ndim > 1:
+            return pd.DataFrame({str(i): arr[:, i] for i in range(arr.shape[1])})
+        return pd.DataFrame({"value": arr})
 
 
 @final
-class PayloadFloatArray(PayloadBase[NDArray[np.float32]]):
-    value = _Field(_IdentityConverter(np.dtype("<f4")))
+class PayloadU8(AnonymousPayload[np.uint8], scalar_dtype=np.dtype("u1")):
+    pass
+
+
+@final
+class PayloadU16(AnonymousPayload[np.uint16], scalar_dtype=np.dtype("<u2")):
+    pass
+
+
+@final
+class PayloadU32(AnonymousPayload[np.uint32], scalar_dtype=np.dtype("<u4")):
+    pass
+
+
+@final
+class PayloadU64(AnonymousPayload[np.uint64], scalar_dtype=np.dtype("<u8")):
+    pass
+
+
+@final
+class PayloadS8(AnonymousPayload[np.int8], scalar_dtype=np.dtype("i1")):
+    pass
+
+
+@final
+class PayloadS16(AnonymousPayload[np.int16], scalar_dtype=np.dtype("<i2")):
+    pass
+
+
+@final
+class PayloadS32(AnonymousPayload[np.int32], scalar_dtype=np.dtype("<i4")):
+    pass
+
+
+@final
+class PayloadS64(AnonymousPayload[np.int64], scalar_dtype=np.dtype("<i8")):
+    pass
+
+
+@final
+class PayloadFloat(AnonymousPayload[np.float32], scalar_dtype=np.dtype("<f4")):
+    pass
+
+
+# Array payload base classes — concrete sub-dtype is set by ``RegisterBase``
+# array metaclass when a length is supplied (e.g. ``RegisterU16Array(0x28, length=3)``).
+@final
+class PayloadU8Array(AnonymousPayload[np.uint8], scalar_dtype=np.dtype("u1")):
+    pass
+
+
+@final
+class PayloadU16Array(AnonymousPayload[np.uint16], scalar_dtype=np.dtype("<u2")):
+    pass
+
+
+@final
+class PayloadU32Array(AnonymousPayload[np.uint32], scalar_dtype=np.dtype("<u4")):
+    pass
+
+
+@final
+class PayloadU64Array(AnonymousPayload[np.uint64], scalar_dtype=np.dtype("<u8")):
+    pass
+
+
+@final
+class PayloadS8Array(AnonymousPayload[np.int8], scalar_dtype=np.dtype("i1")):
+    pass
+
+
+@final
+class PayloadS16Array(AnonymousPayload[np.int16], scalar_dtype=np.dtype("<i2")):
+    pass
+
+
+@final
+class PayloadS32Array(AnonymousPayload[np.int32], scalar_dtype=np.dtype("<i4")):
+    pass
+
+
+@final
+class PayloadS64Array(AnonymousPayload[np.int64], scalar_dtype=np.dtype("<i8")):
+    pass
+
+
+@final
+class PayloadFloatArray(AnonymousPayload[np.float32], scalar_dtype=np.dtype("<f4")):
+    pass

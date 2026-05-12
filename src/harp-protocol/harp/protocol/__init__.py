@@ -1,10 +1,17 @@
 from ._builder import build_message_frame
 from ._checksum import compute as compute_checksum, validate as validate_checksum
-from ._message import HarpMessage, HarpParseError, ParsedHarpMessage, parse as parse_message
+from ._message import HarpMessage, HarpParseError, ParsedHarpMessage
 from ._message_type import (
     MessageType,
     message_type_from_byte as message_type_from_byte,
     message_type_to_byte as message_type_to_byte,
+)
+from ._payload_converters import (
+    Converter,
+    IdentityConverter,
+    StringConverter,
+    converter_registry,
+    register_converter,
 )
 from ._payload import (
     PayloadBase,
@@ -67,7 +74,12 @@ __all__ = [
     "HarpMessage",
     "ParsedHarpMessage",
     "HarpParseError",
-    "parse_message",
+    # Converters
+    "Converter",
+    "IdentityConverter",
+    "StringConverter",
+    "register_converter",
+    "converter_registry",
     # Payload DSL
     "PayloadBase",
     "PayloadU8",

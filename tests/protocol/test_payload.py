@@ -3,6 +3,7 @@ import pandas as pd
 import pytest
 from harp.protocol._payload import PayloadBase, _Field, _IdentityConverter
 
+
 class SimplePayload(PayloadBase):
     x = _Field(_IdentityConverter("<i2"))
     y = _Field(_IdentityConverter("<u1"))
@@ -21,7 +22,7 @@ class BitPackedPayload(PayloadBase):
 
 
 def _make_simple_bytes(n: int) -> bytes:
-    arr = np.zeros(n, dtype=SimplePayload._dtype)
+    arr = np.zeros(n, dtype=SimplePayload.dtype)
     arr["x"] = np.arange(n, dtype=np.int16) * -1
     arr["y"] = np.arange(n, dtype=np.uint8)
     return arr.tobytes()
@@ -48,7 +49,7 @@ def test_to_dataframe_columns():
 
 
 def test_to_dataframe_override():
-    arr = np.array([(0b00000011,), (0b00000001,), (0b00000010,)], dtype=BitPackedPayload._dtype)
+    arr = np.array([(0b00000011,), (0b00000001,), (0b00000010,)], dtype=BitPackedPayload.dtype)
     p = BitPackedPayload.from_buffer(arr.tobytes())
     df = p.to_dataframe()
     assert list(df.columns) == ["flag_a", "flag_b"]
@@ -66,4 +67,4 @@ def test_from_buffer_zero_copy():
 
 def test_payload_property():
     p = SimplePayload.from_buffer(_make_simple_bytes(2))
-    assert p.raw_payload.dtype == SimplePayload._dtype
+    assert p.raw_payload.dtype == SimplePayload.dtype

@@ -1,15 +1,14 @@
 """Harp message container."""
 
 import struct
-from typing import Any, Generic, TypeVar, cast
+from typing import Generic, TypeVar, cast
 
 from ._builder import build_message_frame
 from ._checksum import validate as _validate_checksum
 from ._message_type import MessageType, _message_type_from_byte_safe
-from ._payload import PayloadBase
 from ._payload_type import PayloadType, decode_payload_type
 
-P = TypeVar("P", bound=PayloadBase[Any])
+P = TypeVar("P")
 
 
 class HarpParseError(Exception):

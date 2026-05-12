@@ -1,7 +1,7 @@
 from collections.abc import Iterator
 from pathlib import Path
 
-from harp.protocol._message import HarpMessage, HarpParseError, parse
+from harp.protocol._message import HarpMessage, HarpParseError
 from harp.protocol._message_type import message_type_from_byte as _validate_message_type
 
 
@@ -66,7 +66,7 @@ class HarpFramer:
 
             frame = bytes(buf[pos:frame_end])
             try:
-                msg = parse(frame)
+                msg = HarpMessage.parse(frame)
                 pos = frame_end
                 self._pos = pos
                 return msg

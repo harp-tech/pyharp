@@ -44,14 +44,14 @@ class _NumericPayload(PayloadBase):
 
 
 def test_identity_converter_scalar_view():
-    rec = np.array((-7, 99), dtype=_NumericPayload._dtype)
+    rec = np.array((-7, 99), dtype=_NumericPayload.dtype)
     p = _NumericPayload.from_array(rec)
     assert int(p.a) == -7
     assert int(p.b) == 99
 
 
 def test_identity_converter_batch_view():
-    arr = np.array([(-7, 99), (1, 2)], dtype=_NumericPayload._dtype)
+    arr = np.array([(-7, 99), (1, 2)], dtype=_NumericPayload.dtype)
     p = _NumericPayload.from_buffer(arr.tobytes())
     np.testing.assert_array_equal(p.a, [-7, 1])
     np.testing.assert_array_equal(p.b, [99, 2])
@@ -69,9 +69,9 @@ class DeclaredPayload(PayloadBase):
 
 def test_declared_dtype_synthesised_from_fields():
     # Field declarations alone build a structured dtype in declaration order.
-    assert DeclaredPayload._dtype.names == ("delta", "flag")
-    assert DeclaredPayload._dtype.fields["delta"][0] == np.dtype(np.uint32)
-    assert DeclaredPayload._dtype.fields["flag"][0] == np.dtype(np.uint8)
+    assert DeclaredPayload.dtype.names == ("delta", "flag")
+    assert DeclaredPayload.dtype.fields["delta"][0] == np.dtype(np.uint32)
+    assert DeclaredPayload.dtype.fields["flag"][0] == np.dtype(np.uint8)
 
 
 def test_declared_dtype_kwarg_init_round_trip():
@@ -96,8 +96,8 @@ class _NamedPayload(PayloadBase):
 
 def test_string_converter_dtype_synthesis():
     # name should occupy 8 bytes, delta 2 bytes.
-    assert _NamedPayload._dtype.itemsize == 10
-    assert _NamedPayload._dtype.fields["name"][0].subdtype is not None
+    assert _NamedPayload.dtype.itemsize == 10
+    assert _NamedPayload.dtype.fields["name"][0].subdtype is not None
 
 
 def test_string_converter_scalar_decode_roundtrip():
@@ -190,7 +190,7 @@ def test_bitfield_payloads_ndim_aware():
         group = _GroupMask(0x06, 1, _Color, dtype=np.uint8)
 
     # 0-D scalar record: flag=1, group bits=01 (Green)
-    scalar = _Flags.from_array(np.array((0x03,), dtype=_Flags._dtype))
+    scalar = _Flags.from_array(np.array((0x03,), dtype=_Flags.dtype))
     assert type(scalar) is _Flags
     assert scalar.flag is True
     assert scalar.group is _Color.Green

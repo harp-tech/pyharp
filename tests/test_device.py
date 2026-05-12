@@ -15,7 +15,17 @@ from harp.device._registers import (
     OperationControlPayload,
     OperationMode,
 )
-from harp.device.cuttlefish import PinsPayload
+
+
+class PinsPayload(PayloadBase[np.uint8]):
+    pin0 = _BitFlag(0x01)
+    pin1 = _BitFlag(0x02)
+    pin2 = _BitFlag(0x04)
+    pin3 = _BitFlag(0x08)
+    pin4 = _BitFlag(0x10)
+    pin5 = _BitFlag(0x20)
+    pin6 = _BitFlag(0x40)
+    pin7 = _BitFlag(0x80)
 
 
 # --- Minimal fixture payload class ------------------------------------------

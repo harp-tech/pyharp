@@ -6,10 +6,9 @@ import serial
 from harp.device._framer import HarpFramer
 from harp.protocol import HarpMessage, MessageType
 from harp.protocol._message import ParsedHarpMessage
-from harp.protocol._payload import PayloadBase
 from harp.protocol._register import RegisterBase
 
-P = TypeVar("P", bound=PayloadBase[Any])
+P = TypeVar("P")
 
 
 class SerialDevice:
