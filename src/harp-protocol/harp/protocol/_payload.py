@@ -276,11 +276,19 @@ class PayloadBase(Generic[NpStructT]):
     buffers become Batch.
     """
 
+    # Structured numpy dtype describing the memory layout of a single payload record.
     dtype: ClassVar[np.dtype]
+    # Field names shown in __repr__ and used as DataFrame column order.
     _repr_fields: ClassVar[tuple[str, ...]]
+    # The scalar twin of this class (identity for scalar classes, points to scalar from Batch).
     _scalar_cls: ClassVar["type[PayloadBase]"]
+    # The batch twin of this class (identity until the Batch sibling is generated).
     _batch_cls: ClassVar["type[PayloadBase]"]
+    # Cached map of attribute name → _BitFlag/_GroupMask descriptor, built once at class definition.
+    _bitfields: ClassVar[dict[str, Any]]
+    # Auto-generated sibling class whose descriptors return NDArray views instead of scalars.
     Batch: ClassVar["type[PayloadBase]"]
+    # The underlying numpy array holding one (0-D) or many (1-D) payload records.
     _arr: NDArray[NpStructT]
 
     def __init__(self, *args: object, **kwargs: object) -> None:
@@ -302,7 +310,7 @@ class PayloadBase(Generic[NpStructT]):
         slot_kwargs = {k: v for k, v in kwargs.items() if k in names}
         descriptor_kwargs = {k: v for k, v in kwargs.items() if k not in names}
 
-        bitfields = cls._collect_bitfields()
+        bitfields = cls._bitfields
         unknown = set(descriptor_kwargs) - set(bitfields)
         if unknown:
             raise TypeError(f"{cls.__name__}() got unexpected kwargs: {sorted(unknown)}")
@@ -424,6 +432,8 @@ class PayloadBase(Generic[NpStructT]):
                 _batch_of=cls,
             )
 
+        cls._bitfields = cls._collect_bitfields()
+
     @classmethod
     def from_array(cls, arr: "np.ndarray") -> Self:
         target = cls._scalar_cls if arr.ndim == 0 else cls._batch_cls
@@ -509,6 +519,11 @@ class PayloadBase(Generic[NpStructT]):
         Struct payloads return a typed wrapper so descriptors like
         ``payload.Channel0`` work. Anonymous payloads override this to
         return the raw numpy scalar/ndarray directly.
+
+        This allows us to not have to use hacky descriptors for single-field
+        struct payloads (e.g. a struct with one uint16 field can just be a
+        PayloadU16 subclass) while still supporting the full descriptor
+        machinery for multi-field struct payloads.
         """
         return cls.from_array(arr)
 
