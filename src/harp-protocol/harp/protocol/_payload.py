@@ -286,7 +286,8 @@ class PayloadBase(Generic[NpStructT]):
     def __init__(self, *args: object, **kwargs: object) -> None:
         cls = type(self)
         names = self.dtype.names
-        assert names is not None
+        if names is None:
+            raise TypeError(f"{type(self).__name__}.dtype has no named fields")
 
         # TODO this is just to allow; PayloadU16(foo) syntax. Not sure if it is worth it?
         if args and kwargs:
