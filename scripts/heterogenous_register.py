@@ -1,0 +1,87 @@
+from typing import ClassVar
+
+import numpy as np
+
+from harp.protocol._message import HarpMessage
+from harp.protocol._message_type import MessageType
+from harp.protocol._payload import PayloadBase, _Field
+from harp.protocol._payload_converters import StringConverter, UInt32Converter
+from harp.protocol._payload_type import PayloadType
+from harp.protocol._register import RegisterBase
+
+# ---------------------------------------------------------------------------
+# Payload
+# ---------------------------------------------------------------------------
+
+#   FileSettings0:
+#     address: 54
+#     type: U8
+#     access: Write
+#     length: 45
+#     description: "Struct to configure Analog Output Channel 0
+#       File Player settings: cycles (U32), duration_us (U32),
+#       update_frequency_hz (U32), path (U8 array, 33 elements)"
+
+
+class FileSettings0Payload(PayloadBase[np.uint8]):  # np.uint8 is the word size
+    """_summary_
+
+    Args:
+        PayloadBase (_type_): _description_
+    """
+
+    cycles = _Field(UInt32Converter())
+    duration_us = _Field(UInt32Converter())
+    update_frequency_hz = _Field(UInt32Converter())
+    path = _Field(StringConverter(33))
+
+
+# ---------------------------------------------------------------------------
+# Register
+# ---------------------------------------------------------------------------
+
+
+class FileSettings0(RegisterBase[FileSettings0Payload]):
+    address: ClassVar[int] = 54
+    payload_type: ClassVar[PayloadType] = PayloadType.U8
+    payload_class: ClassVar[type[PayloadBase]] = FileSettings0Payload
+
+
+# ---------------------------------------------------------------------------
+# Round-trip demo
+# ---------------------------------------------------------------------------
+
+if __name__ == "__main__":
+    # 1. Build payload
+    payload = FileSettings0Payload(  # The stubs for the constructor must be auto generated, but this already works
+        cycles=3,
+        duration_us=250_000,
+        update_frequency_hz=400,
+        path="220khzwaveform",
+    )
+    print(f"Payload dtype  : {FileSettings0Payload.dtype}")
+    print(f"Payload bytes  : {payload.raw_payload.tobytes().hex()}")
+    print(f"Payload        : {payload}")
+
+    # 2. Encode → Harp wire frame
+    frame = FileSettings0.format(payload, message_type=MessageType.Write)
+    print(f"\nWire frame ({len(frame)} bytes): {frame.hex()}")
+
+    # 3. Parse wire frame → HarpMessage
+    msg = HarpMessage.parse(frame)
+    print(f"\nHarpMessage    : {msg}")
+
+    # 4. Parse payload from HarpMessage
+    parsed = FileSettings0.parse(msg)
+    print(f"\nParsed payload : {parsed}")
+    print(f"  cycles              = {parsed.cycles}")
+    print(f"  duration_us         = {parsed.duration_us}")
+    print(f"  update_frequency_hz = {parsed.update_frequency_hz}")
+    print(f"  path                = {parsed.path!r}")
+
+    # 5. Assert round-trip integrity
+    assert parsed.cycles == 3
+    assert parsed.duration_us == 250_000
+    assert parsed.update_frequency_hz == 400
+    assert parsed.path == "220khzwaveform"
+    print("\nRound-trip OK")
