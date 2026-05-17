@@ -1,6 +1,5 @@
 import enum
-from abc import ABC, abstractmethod
-from typing import Any, ClassVar, Generic, TypeVar, final, overload
+from typing import Any, ClassVar, Generic, Protocol, TypeVar, final, overload
 
 import numpy as np
 import pandas as pd
@@ -205,7 +204,7 @@ class _GroupMaskBatch(Generic[E]):
     @overload
     def __get__(self, obj: None, owner: object = None) -> "_GroupMaskBatch[E]": ...
     @overload
-    def __get__(self, obj: "PayloadBase", owner: object = None) -> "NDArray[np.signedinteger]": ...
+    def __get__(self, obj: "PayloadBase", owner: object = None) -> "NDArray[Any]": ...
     def __get__(self, obj: "PayloadBase | None", owner: object = None) -> Any:
         if obj is None:
             return self
@@ -216,7 +215,7 @@ _PT = TypeVar("_PT", bound="PayloadBase[Any]")
 _MISSING_INIT = Sentinel("_MISSING_INIT")
 
 
-class Batch(Generic[_PT], ABC):
+class Batch(Protocol[_PT]):
     """Alias type for batched payloads so we can have nice type-hinting
     for batch operations like `read_frames` and `to_dataframe`.
 
@@ -233,13 +232,10 @@ class Batch(Generic[_PT], ABC):
     raw_payload: "NDArray[Any]"
     value: "NDArray[Any]"
 
-    @abstractmethod
     def __len__(self) -> int: ...  # type: ignore[empty-body]
 
-    @abstractmethod
     def to_dataframe(self, *, decode_enums: bool = True) -> "pd.DataFrame": ...  # type: ignore[empty-body]
 
-    @abstractmethod
     def __getattr__(self, name: str) -> "NDArray[Any]": ...  # type: ignore[empty-body]
 
 
@@ -546,8 +542,6 @@ class AnonymousPayload(PayloadBase[NpStructT]):
     ``.value`` accessor and the slot name ``value`` is free for use by
     struct payloads.
     """
-
-    _is_anonymous: ClassVar[bool] = True
 
     def __init_subclass__(
         cls,
