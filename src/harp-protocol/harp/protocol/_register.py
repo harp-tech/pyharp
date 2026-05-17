@@ -114,7 +114,9 @@ class RegisterBase(ABC, Generic[U]):
 
         if is_timestamped and parse_timestamp:
             ts_s = np.ndarray(nrows, dtype="<u4", buffer=data, offset=_HEADER_LEN, strides=stride)
-            ts_us = np.ndarray(nrows, dtype="<u2", buffer=data, offset=_TS_MICROS_OFFSET, strides=stride)
+            ts_us = np.ndarray(
+                nrows, dtype="<u2", buffer=data, offset=_TS_MICROS_OFFSET, strides=stride
+            )
             timestamps = ts_s.astype(np.float64) + ts_us.astype(np.float64) * _TICK_PERIOD_S
         # TODO we may want to check if the timestamp is not present and users ask to be parsed. In that case we can either raise an error or return a nan-filled array
         else:
@@ -179,13 +181,14 @@ class RegisterBase(ABC, Generic[U]):
     @classmethod
     def format(
         cls,
-        value: Any,
+        value: U,
         *,
         message_type: MessageType = MessageType.Write,
         timestamp: float | None = None,
         port: int = _DEFAULT_PORT,
     ) -> bytes: ...
-
+    # We go with "U" for typing but it is worth noting that we accept "Any" below.
+    # However for API ergonomics we want to keep the type hint for symmetry
     @final
     @classmethod
     def format(
@@ -206,6 +209,8 @@ class RegisterBase(ABC, Generic[U]):
             mt = MessageType.Write if message_type is None else message_type
             if isinstance(value, PayloadBase):
                 raw = value.raw_payload.tobytes()
+            elif isinstance(value, np.ndarray):
+                raw = value.tobytes()
             else:
                 raw = np.asarray(value, dtype=cls.payload_type.numpy_dtype).tobytes()
             return build_message_frame(
