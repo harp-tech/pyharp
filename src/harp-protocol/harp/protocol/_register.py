@@ -151,7 +151,9 @@ class RegisterBase(ABC, Generic[U]):
             )
         if timestamp:
             if timestamps is None:
-                timestamps = np.arange(len(payload), dtype=np.float64)
+                raise ValueError(
+                    "Buffer contains no timestamp data; pass timestamp=False to suppress the timestamp column."
+                )
             df.insert(0, "timestamp", timestamps)
         return df
 
