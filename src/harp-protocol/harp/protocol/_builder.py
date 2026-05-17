@@ -2,6 +2,7 @@
 
 import struct
 
+from ._constants import _DEFAULT_PORT, _TICK_PERIOD_S
 from ._message_type import MessageType
 from ._message_type import message_type_to_byte as _msg_type_byte
 from ._payload_type import PayloadType, encode_payload_type
@@ -13,13 +14,13 @@ def build_message_frame(
     payload_type: PayloadType,
     payload: bytes = b"",
     *,
-    port: int = 0xFF,
+    port: int = _DEFAULT_PORT,
     timestamp: float | None = None,
 ) -> bytes:
     """Build and return a complete Harp wire frame as bytes."""
     if timestamp is not None:
         seconds = int(timestamp)
-        microseconds = round((timestamp - seconds) / 32e-6)
+        microseconds = round((timestamp - seconds) / _TICK_PERIOD_S)
         ts_bytes = struct.pack("<IH", seconds, microseconds)
     else:
         ts_bytes = b""

@@ -3,6 +3,8 @@ from enum import Enum
 
 import numpy as np
 
+from ._constants import _TIMESTAMP_FLAG
+
 
 class PayloadType(Enum):
     """Harp scalar payload types. Each value is the corresponding numpy dtype."""
@@ -51,7 +53,7 @@ def decode_payload_type(b: int) -> PayloadTypeInfo:
     if b & 0x20:
         raise ValueError(f"Reserved bit 5 set in PayloadType byte: 0x{b:02x}")
 
-    has_timestamp = bool(b & 0x10)
+    has_timestamp = bool(b & _TIMESTAMP_FLAG)
     is_float = bool(b & 0x40)
     is_signed = bool(b & 0x80)
 
@@ -84,5 +86,5 @@ def encode_payload_type(payload_type: PayloadType, *, has_timestamp: bool = Fals
     elif kind == "f":
         b |= 0x40
     if has_timestamp:
-        b |= 0x10
+        b |= _TIMESTAMP_FLAG
     return int(b)

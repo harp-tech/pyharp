@@ -5,6 +5,14 @@ from typing import Generic, TypeVar, cast
 
 from ._builder import build_message_frame
 from ._checksum import validate as _validate_checksum
+from ._constants import (
+    _DEFAULT_PORT,
+    _HEADER_LEN,
+    _TICK_PERIOD_S,
+    _TIMESTAMP_FLAG,
+    _TIMESTAMP_LEN,
+    _TIMESTAMPED_PAYLOAD_OFFSET,
+)
 from ._message_type import MessageType, _message_type_from_byte_safe
 from ._payload_type import PayloadType, decode_payload_type
 
@@ -30,7 +38,7 @@ class HarpMessage:
         payload_type: PayloadType,
         payload: "bytes" = b"",
         *,
-        port: int = 0xFF,
+        port: int = _DEFAULT_PORT,
         timestamp: float | None = None,
     ) -> None:
         self._bytes: "bytes" = build_message_frame(
@@ -62,7 +70,7 @@ class HarpMessage:
         except ValueError as exc:
             raise HarpParseError(str(exc)) from exc
 
-        if bool(raw[4] & 0x10) and len(raw) < 5 + 6 + 1:
+        if bool(raw[4] & _TIMESTAMP_FLAG) and len(raw) < _HEADER_LEN + _TIMESTAMP_LEN + 1:
             raise HarpParseError("Frame too short to contain timestamp")
 
         obj = cls.__new__(cls)
@@ -97,20 +105,20 @@ class HarpMessage:
     @property
     def has_timestamp(self) -> bool:
         """Return True if the timestamp flag is set in this message."""
-        return bool(self._bytes[4] & 0x10)
+        return bool(self._bytes[4] & _TIMESTAMP_FLAG)
 
     @property
     def timestamp(self) -> float | None:
         """Return the timestamp of this message, or None if not present."""
         if not self.has_timestamp:
             return None
-        seconds, microseconds = struct.unpack_from("<IH", self._bytes, 5)
-        return cast(int, seconds) + cast(int, microseconds) * 32e-6
+        seconds, microseconds = struct.unpack_from("<IH", self._bytes, _HEADER_LEN)
+        return cast(int, seconds) + cast(int, microseconds) * _TICK_PERIOD_S
 
     @property
     def payload(self) -> memoryview:
         """Payload bytes, excluding timestamp and checksum."""
-        offset = 11 if self.has_timestamp else 5
+        offset = _TIMESTAMPED_PAYLOAD_OFFSET if self.has_timestamp else _HEADER_LEN
         return memoryview(self._bytes)[offset:-1]
 
     @property
@@ -137,7 +145,7 @@ class ParsedHarpMessage(HarpMessage, Generic[P]):
         payload_type: PayloadType,
         payload: bytes = b"",
         *,
-        port: int = 0xFF,
+        port: int = _DEFAULT_PORT,
         timestamp: float | None = None,
         parsed: P,
     ) -> None:

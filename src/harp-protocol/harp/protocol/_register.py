@@ -7,6 +7,14 @@ from numpy.typing import NDArray
 from typing_extensions import Sentinel
 
 from ._builder import build_message_frame
+from ._constants import (
+    _DEFAULT_PORT,
+    _HEADER_LEN,
+    _TICK_PERIOD_S,
+    _TIMESTAMP_FLAG,
+    _TIMESTAMPED_PAYLOAD_OFFSET,
+    _TS_MICROS_OFFSET,
+)
 from ._message import HarpMessage
 from ._message_type import MessageType
 from ._payload import (
@@ -101,13 +109,13 @@ class RegisterBase(ABC, Generic[U]):
             int(data[1]) + 2
         )  # TODO this assumes all frames have the same length but we may want to revisit in the future.
         nrows = len(data) // stride
-        is_timestamped = bool(int(data[4]) & 0x10)
-        payload_offset = 11 if is_timestamped else 5
+        is_timestamped = bool(int(data[4]) & _TIMESTAMP_FLAG)
+        payload_offset = _TIMESTAMPED_PAYLOAD_OFFSET if is_timestamped else _HEADER_LEN
 
         if is_timestamped and parse_timestamp:
-            ts_s = np.ndarray(nrows, dtype="<u4", buffer=data, offset=5, strides=stride)
-            ts_us = np.ndarray(nrows, dtype="<u2", buffer=data, offset=9, strides=stride)
-            timestamps = ts_s.astype(np.float64) + ts_us.astype(np.float64) * 32e-6
+            ts_s = np.ndarray(nrows, dtype="<u4", buffer=data, offset=_HEADER_LEN, strides=stride)
+            ts_us = np.ndarray(nrows, dtype="<u2", buffer=data, offset=_TS_MICROS_OFFSET, strides=stride)
+            timestamps = ts_s.astype(np.float64) + ts_us.astype(np.float64) * _TICK_PERIOD_S
         # TODO we may want to check if the timestamp is not present and users ask to be parsed. In that case we can either raise an error or return a nan-filled array
         else:
             timestamps = None
@@ -164,7 +172,7 @@ class RegisterBase(ABC, Generic[U]):
         *,
         message_type: MessageType = MessageType.Read,
         timestamp: float | None = None,
-        port: int = 0xFF,
+        port: int = _DEFAULT_PORT,
     ) -> bytes: ...
 
     @overload
@@ -175,7 +183,7 @@ class RegisterBase(ABC, Generic[U]):
         *,
         message_type: MessageType = MessageType.Write,
         timestamp: float | None = None,
-        port: int = 0xFF,
+        port: int = _DEFAULT_PORT,
     ) -> bytes: ...
 
     @final
@@ -186,7 +194,7 @@ class RegisterBase(ABC, Generic[U]):
         *,
         message_type: MessageType | None = None,
         timestamp: float | None = None,
-        port: int = 0xFF,
+        port: int = _DEFAULT_PORT,
     ) -> bytes:
         """Build a Harp frame for this register. No value → Read; with value → Write."""
         if value is _MISSING:
