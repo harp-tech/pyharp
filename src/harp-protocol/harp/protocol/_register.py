@@ -196,8 +196,6 @@ class RegisterBase(ABC, Generic[U]):
             mt = MessageType.Write if message_type is None else message_type
             if isinstance(value, PayloadBase):
                 raw = value.raw_payload.tobytes()
-            elif isinstance(value, np.ndarray) and value.dtype != cls.payload_type.numpy_dtype:
-                raw = value.tobytes()
             else:
                 raw = np.asarray(value, dtype=cls.payload_type.numpy_dtype).tobytes()
             return build_message_frame(
