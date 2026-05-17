@@ -5,7 +5,7 @@ from typing import Any, ClassVar, Generic, TypeVar, final, overload
 import numpy as np
 import pandas as pd
 from numpy.typing import NDArray
-from typing_extensions import Self
+from typing_extensions import Self, Sentinel
 
 from ._payload_converters import Converter as _Converter
 from ._payload_converters import IdentityConverter as _IdentityConverter
@@ -213,7 +213,7 @@ class _GroupMaskBatch(Generic[E]):
 
 
 _PT = TypeVar("_PT", bound="PayloadBase[Any]")
-_MISSING_INIT = object()
+_MISSING_INIT = Sentinel("_MISSING_INIT")
 
 
 class Batch(Generic[_PT], ABC):
