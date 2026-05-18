@@ -15,7 +15,7 @@ from harp.protocol._register import RegisterBase
 
 #   FileSettings0:
 #     address: 54
-#     payload_type: U8
+#     type: U8
 #     access: Write
 #     length: 45
 #     description: "Struct to configure Analog Output Channel 0
@@ -27,7 +27,7 @@ class FileSettings0Payload(StructPayload[np.uint8]):
     cycles: np.uint32 = _Field(converter=UInt32Converter())
     duration_us: np.uint32 = _Field(converter=UInt32Converter())
     update_frequency_hz: np.uint32 = _Field(converter=UInt32Converter())
-    path: str = _Field(converter=StringConverter(33))
+    path: str = _Field(converter=StringConverter(33), default="220khzwaveform")  # defaults work too
 
 
 # ---------------------------------------------------------------------------
@@ -37,7 +37,7 @@ class FileSettings0Payload(StructPayload[np.uint8]):
 
 class FileSettings0(RegisterBase[FileSettings0Payload]):
     address: ClassVar[int] = 54
-    payload_type: ClassVar[PayloadType] = PayloadType.U8
+    payload_type = PayloadType.U8
     payload_class = FileSettings0Payload
 
 
@@ -48,10 +48,11 @@ class FileSettings0(RegisterBase[FileSettings0Payload]):
 if __name__ == "__main__":
     # 1. Build payload
     payload = FileSettings0Payload(  # The stubs for the constructor must be auto generated, but this already works
-        cycles=3,
-        duration_us=250_000,
+        cycles=np.uint32(
+            3
+        ),  # If you want to be correct, you should use the exact types for the fields, but the converters will handle it if you don't
+        duration_us=250_000,  # however this still works
         update_frequency_hz=400,
-        path="220khzwaveform",
     )
     print(f"Payload dtype  : {FileSettings0Payload.dtype}")
     print(f"Payload bytes  : {payload.raw_payload.tobytes().hex()}")
