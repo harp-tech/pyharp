@@ -18,8 +18,8 @@ from harp.protocol._payload import (
     _Field,
     _GroupMask,
     _IdentityConverter,
-    _StringConverter,
 )
+from harp.protocol._payload_converters import StringConverter as _StringConverter
 
 
 # ---------------------------------------------------------------------------
@@ -39,8 +39,8 @@ class _Color(enum.IntEnum):
 
 
 class _NumericPayload(PayloadBase):
-    a = _Field(_IdentityConverter("<i2"))
-    b = _Field(_IdentityConverter("<u4"))
+    a = _Field(converter=_IdentityConverter("<i2"))
+    b = _Field(converter=_IdentityConverter("<u4"))
 
 
 def test_identity_converter_scalar_view():
@@ -63,8 +63,8 @@ def test_identity_converter_batch_view():
 
 
 class DeclaredPayload(PayloadBase):
-    delta = _Field(_IdentityConverter(np.uint32))
-    flag = _Field(_IdentityConverter(np.uint8))
+    delta = _Field(converter=_IdentityConverter(np.uint32))
+    flag = _Field(converter=_IdentityConverter(np.uint8))
 
 
 def test_declared_dtype_synthesised_from_fields():
@@ -78,10 +78,9 @@ def test_declared_dtype_kwarg_init_round_trip():
     p = DeclaredPayload(delta=42, flag=1)
     assert int(p.delta) == 42
     assert int(p.flag) == 1
-    # raw bytes round-trip via Batch
     p2 = DeclaredPayload.from_buffer(p.raw_payload.tobytes())
-    np.testing.assert_array_equal(p2.delta, [42])
-    np.testing.assert_array_equal(p2.flag, [1])
+    assert int(p2.delta) == 42
+    assert int(p2.flag) == 1
 
 
 # ---------------------------------------------------------------------------
@@ -90,8 +89,8 @@ def test_declared_dtype_kwarg_init_round_trip():
 
 
 class _NamedPayload(PayloadBase):
-    name = _Field(_StringConverter(8))
-    delta = _Field(_IdentityConverter(np.uint16))
+    name = _Field(converter=_StringConverter(8))
+    delta = _Field(converter=_IdentityConverter(np.uint16))
 
 
 def test_string_converter_dtype_synthesis():
@@ -138,8 +137,8 @@ def test_string_converter_to_dataframe():
 
 class _ConfigPayload(PayloadBase):
     # Full-byte enum slot named "color"; mask=0xFF, shift=0.
-    color = _GroupMask(0xFF, 0, _Color, slot="color", dtype=np.uint8)
-    delta = _Field(_IdentityConverter(np.uint8))
+    color = _GroupMask(mask=0xFF, shift=0, enum=_Color, slot="color", dtype=np.uint8)
+    delta = _Field(converter=_IdentityConverter(np.uint8))
 
 
 def test_groupmask_struct_field_scalar_decode():
@@ -165,13 +164,13 @@ def test_reserved_field_name_raises():
     with pytest.raises(TypeError, match="reserved"):
 
         class _Bad(PayloadBase):
-            _dtype = _Field(_IdentityConverter(np.uint8))  # type: ignore[assignment]
+            _dtype = _Field(converter=_IdentityConverter(np.uint8))  # type: ignore[assignment]
 
 
 def test_value_field_name_allowed():
     # ``value`` is intentionally overridable — the descriptor wins via MRO.
     class _Single(PayloadBase):
-        value = _Field(_StringConverter(4))
+        value = _Field(converter=_StringConverter(4))
 
     p = _Single(value="ok")
     assert p.value == "ok"
@@ -186,8 +185,8 @@ def test_bitfield_payloads_ndim_aware():
     """Scalar records stay on the declared class; batches route to the auto-derived ``Batch`` twin."""
 
     class _Flags(PayloadBase):
-        flag = _BitFlag(0x01, dtype=np.uint8)
-        group = _GroupMask(0x06, 1, _Color, dtype=np.uint8)
+        flag = _BitFlag(mask=0x01, dtype=np.uint8)
+        group = _GroupMask(mask=0x06, shift=1, enum=_Color, dtype=np.uint8)
 
     # 0-D scalar record: flag=1, group bits=01 (Green)
     scalar = _Flags.from_array(np.array((0x03,), dtype=_Flags.dtype))
@@ -207,8 +206,8 @@ def test_bitfield_kwarg_init_round_trip():
     """PayloadBase.__init__ supports bitfield kwargs with OR-into-slot encoding."""
 
     class _Flags(PayloadBase):
-        flag = _BitFlag(0x01, dtype=np.uint8)
-        group = _GroupMask(0x06, 1, _Color, dtype=np.uint8)
+        flag = _BitFlag(mask=0x01, dtype=np.uint8)
+        group = _GroupMask(mask=0x06, shift=1, enum=_Color, dtype=np.uint8)
 
     p = _Flags(flag=True, group=_Color.Green)
     assert p.flag is True

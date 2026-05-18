@@ -5,12 +5,12 @@ from harp.protocol._payload import PayloadBase, _Field, _IdentityConverter
 
 
 class SimplePayload(PayloadBase):
-    x = _Field(_IdentityConverter("<i2"))
-    y = _Field(_IdentityConverter("<u1"))
+    x = _Field(converter=_IdentityConverter("<i2"))
+    y = _Field(converter=_IdentityConverter("<u1"))
 
 
 class BitPackedPayload(PayloadBase):
-    packed = _Field(_IdentityConverter("u1"))
+    packed = _Field(converter=_IdentityConverter("u1"))
 
     def to_dataframe(self) -> pd.DataFrame:
         return pd.DataFrame(

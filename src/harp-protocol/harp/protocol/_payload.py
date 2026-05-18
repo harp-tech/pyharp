@@ -1,10 +1,10 @@
 import enum
-from typing import Any, ClassVar, Generic, Protocol, TypeVar, final, overload
+from typing import TYPE_CHECKING, Any, ClassVar, Generic, Protocol, TypeVar, final, overload
 
 import numpy as np
 import pandas as pd
 from numpy.typing import NDArray
-from typing_extensions import Self, Sentinel
+from typing_extensions import Self, Sentinel, dataclass_transform
 
 from ._payload_converters import Converter as _Converter
 from ._payload_converters import IdentityConverter as _IdentityConverter
@@ -12,6 +12,8 @@ from ._payload_converters import IdentityConverter as _IdentityConverter
 NpStructT = TypeVar("NpStructT", bound=np.generic)
 T = TypeVar("T")
 E = TypeVar("E", bound=enum.IntEnum)
+
+_MISSING = Sentinel("_MISSING")
 
 
 # ---------------------------------------------------------------------------
@@ -24,13 +26,19 @@ class _Field(Generic[T]):
     Note: The name of the field is used as the slot name in the underlying numpy structured array.
     """
 
-    def __init__(self, converter: _Converter[T], *, name: str | None = None) -> None:
+    if TYPE_CHECKING:
+        # Makes `field: T = _Field(converter=...)` valid under @dataclass_transform without a
+        # type-mismatch error. At runtime __new__ is not defined and a _Field instance is
+        # returned as normal.
+        def __new__(cls, *, converter: "_Converter[T]", default: "T" = ...) -> "T": ...  # type: ignore[misc]
+
+    def __init__(self, *, converter: _Converter[T], default: object = _MISSING) -> None:
         self._converter = converter
-        self._name = name
+        self._name: str | None = None
+        self._default = default
 
     def __set_name__(self, owner: object, name: str) -> None:
-        if self._name is None:
-            self._name = name
+        self._name = name
 
     @overload
     def __get__(self, obj: None, owner: object = None) -> "_Field[T]": ...
@@ -42,7 +50,7 @@ class _Field(Generic[T]):
         return self._converter.decode_scalar(obj._arr[self._name])
 
     def _to_batch(self) -> "_FieldBatch[T]":
-        return _FieldBatch(self._converter, name=self._name)
+        return _FieldBatch(converter=self._converter)
 
 
 class _BitFlag:
@@ -52,16 +60,29 @@ class _BitFlag:
     2) An additional "slot" name can be provided if the bit flag is not stored in the same-named slot as the field descriptors (e.g. if multiple bit flags are packed into a single byte slot).
     """
 
+    if TYPE_CHECKING:
+
+        def __new__(
+            cls,
+            *,
+            mask: int,
+            slot: str = "value",
+            dtype: "np.dtype | str | type" = np.uint8,
+            default: bool = ...,
+        ) -> bool: ...  # type: ignore[misc]
+
     def __init__(
         self,
-        mask: int,
         *,
+        mask: int,
         slot: str = "value",
         dtype: "np.dtype | str | type" = np.uint8,
+        default: object = _MISSING,
     ) -> None:
         self._mask = mask
         self._slot = slot
         self._dtype = np.dtype(dtype)
+        self._default = default
 
     @overload
     def __get__(self, obj: None, owner: object = None) -> "_BitFlag": ...
@@ -95,20 +116,35 @@ class _GroupMask(Generic[E]):
     2) An additional "slot" name can be provided if the group mask is not stored in the same-named slot as the field descriptors (e.g. if multiple group masks are packed into a single byte slot).
     """
 
+    if TYPE_CHECKING:
+
+        def __new__(
+            cls,
+            *,
+            mask: int,
+            shift: int,
+            enum: "type[E]",
+            slot: str = "value",
+            dtype: "np.dtype | str | type" = np.uint8,
+            default: "E" = ...,
+        ) -> "E": ...  # type: ignore[misc]
+
     def __init__(
         self,
+        *,
         mask: int,
         shift: int,
         enum: type[E],
-        *,
         slot: str = "value",
         dtype: "np.dtype | str | type" = np.uint8,
+        default: object = _MISSING,
     ) -> None:
         self._mask = mask
         self._shift = shift
         self._enum = enum
         self._slot = slot
         self._dtype = np.dtype(dtype)
+        self._default = default
         self._categories, self._code_lookup = _build_enum_lookup(enum)
 
     @overload
@@ -140,13 +176,12 @@ class _GroupMask(Generic[E]):
 class _FieldBatch(Generic[T]):
     """Same as _Field but returns an NDArray view for batch payloads rather than a scalar value."""
 
-    def __init__(self, converter: _Converter[T], *, name: str | None = None) -> None:
+    def __init__(self, *, converter: _Converter[T]) -> None:
         self._converter = converter
-        self._name = name
+        self._name: str | None = None
 
     def __set_name__(self, owner: object, name: str) -> None:
-        if self._name is None:
-            self._name = name
+        self._name = name
 
     @overload
     def __get__(self, obj: None, owner: object = None) -> "_FieldBatch[T]": ...
@@ -282,6 +317,8 @@ class PayloadBase(Generic[NpStructT]):
     _batch_cls: ClassVar["type[PayloadBase]"]
     # Cached map of attribute name → _BitFlag/_GroupMask descriptor, built once at class definition.
     _bitfields: ClassVar[dict[str, Any]]
+    # Cached map of attribute name → default value for fields that declare one.
+    _defaults: ClassVar[dict[str, Any]]
     # Auto-generated sibling class whose descriptors return NDArray views instead of scalars.
     Batch: ClassVar["type[PayloadBase]"]
     # The underlying numpy array holding one (0-D) or many (1-D) payload records.
@@ -302,6 +339,13 @@ class PayloadBase(Generic[NpStructT]):
             if len(args) != 1 or len(names) != 1:
                 raise TypeError(f"{cls.__name__}() takes exactly one positional argument")
             kwargs = {names[0]: args[0]}
+
+        defaults = cls._defaults
+        if defaults:
+            merged = {k: v for k, v in defaults.items() if k not in kwargs}
+            if merged:
+                merged.update(kwargs)
+                kwargs = merged
 
         slot_kwargs = {k: v for k, v in kwargs.items() if k in names}
         descriptor_kwargs = {k: v for k, v in kwargs.items() if k not in names}
@@ -353,6 +397,15 @@ class PayloadBase(Generic[NpStructT]):
                     out[attr] = val
         return out
 
+    @classmethod
+    def _collect_defaults(cls) -> "dict[str, Any]":
+        out: dict[str, Any] = {}
+        for klass in reversed(cls.__mro__):
+            for attr, val in klass.__dict__.items():
+                if isinstance(val, (_Field, _BitFlag, _GroupMask)) and val._default is not _MISSING:
+                    out[attr] = val._default
+        return out
+
     def __init_subclass__(
         cls,
         *,
@@ -385,8 +438,6 @@ class PayloadBase(Generic[NpStructT]):
             slots: dict[str, np.dtype] = {}
             for attr_name, val in own_declarations:
                 if isinstance(val, _Field):
-                    if val._name is None:
-                        val._name = attr_name
                     slot, dtype = val._name, val._converter.dtype
                 else:
                     slot, dtype = val._slot, val._dtype
@@ -429,6 +480,7 @@ class PayloadBase(Generic[NpStructT]):
             )
 
         cls._bitfields = cls._collect_bitfields()
+        cls._defaults = cls._collect_defaults()
 
     @classmethod
     def from_array(cls, arr: "np.ndarray") -> Self:
@@ -440,7 +492,7 @@ class PayloadBase(Generic[NpStructT]):
     @classmethod
     def from_buffer(cls, buf: bytes | bytearray | memoryview) -> Self:
         arr = np.frombuffer(buf, dtype=cls.dtype)
-        return cls.from_array(arr)
+        return cls.from_array(arr[0] if len(arr) == 1 else arr)
 
     @property
     def raw_payload(self) -> NDArray[NpStructT]:
@@ -522,6 +574,31 @@ class PayloadBase(Generic[NpStructT]):
         machinery for multi-field struct payloads.
         """
         return cls.from_array(arr)
+
+
+# ---------------------------------------------------------------------------
+# StructPayload — base for named-field (struct) register payloads
+# ---------------------------------------------------------------------------
+
+
+@dataclass_transform(
+    kw_only_default=True,
+    field_specifiers=(_Field, _BitFlag, _GroupMask),
+)
+class StructPayload(PayloadBase[NpStructT]):
+    """Base class for struct register payloads with typed field descriptors.
+
+    Subclasses declare fields using ``_Field``, ``_BitFlag``, or ``_GroupMask``
+    descriptors.  Type checkers synthesize a keyword-only ``__init__`` from
+    those declarations, so constructor calls are fully type-checked and have
+    IDE autocompletion.
+
+    Example::
+
+        class MyPayload(StructPayload[np.uint8]):
+            channel = _Field(UInt16Converter())
+            enabled = _BitFlag(0x01, dtype=np.uint8)
+    """
 
 
 # ---------------------------------------------------------------------------

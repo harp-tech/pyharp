@@ -49,9 +49,9 @@ ANALOG_COLUMNS = ["analog_input0", "encoder", "analog_input1"]
 class AnalogDataPayload(PayloadBase[np.void]):
     """Payload for AnalogData (register 44): three signed 16-bit channels."""
 
-    analog_input0 = _Field(Int16Converter())
-    encoder = _Field(Int16Converter())
-    analog_input1 = _Field(Int16Converter())
+    analog_input0 = _Field(converter=Int16Converter())
+    encoder = _Field(converter=Int16Converter())
+    analog_input1 = _Field(converter=Int16Converter())
 
 
 class AnalogData(RegisterBase[AnalogDataPayload]):

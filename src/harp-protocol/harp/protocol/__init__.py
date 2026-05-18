@@ -15,6 +15,7 @@ from ._payload_converters import (
 )
 from ._payload import (
     PayloadBase,
+    StructPayload,
     PayloadU8,
     PayloadU16,
     PayloadU32,
@@ -82,6 +83,7 @@ __all__ = [
     "converter_registry",
     # Payload DSL
     "PayloadBase",
+    "StructPayload",
     "PayloadU8",
     "PayloadU16",
     "PayloadU32",

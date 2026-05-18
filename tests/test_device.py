@@ -18,14 +18,14 @@ from harp.device._registers import (
 
 
 class PinsPayload(PayloadBase[np.uint8]):
-    pin0 = _BitFlag(0x01)
-    pin1 = _BitFlag(0x02)
-    pin2 = _BitFlag(0x04)
-    pin3 = _BitFlag(0x08)
-    pin4 = _BitFlag(0x10)
-    pin5 = _BitFlag(0x20)
-    pin6 = _BitFlag(0x40)
-    pin7 = _BitFlag(0x80)
+    pin0 = _BitFlag(mask=0x01)
+    pin1 = _BitFlag(mask=0x02)
+    pin2 = _BitFlag(mask=0x04)
+    pin3 = _BitFlag(mask=0x08)
+    pin4 = _BitFlag(mask=0x10)
+    pin5 = _BitFlag(mask=0x20)
+    pin6 = _BitFlag(mask=0x40)
+    pin7 = _BitFlag(mask=0x80)
 
 
 # --- Minimal fixture payload class ------------------------------------------
@@ -35,8 +35,8 @@ class _FlagPayload(PayloadBase[np.uint8]):
     _dtype: ClassVar = np.dtype("u1")
     _repr_fields: ClassVar = ("flag", "group")
 
-    flag = _BitFlag(0x01)
-    group = _GroupMask(0x06, 1, OperationMode)
+    flag = _BitFlag(mask=0x01)
+    group = _GroupMask(mask=0x06, shift=1, enum=OperationMode)
 
 
 # --- _BitFlag behaviour ------------------------------------------------------
@@ -124,7 +124,7 @@ def test_op_ctrl_to_dataframe():
         _make_op_ctrl_byte(OperationMode.Standby, EnableFlag.Disabled),
     ]
     p = OperationControlPayload.from_buffer(bytes(vals))
-    df = p.to_dataframe()
+    df = p.to_dataframe(decode_enums=False)
     assert list(df.columns) == list(OperationControlPayload._repr_fields)
     assert len(df) == 2
     np.testing.assert_array_equal(df["heartbeat"], [True, False])

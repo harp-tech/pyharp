@@ -4,7 +4,7 @@ import numpy as np
 
 from harp.protocol._message import HarpMessage
 from harp.protocol._message_type import MessageType
-from harp.protocol._payload import PayloadBase, _Field
+from harp.protocol._payload import StructPayload, _Field
 from harp.protocol._payload_converters import StringConverter, UInt32Converter
 from harp.protocol._payload_type import PayloadType
 from harp.protocol._register import RegisterBase
@@ -15,7 +15,7 @@ from harp.protocol._register import RegisterBase
 
 #   FileSettings0:
 #     address: 54
-#     type: U8
+#     payload_type: U8
 #     access: Write
 #     length: 45
 #     description: "Struct to configure Analog Output Channel 0
@@ -23,17 +23,11 @@ from harp.protocol._register import RegisterBase
 #       update_frequency_hz (U32), path (U8 array, 33 elements)"
 
 
-class FileSettings0Payload(PayloadBase[np.uint8]):  # np.uint8 is the word size
-    """_summary_
-
-    Args:
-        PayloadBase (_type_): _description_
-    """
-
-    cycles = _Field(UInt32Converter())
-    duration_us = _Field(UInt32Converter())
-    update_frequency_hz = _Field(UInt32Converter())
-    path = _Field(StringConverter(33))
+class FileSettings0Payload(StructPayload[np.uint8]):
+    cycles: np.uint32 = _Field(converter=UInt32Converter())
+    duration_us: np.uint32 = _Field(converter=UInt32Converter())
+    update_frequency_hz: np.uint32 = _Field(converter=UInt32Converter())
+    path: str = _Field(converter=StringConverter(33))
 
 
 # ---------------------------------------------------------------------------
@@ -44,7 +38,7 @@ class FileSettings0Payload(PayloadBase[np.uint8]):  # np.uint8 is the word size
 class FileSettings0(RegisterBase[FileSettings0Payload]):
     address: ClassVar[int] = 54
     payload_type: ClassVar[PayloadType] = PayloadType.U8
-    payload_class: ClassVar[type[PayloadBase]] = FileSettings0Payload
+    payload_class = FileSettings0Payload
 
 
 # ---------------------------------------------------------------------------
