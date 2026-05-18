@@ -2,7 +2,7 @@ import enum
 from typing import ClassVar
 
 import numpy as np
-from harp.protocol._payload import StructPayload, _BitFlag, _Field, _GroupMask
+from harp.protocol._payload import StructPayload, BitFlag, Field, GroupMask
 from harp.protocol._payload_converters import StringConverter as _StringConverter
 from harp.protocol._payload_type import PayloadType
 from harp.protocol._register import RegisterBase, RegisterU8, RegisterU16, RegisterU32
@@ -29,18 +29,18 @@ class EnableFlag(enum.IntEnum):
 
 
 class OperationControlPayload(StructPayload[np.uint8]):
-    operation_mode: OperationMode = _GroupMask(
+    operation_mode: OperationMode = GroupMask(
         mask=0x03, shift=0, enum=OperationMode, dtype=np.uint8, default=OperationMode.Standby
     )
-    dump_registers: bool = _BitFlag(mask=0x08, dtype=np.uint8, default=False)
-    mute_replies: bool = _BitFlag(mask=0x10, dtype=np.uint8, default=False)
-    visual_indicators: EnableFlag = _GroupMask(
+    dump_registers: bool = BitFlag(mask=0x08, dtype=np.uint8, default=False)
+    mute_replies: bool = BitFlag(mask=0x10, dtype=np.uint8, default=False)
+    visual_indicators: EnableFlag = GroupMask(
         mask=0x20, shift=5, enum=EnableFlag, dtype=np.uint8, default=EnableFlag.Disabled
     )
-    operation_led: EnableFlag = _GroupMask(
+    operation_led: EnableFlag = GroupMask(
         mask=0x40, shift=6, enum=EnableFlag, dtype=np.uint8, default=EnableFlag.Disabled
     )
-    heartbeat: EnableFlag = _GroupMask(
+    heartbeat: EnableFlag = GroupMask(
         mask=0x80, shift=7, enum=EnableFlag, dtype=np.uint8, default=EnableFlag.Disabled
     )
 
@@ -48,13 +48,13 @@ class OperationControlPayload(StructPayload[np.uint8]):
 class ResetDevicePayload(StructPayload[np.uint8]):
     """Payload for the ResetDevice register (address 11)."""
 
-    restore_default: bool = _BitFlag(mask=0x01, dtype=np.uint8, default=False)
-    restore_eeprom: bool = _BitFlag(mask=0x02, dtype=np.uint8, default=False)
-    save: bool = _BitFlag(mask=0x04, dtype=np.uint8, default=False)
-    restore_name: bool = _BitFlag(mask=0x08, dtype=np.uint8, default=False)
-    update_firmware: bool = _BitFlag(mask=0x20, dtype=np.uint8, default=False)
-    boot_from_default: bool = _BitFlag(mask=0x40, dtype=np.uint8, default=False)
-    boot_from_eeprom: bool = _BitFlag(mask=0x80, dtype=np.uint8, default=False)
+    restore_default: bool = BitFlag(mask=0x01, dtype=np.uint8, default=False)
+    restore_eeprom: bool = BitFlag(mask=0x02, dtype=np.uint8, default=False)
+    save: bool = BitFlag(mask=0x04, dtype=np.uint8, default=False)
+    restore_name: bool = BitFlag(mask=0x08, dtype=np.uint8, default=False)
+    update_firmware: bool = BitFlag(mask=0x20, dtype=np.uint8, default=False)
+    boot_from_default: bool = BitFlag(mask=0x40, dtype=np.uint8, default=False)
+    boot_from_eeprom: bool = BitFlag(mask=0x80, dtype=np.uint8, default=False)
 
 
 class DeviceNamePayload(StructPayload[np.uint8]):
@@ -65,18 +65,18 @@ class DeviceNamePayload(StructPayload[np.uint8]):
 
     _MAX_LEN: ClassVar[int] = 25
 
-    value: str = _Field(converter=_StringConverter(_MAX_LEN))
+    value: str = Field(converter=_StringConverter(_MAX_LEN))
 
 
 class ClockConfigPayload(StructPayload[np.uint8]):
     """Payload for the ClockConfiguration register (address 14)."""
 
-    clock_repeater: bool = _BitFlag(mask=0x01, dtype=np.uint8, default=False)
-    clock_generator: bool = _BitFlag(mask=0x02, dtype=np.uint8, default=False)
-    repeater_capability: bool = _BitFlag(mask=0x08, dtype=np.uint8, default=False)
-    generator_capability: bool = _BitFlag(mask=0x10, dtype=np.uint8, default=False)
-    clock_unlock: bool = _BitFlag(mask=0x40, dtype=np.uint8, default=False)
-    clock_lock: bool = _BitFlag(mask=0x80, dtype=np.uint8, default=False)
+    clock_repeater: bool = BitFlag(mask=0x01, dtype=np.uint8, default=False)
+    clock_generator: bool = BitFlag(mask=0x02, dtype=np.uint8, default=False)
+    repeater_capability: bool = BitFlag(mask=0x08, dtype=np.uint8, default=False)
+    generator_capability: bool = BitFlag(mask=0x10, dtype=np.uint8, default=False)
+    clock_unlock: bool = BitFlag(mask=0x40, dtype=np.uint8, default=False)
+    clock_lock: bool = BitFlag(mask=0x80, dtype=np.uint8, default=False)
 
 
 # ---------------------------------------------------------------------------

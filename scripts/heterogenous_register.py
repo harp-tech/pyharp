@@ -2,12 +2,16 @@ from typing import ClassVar
 
 import numpy as np
 
-from harp.protocol._message import HarpMessage
-from harp.protocol._message_type import MessageType
-from harp.protocol._payload import StructPayload, _Field
-from harp.protocol._payload_converters import StringConverter, UInt32Converter
-from harp.protocol._payload_type import PayloadType
-from harp.protocol._register import RegisterBase
+from harp.protocol import (
+    HarpMessage,
+    MessageType,
+    StructPayload,
+    Field,
+    StringConverter,
+    IdentityConverter,
+    PayloadType,
+    RegisterBase,
+)
 
 # ---------------------------------------------------------------------------
 # Payload
@@ -24,10 +28,10 @@ from harp.protocol._register import RegisterBase
 
 
 class FileSettings0Payload(StructPayload[np.uint8]):
-    cycles: np.uint32 = _Field(converter=UInt32Converter())
-    duration_us: np.uint32 = _Field(converter=UInt32Converter())
-    update_frequency_hz: np.uint32 = _Field(converter=UInt32Converter())
-    path: str = _Field(converter=StringConverter(33), default="220khzwaveform")  # defaults work too
+    cycles: np.uint32 = Field(converter=IdentityConverter(np.uint32))
+    duration_us: np.uint32 = Field(converter=IdentityConverter(np.uint32))
+    update_frequency_hz: np.uint32 = Field(converter=IdentityConverter(np.uint32))
+    path: str = Field(converter=StringConverter(33), default="220khzwaveform")  # defaults work too
 
 
 # ---------------------------------------------------------------------------

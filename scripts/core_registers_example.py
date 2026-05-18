@@ -8,7 +8,7 @@ from pathlib import Path
 
 import numpy as np
 
-from harp.device._registers import (
+from harp.device import (
     # Enums / flags
     EnableFlag,
     OperationMode,
@@ -37,7 +37,7 @@ from harp.device._registers import (
     WhoAmI,
 )
 
-from harp.protocol._message import HarpMessage
+from harp.protocol import HarpMessage
 
 examples = [
     (WhoAmI, np.uint16(1216)),

@@ -6,7 +6,7 @@ import numpy as np
 
 from harp.protocol._builder import build_message_frame
 from harp.protocol._message_type import MessageType
-from harp.protocol._payload import PayloadBase, _BitFlag, _GroupMask
+from harp.protocol._payload import PayloadBase, BitFlag, GroupMask
 from harp.protocol._payload_type import PayloadType
 
 from harp.device._registers import (
@@ -18,14 +18,14 @@ from harp.device._registers import (
 
 
 class PinsPayload(PayloadBase[np.uint8]):
-    pin0 = _BitFlag(mask=0x01)
-    pin1 = _BitFlag(mask=0x02)
-    pin2 = _BitFlag(mask=0x04)
-    pin3 = _BitFlag(mask=0x08)
-    pin4 = _BitFlag(mask=0x10)
-    pin5 = _BitFlag(mask=0x20)
-    pin6 = _BitFlag(mask=0x40)
-    pin7 = _BitFlag(mask=0x80)
+    pin0 = BitFlag(mask=0x01)
+    pin1 = BitFlag(mask=0x02)
+    pin2 = BitFlag(mask=0x04)
+    pin3 = BitFlag(mask=0x08)
+    pin4 = BitFlag(mask=0x10)
+    pin5 = BitFlag(mask=0x20)
+    pin6 = BitFlag(mask=0x40)
+    pin7 = BitFlag(mask=0x80)
 
 
 # --- Minimal fixture payload class ------------------------------------------
@@ -35,11 +35,11 @@ class _FlagPayload(PayloadBase[np.uint8]):
     _dtype: ClassVar = np.dtype("u1")
     _repr_fields: ClassVar = ("flag", "group")
 
-    flag = _BitFlag(mask=0x01)
-    group = _GroupMask(mask=0x06, shift=1, enum=OperationMode)
+    flag = BitFlag(mask=0x01)
+    group = GroupMask(mask=0x06, shift=1, enum=OperationMode)
 
 
-# --- _BitFlag behaviour ------------------------------------------------------
+# --- BitFlag behaviour ------------------------------------------------------
 
 
 def test_bitflag_single_returns_bool_true():
@@ -61,7 +61,7 @@ def test_bitflag_batch_returns_ndarray():
     np.testing.assert_array_equal(result, [True, False, True])
 
 
-# --- _GroupMask behaviour ----------------------------------------------------
+# --- GroupMask behaviour -----------------------------------------------------
 
 
 def test_groupmask_single_returns_enum():

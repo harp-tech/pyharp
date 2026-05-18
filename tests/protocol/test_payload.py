@@ -1,16 +1,16 @@
 import numpy as np
 import pandas as pd
 import pytest
-from harp.protocol._payload import PayloadBase, _Field, _IdentityConverter
+from harp.protocol._payload import PayloadBase, Field, _IdentityConverter
 
 
 class SimplePayload(PayloadBase):
-    x = _Field(converter=_IdentityConverter("<i2"))
-    y = _Field(converter=_IdentityConverter("<u1"))
+    x = Field(converter=_IdentityConverter("<i2"))
+    y = Field(converter=_IdentityConverter("<u1"))
 
 
 class BitPackedPayload(PayloadBase):
-    packed = _Field(converter=_IdentityConverter("u1"))
+    packed = Field(converter=_IdentityConverter("u1"))
 
     def to_dataframe(self) -> pd.DataFrame:
         return pd.DataFrame(

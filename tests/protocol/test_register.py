@@ -17,7 +17,7 @@ from harp.protocol._payload import (
     PayloadU16,
     PayloadU32,
     PayloadU64,
-    _Field,
+    Field,
     _IdentityConverter,
 )
 from harp.protocol._payload_type import PayloadType
@@ -49,9 +49,9 @@ class DigitalOutputSet(RegisterU16):
 
 
 class AnalogDataPayload(PayloadBase):
-    analog_input0 = _Field(converter=_IdentityConverter("<i2"))
-    encoder = _Field(converter=_IdentityConverter("<i2"))
-    analog_input1 = _Field(converter=_IdentityConverter("<i2"))
+    analog_input0 = Field(converter=_IdentityConverter("<i2"))
+    encoder = Field(converter=_IdentityConverter("<i2"))
+    analog_input1 = Field(converter=_IdentityConverter("<i2"))
 
 
 class AnalogData(RegisterBase[AnalogDataPayload]):
@@ -404,9 +404,9 @@ def test_struct_payload_field_descriptors_codegen_style():
     """A struct payload declared via _Field descriptors decodes both ndim modes."""
 
     class GeneratedAnalogPayload(PayloadBase):
-        a = _Field(converter=_IdentityConverter("<i2"))
-        b = _Field(converter=_IdentityConverter("<i2"))
-        c = _Field(converter=_IdentityConverter("<i2"))
+        a = Field(converter=_IdentityConverter("<i2"))
+        b = Field(converter=_IdentityConverter("<i2"))
+        c = Field(converter=_IdentityConverter("<i2"))
 
     p = GeneratedAnalogPayload.from_array(np.array((1, 2, 3), dtype=GeneratedAnalogPayload.dtype))
     # 0-D _arr → numpy scalar per field.
@@ -426,7 +426,7 @@ def test_repr_fields_auto_derived_from_dtype():
     """A struct payload that doesn't set _repr_fields gets them from _dtype.names."""
 
     class P(PayloadBase):
-        alpha = _Field(converter=_IdentityConverter("<i2"))
-        beta = _Field(converter=_IdentityConverter("<u1"))
+        alpha = Field(converter=_IdentityConverter("<i2"))
+        beta = Field(converter=_IdentityConverter("<u1"))
 
     assert P._repr_fields == ("alpha", "beta")
