@@ -37,12 +37,8 @@ class OperationControlPayload(StructPayload[np.uint8]):
     visual_indicators: EnableFlag = GroupMask(
         mask=0x20, enum=EnableFlag, default=EnableFlag.Disabled
     )
-    operation_led: EnableFlag = GroupMask(
-        mask=0x40, enum=EnableFlag, default=EnableFlag.Disabled
-    )
-    heartbeat: EnableFlag = GroupMask(
-        mask=0x80, enum=EnableFlag, default=EnableFlag.Disabled
-    )
+    operation_led: EnableFlag = GroupMask(mask=0x40, enum=EnableFlag, default=EnableFlag.Disabled)
+    heartbeat: EnableFlag = GroupMask(mask=0x80, enum=EnableFlag, default=EnableFlag.Disabled)
 
 
 class ResetDevicePayload(StructPayload[np.uint8]):

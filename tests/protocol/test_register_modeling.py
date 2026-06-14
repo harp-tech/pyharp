@@ -82,7 +82,9 @@ def test_version_roundtrip():
 
 
 def test_custom_member_converter_roundtrip():
-    p = _roundtrip(CustomMemberConverter, CustomMemberConverterPayload(Header=np.uint8(7), Data=-1234))
+    p = _roundtrip(
+        CustomMemberConverter, CustomMemberConverterPayload(Header=np.uint8(7), Data=-1234)
+    )
     assert int(p.Header) == 7 and int(p.Data) == -1234
 
 
@@ -130,7 +132,9 @@ def test_start_pulse_overlapping_masks():
     # Two views of one U16 element share storage (one numpy field, itemsize 2).
     assert StartPulsePayload.dtype.itemsize == 2
     assert len(StartPulsePayload.dtype.names) == 1
-    p = _roundtrip(StartPulse, StartPulsePayload(DigitalOutput=PwmPort.Pwm1, PulseWidth=np.uint16(300)))
+    p = _roundtrip(
+        StartPulse, StartPulsePayload(DigitalOutput=PwmPort.Pwm1, PulseWidth=np.uint16(300))
+    )
     assert p.DigitalOutput == PwmPort.Pwm1
     assert int(p.PulseWidth) == 300
 
@@ -198,8 +202,11 @@ def test_strict_enum_raises_on_unknown_code():
 
 def test_complex_configuration_to_dataframe():
     cc = ComplexConfigurationPayload(
-        PwmPort=PwmPort.Pwm2, DutyCycle=np.float32(0.5), Frequency=np.float32(1.0),
-        EventsEnabled=True, Delta=np.uint32(42),
+        PwmPort=PwmPort.Pwm2,
+        DutyCycle=np.float32(0.5),
+        Frequency=np.float32(1.0),
+        EventsEnabled=True,
+        Delta=np.uint32(42),
     )
     batch = ComplexConfigurationPayload.from_buffer(cc.raw_payload.tobytes() * 2)
     df = batch.to_dataframe()

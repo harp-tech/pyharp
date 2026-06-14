@@ -411,7 +411,9 @@ def main() -> None:  # pragma: no cover - manual exploration entry point
     assert float(p.DutyCycle) == 0.5
     assert ComplexConfigurationPayload.dtype.itemsize == 17
     assert cc.raw_payload.tobytes()[1:4] == b"\x00\x00\x00"
-    print(f"ComplexConfiguration     OK  ({ComplexConfigurationPayload.dtype.itemsize} bytes, gap 1..3)")
+    print(
+        f"ComplexConfiguration     OK  ({ComplexConfigurationPayload.dtype.itemsize} bytes, gap 1..3)"
+    )
 
     ver = VersionPayload(
         ProtocolVersion=HarpVersion(2, 0, 0),
@@ -431,7 +433,9 @@ def main() -> None:  # pragma: no cover - manual exploration entry point
     assert p == HarpVersion(0, 0, 1)
     print("CustomPayload/RawPayload OK  (single-member unwrap)")
 
-    p = _roundtrip(CustomMemberConverter, CustomMemberConverterPayload(Header=np.uint8(7), Data=-1234))
+    p = _roundtrip(
+        CustomMemberConverter, CustomMemberConverterPayload(Header=np.uint8(7), Data=-1234)
+    )
     assert int(p.Header) == 7 and int(p.Data) == -1234
     print("CustomMemberConverter    OK")
 
@@ -452,7 +456,9 @@ def main() -> None:  # pragma: no cover - manual exploration entry point
     assert int(_roundtrip(PulseDO0, np.uint16(9))) == 9
     print("PulseDOPort0 / PulseDO0  OK")
 
-    p = _roundtrip(StartPulse, StartPulsePayload(DigitalOutput=PwmPort.Pwm1, PulseWidth=np.uint16(300)))
+    p = _roundtrip(
+        StartPulse, StartPulsePayload(DigitalOutput=PwmPort.Pwm1, PulseWidth=np.uint16(300))
+    )
     assert p.DigitalOutput == PwmPort.Pwm1 and int(p.PulseWidth) == 300
     print("StartPulse               OK")
 

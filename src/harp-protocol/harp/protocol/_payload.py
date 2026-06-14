@@ -106,9 +106,7 @@ class BitFlag:
 
     if TYPE_CHECKING:
 
-        def __new__(
-            cls, *, mask: int, offset: int = 0, default: bool = ...
-        ) -> bool: ...  # type: ignore[misc]  # noqa: E704
+        def __new__(cls, *, mask: int, offset: int = 0, default: bool = ...) -> bool: ...  # type: ignore[misc]  # noqa: E704
 
     def __init__(self, *, mask: int, offset: int = 0, default: object = _MISSING) -> None:
         self._mask = mask
