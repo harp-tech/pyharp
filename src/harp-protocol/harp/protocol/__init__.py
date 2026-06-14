@@ -1,7 +1,9 @@
 from ._message import HarpMessage, HarpParseError, ParsedHarpMessage
 from ._message_type import MessageType
 from ._payload_converters import (
+    BoolConverter,
     Converter,
+    EnumConverter,
     IdentityConverter,
     StringConverter,
     register_converter,
@@ -67,6 +69,8 @@ __all__ = [
     "Converter",
     "IdentityConverter",
     "StringConverter",
+    "BoolConverter",
+    "EnumConverter",
     "register_converter",
     # Payload DSL
     "PayloadBase",

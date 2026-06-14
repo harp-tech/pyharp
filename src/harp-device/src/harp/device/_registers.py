@@ -30,31 +30,31 @@ class EnableFlag(enum.IntEnum):
 
 class OperationControlPayload(StructPayload[np.uint8]):
     operation_mode: OperationMode = GroupMask(
-        mask=0x03, shift=0, enum=OperationMode, dtype=np.uint8, default=OperationMode.Standby
+        mask=0x03, enum=OperationMode, default=OperationMode.Standby
     )
-    dump_registers: bool = BitFlag(mask=0x08, dtype=np.uint8, default=False)
-    mute_replies: bool = BitFlag(mask=0x10, dtype=np.uint8, default=False)
+    dump_registers: bool = BitFlag(mask=0x08, default=False)
+    mute_replies: bool = BitFlag(mask=0x10, default=False)
     visual_indicators: EnableFlag = GroupMask(
-        mask=0x20, shift=5, enum=EnableFlag, dtype=np.uint8, default=EnableFlag.Disabled
+        mask=0x20, enum=EnableFlag, default=EnableFlag.Disabled
     )
     operation_led: EnableFlag = GroupMask(
-        mask=0x40, shift=6, enum=EnableFlag, dtype=np.uint8, default=EnableFlag.Disabled
+        mask=0x40, enum=EnableFlag, default=EnableFlag.Disabled
     )
     heartbeat: EnableFlag = GroupMask(
-        mask=0x80, shift=7, enum=EnableFlag, dtype=np.uint8, default=EnableFlag.Disabled
+        mask=0x80, enum=EnableFlag, default=EnableFlag.Disabled
     )
 
 
 class ResetDevicePayload(StructPayload[np.uint8]):
     """Payload for the ResetDevice register (address 11)."""
 
-    restore_default: bool = BitFlag(mask=0x01, dtype=np.uint8, default=False)
-    restore_eeprom: bool = BitFlag(mask=0x02, dtype=np.uint8, default=False)
-    save: bool = BitFlag(mask=0x04, dtype=np.uint8, default=False)
-    restore_name: bool = BitFlag(mask=0x08, dtype=np.uint8, default=False)
-    update_firmware: bool = BitFlag(mask=0x20, dtype=np.uint8, default=False)
-    boot_from_default: bool = BitFlag(mask=0x40, dtype=np.uint8, default=False)
-    boot_from_eeprom: bool = BitFlag(mask=0x80, dtype=np.uint8, default=False)
+    restore_default: bool = BitFlag(mask=0x01, default=False)
+    restore_eeprom: bool = BitFlag(mask=0x02, default=False)
+    save: bool = BitFlag(mask=0x04, default=False)
+    restore_name: bool = BitFlag(mask=0x08, default=False)
+    update_firmware: bool = BitFlag(mask=0x20, default=False)
+    boot_from_default: bool = BitFlag(mask=0x40, default=False)
+    boot_from_eeprom: bool = BitFlag(mask=0x80, default=False)
 
 
 class DeviceNamePayload(StructPayload[np.uint8]):
@@ -71,12 +71,12 @@ class DeviceNamePayload(StructPayload[np.uint8]):
 class ClockConfigPayload(StructPayload[np.uint8]):
     """Payload for the ClockConfiguration register (address 14)."""
 
-    clock_repeater: bool = BitFlag(mask=0x01, dtype=np.uint8, default=False)
-    clock_generator: bool = BitFlag(mask=0x02, dtype=np.uint8, default=False)
-    repeater_capability: bool = BitFlag(mask=0x08, dtype=np.uint8, default=False)
-    generator_capability: bool = BitFlag(mask=0x10, dtype=np.uint8, default=False)
-    clock_unlock: bool = BitFlag(mask=0x40, dtype=np.uint8, default=False)
-    clock_lock: bool = BitFlag(mask=0x80, dtype=np.uint8, default=False)
+    clock_repeater: bool = BitFlag(mask=0x01, default=False)
+    clock_generator: bool = BitFlag(mask=0x02, default=False)
+    repeater_capability: bool = BitFlag(mask=0x08, default=False)
+    generator_capability: bool = BitFlag(mask=0x10, default=False)
+    clock_unlock: bool = BitFlag(mask=0x40, default=False)
+    clock_lock: bool = BitFlag(mask=0x80, default=False)
 
 
 # ---------------------------------------------------------------------------

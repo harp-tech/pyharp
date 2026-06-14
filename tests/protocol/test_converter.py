@@ -39,8 +39,8 @@ class _Color(enum.IntEnum):
 
 
 class _NumericPayload(PayloadBase):
-    a = Field(converter=_IdentityConverter("<i2"))
-    b = Field(converter=_IdentityConverter("<u4"))
+    a = Field(converter=_IdentityConverter("<i2"), offset=0)
+    b = Field(converter=_IdentityConverter("<u4"), offset=2)
 
 
 def test_identity_converter_scalar_view():
@@ -63,8 +63,8 @@ def test_identity_converter_batch_view():
 
 
 class DeclaredPayload(PayloadBase):
-    delta = Field(converter=_IdentityConverter(np.uint32))
-    flag = Field(converter=_IdentityConverter(np.uint8))
+    delta = Field(converter=_IdentityConverter(np.uint32), offset=0)
+    flag = Field(converter=_IdentityConverter(np.uint8), offset=4)
 
 
 def test_declared_dtype_synthesised_from_fields():
@@ -89,8 +89,8 @@ def test_declared_dtype_kwarg_init_round_trip():
 
 
 class _NamedPayload(PayloadBase):
-    name = Field(converter=_StringConverter(8))
-    delta = Field(converter=_IdentityConverter(np.uint16))
+    name = Field(converter=_StringConverter(8), offset=0)
+    delta = Field(converter=_IdentityConverter(np.uint16), offset=8)
 
 
 def test_string_converter_dtype_synthesis():
@@ -136,9 +136,10 @@ def test_string_converter_to_dataframe():
 
 
 class _ConfigPayload(PayloadBase):
-    # Full-byte enum slot named "color"; mask=0xFF, shift=0.
-    color = GroupMask(mask=0xFF, shift=0, enum=_Color, slot="color", dtype=np.uint8)
-    delta = Field(converter=_IdentityConverter(np.uint8))
+    # Full-byte enum at offset 0; delta is the next element. Distinct slots each
+    # declare an explicit offset.
+    color = GroupMask(mask=0xFF, enum=_Color, offset=0)
+    delta = Field(converter=_IdentityConverter(np.uint8), offset=1)
 
 
 def test_groupmask_struct_field_scalar_decode():
@@ -185,8 +186,8 @@ def test_bitfield_payloads_ndim_aware():
     """Scalar records stay on the declared class; batches route to the auto-derived ``Batch`` twin."""
 
     class _Flags(PayloadBase):
-        flag = BitFlag(mask=0x01, dtype=np.uint8)
-        group = GroupMask(mask=0x06, shift=1, enum=_Color, dtype=np.uint8)
+        flag = BitFlag(mask=0x01)
+        group = GroupMask(mask=0x06, enum=_Color)
 
     # 0-D scalar record: flag=1, group bits=01 (Green)
     scalar = _Flags.from_array(np.array((0x03,), dtype=_Flags.dtype))
@@ -206,11 +207,12 @@ def test_bitfield_kwarg_init_round_trip():
     """PayloadBase.__init__ supports bitfield kwargs with OR-into-slot encoding."""
 
     class _Flags(PayloadBase):
-        flag = BitFlag(mask=0x01, dtype=np.uint8)
-        group = GroupMask(mask=0x06, shift=1, enum=_Color, dtype=np.uint8)
+        flag = BitFlag(mask=0x01)
+        group = GroupMask(mask=0x06, enum=_Color)
 
     p = _Flags(flag=True, group=_Color.Green)
     assert p.flag is True
     assert p.group is _Color.Green
-    # Wire byte: flag bit + (Green << 1) = 0x01 | 0x02 = 0x03
-    assert int(p.raw_payload["value"]) == 0x03
+    # Wire byte: flag bit + (Green << 1) = 0x01 | 0x02 = 0x03. Masked fields on one
+    # element share a slot named after the first declared field ("flag").
+    assert int(p.raw_payload["flag"]) == 0x03

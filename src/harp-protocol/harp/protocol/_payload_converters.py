@@ -1,3 +1,4 @@
+import enum as _enum
 from abc import ABC, abstractmethod
 from collections.abc import Callable
 from typing import Any, Generic, TypeVar, cast
@@ -7,6 +8,7 @@ from numpy.typing import NDArray
 
 T = TypeVar("T")
 NpScalarT = TypeVar("NpScalarT", bound=np.generic)
+E = TypeVar("E", bound=_enum.IntEnum)
 _ConverterClsT = TypeVar("_ConverterClsT", bound="type[Converter[Any]]")
 
 # ---------------------------------------------------------------------------
@@ -143,6 +145,50 @@ class Int64Converter(IdentityConverter[np.int64]):
 class FloatConverter(IdentityConverter[np.float32]):
     def __init__(self) -> None:
         super().__init__(np.float32)
+
+
+class BoolConverter(Converter[bool]):
+    """Whole-element ``interfaceType: bool`` (distinct from a single ``BitFlag`` bit).
+
+    The element is non-zero → ``True``. Operates on a single base element.
+    """
+
+    init_kwarg_type = bool
+
+    def __init__(self, dtype: "np.dtype | str | type" = np.uint8) -> None:
+        self.dtype = np.dtype(dtype)
+
+    def decode_scalar(self, view: np.generic) -> bool:
+        return bool(view)
+
+    def decode_batch(self, view: NDArray[np.generic]) -> Any:
+        return np.asarray(view) != 0
+
+    def encode_into(self, view: NDArray[np.generic], value: bool) -> None:
+        view[...] = 1 if value else 0
+
+
+class EnumConverter(Converter[E]):
+    """Whole-element ``interfaceType: <maskType>`` enum (strict).
+
+    Maps a base element to an ``enum.IntEnum`` member; an unknown code raises
+    ``ValueError`` (matching Python ``IntEnum`` semantics). For masked enum
+    sub-fields use :class:`~harp.protocol.GroupMask` with ``enum=`` instead.
+    """
+
+    def __init__(self, enum_cls: "type[E]", dtype: "np.dtype | str | type" = np.uint8) -> None:
+        self._enum = enum_cls
+        self.dtype = np.dtype(dtype)
+        self.init_kwarg_type = enum_cls
+
+    def decode_scalar(self, view: np.generic) -> E:
+        return self._enum(int(view))
+
+    def decode_batch(self, view: NDArray[np.generic]) -> Any:
+        return np.asarray(view)
+
+    def encode_into(self, view: NDArray[np.generic], value: E) -> None:
+        view[...] = int(value)
 
 
 @register_converter(name="string")  # TODO check this name against Bonsai

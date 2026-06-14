@@ -5,8 +5,8 @@ from harp.protocol._payload import PayloadBase, Field, _IdentityConverter
 
 
 class SimplePayload(PayloadBase):
-    x = Field(converter=_IdentityConverter("<i2"))
-    y = Field(converter=_IdentityConverter("<u1"))
+    x = Field(converter=_IdentityConverter("<i2"), offset=0)
+    y = Field(converter=_IdentityConverter("<u1"), offset=2)
 
 
 class BitPackedPayload(PayloadBase):

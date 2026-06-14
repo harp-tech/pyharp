@@ -36,7 +36,7 @@ class _FlagPayload(PayloadBase[np.uint8]):
     _repr_fields: ClassVar = ("flag", "group")
 
     flag = BitFlag(mask=0x01)
-    group = GroupMask(mask=0x06, shift=1, enum=OperationMode)
+    group = GroupMask(mask=0x06, enum=OperationMode)
 
 
 # --- BitFlag behaviour ------------------------------------------------------
@@ -175,22 +175,30 @@ def _make_frames(values: list, base_time: float = 1.0) -> bytes:
     return frames
 
 
+def _read_frames(raw: bytes):
+    """Adapter over the current bulk API: returns (timestamps, payload)."""
+    _data, timestamps, _msgtype, payload = OperationControl.parse_bulk(raw)
+    if timestamps is None:
+        timestamps = np.empty(0, dtype=np.float64)
+    return timestamps, payload
+
+
 def test_read_frames_count():
     raw = _make_frames([0x01, 0x00, 0x81])
-    timestamps, payload = OperationControl.read_frames(raw)
+    timestamps, payload = _read_frames(raw)
     assert len(timestamps) == 3
     assert len(payload) == 3
 
 
 def test_read_frames_timestamps():
     raw = _make_frames([0x01, 0x00, 0x81], base_time=10.0)
-    timestamps, _ = OperationControl.read_frames(raw)
+    timestamps, _ = _read_frames(raw)
     np.testing.assert_allclose(timestamps, [10.0, 11.0, 12.0], atol=1e-4)
 
 
 def test_read_frames_payload_type():
     raw = _make_frames([0x01])
-    _, payload = OperationControl.read_frames(raw)
+    _, payload = _read_frames(raw)
     assert isinstance(payload, OperationControlPayload)
 
 
@@ -200,7 +208,7 @@ def test_read_frames_bitfield_batch():
         _make_op_ctrl_byte(OperationMode.Standby, EnableFlag.Disabled),
     ]
     raw = _make_frames(vals)
-    _, payload = OperationControl.read_frames(raw)
+    _, payload = _read_frames(raw)
     np.testing.assert_array_equal(payload.heartbeat, [True, False])
     np.testing.assert_array_equal(
         payload.operation_mode,
@@ -211,7 +219,7 @@ def test_read_frames_bitfield_batch():
 def test_read_frames_to_dataframe():
     vals = [_make_op_ctrl_byte(OperationMode.Active), _make_op_ctrl_byte(), _make_op_ctrl_byte()]
     raw = _make_frames(vals)
-    _, payload = OperationControl.read_frames(raw)
+    _, payload = _read_frames(raw)
     df = payload.to_dataframe()
     assert len(df) == 3
     assert "heartbeat" in df.columns
@@ -219,6 +227,6 @@ def test_read_frames_to_dataframe():
 
 
 def test_read_frames_empty():
-    timestamps, payload = OperationControl.read_frames(b"")
+    timestamps, payload = _read_frames(b"")
     assert len(timestamps) == 0
     assert len(payload) == 0
