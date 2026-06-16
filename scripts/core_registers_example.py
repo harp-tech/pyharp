@@ -91,7 +91,9 @@ print(f"  visual_indicators : {ctrl.visual_indicators}")  # EnableFlag.Enabled
 # ---------------------------------------------------------------------------
 # Bulk read from a .bin file (zero-copy, vectorised)
 # ---------------------------------------------------------------------------
-BIN_FILE = Path(__file__).parent.parent / "notes/Behavior.harp/Behavior_10.bin"
+BIN_FILE = Path(
+    r"C:\git\bruno-f-cruz\analysis-harlow-learning-sets\data\841312_2026-06-15_19-38-50\behavior\Behavior.harp\Behavior_10.bin"
+)
 print(f"\n=== Bulk read from {BIN_FILE.name} ===")
 _data, timestamps, msg_type, payload = OperationControl.parse_bulk(BIN_FILE.read_bytes())
 print(f"  {len(timestamps)} frame(s) read")

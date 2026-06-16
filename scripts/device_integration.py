@@ -20,7 +20,7 @@ from harp.device import (
     WhoAmI,
 )
 
-PORT = "COM3"
+PORT = "COM4"
 N_READS = 10_000
 
 CORE_REGISTERS = [

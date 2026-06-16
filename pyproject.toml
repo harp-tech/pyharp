@@ -71,7 +71,9 @@ extra-paths = ["tests"]
 
 [tool.ty.src]
 include = [
-    "harp-protocol/src",
-    "harp-device/src",
+    "src/harp-protocol",
+    "src/harp-device/src",
+]
+exclude = [
     "tests",
 ]

@@ -89,7 +89,7 @@ class Field(Generic[T]):
     def __get__(self, obj: "PayloadBase | None", owner: object = None) -> Any:
         if obj is None:
             return self
-        return self._converter.decode_scalar(obj._arr[self._name])
+        return self._converter.decode_scalar(obj._arr[self._name])  # ty: ignore[invalid-argument-type]
 
     def _to_batch(self) -> "_FieldBatch[T]":
         return _FieldBatch(converter=self._converter)
@@ -129,7 +129,7 @@ class BitFlag:
         return _BitFlagBatch(self._mask, slot=self._slot, dtype=self._dtype)
 
 
-def _build_enum_lookup(enum_cls: type) -> "tuple[list[str], np.ndarray]":
+def _build_enum_lookup(enum_cls: type[enum.IntEnum]) -> "tuple[list[str], np.ndarray]":
     """Helper for GroupMask to build the category list and code lookup table for a given enum.IntEnum class."""
     members = list(enum_cls)
     categories = [m.name for m in members]
@@ -423,7 +423,7 @@ def _validate_no_overlap(cls: type, slots: "dict[str, _FieldSlot]", itemsize: in
 
 
 def _build_struct_dtype(
-    cls: type,
+    cls: "type[PayloadBase]",
     declarations: "list[tuple[str, Field | BitFlag | GroupMask]]",
     length: int | None,
 ) -> np.dtype:
@@ -466,7 +466,9 @@ def _build_struct_dtype(
     )
 
 
-def _resolve_single_member(cls: type, declarations: "list[tuple[str, Any]]") -> "str | None":
+def _resolve_single_member(
+    cls: "type[PayloadBase]", declarations: "list[tuple[str, Any]]"
+) -> "str | None":
     """A payload with exactly one full-span ``Field`` unwraps to that member on
     ``parse`` (register-level ``interfaceType``), avoiding a ``.value`` hop."""
     if len(declarations) != 1:
@@ -541,7 +543,7 @@ class PayloadBase(Generic[NpStructT]):
         for attr_name, value in kwargs.items():
             desc = cls._mro_descriptor(attr_name)
             if isinstance(desc, _FIELD_TYPES):
-                desc._converter.encode_into(arr[desc._name], value)
+                desc._converter.encode_into(arr[desc._name], value)  # ty: ignore[invalid-argument-type]
             elif isinstance(desc, _BITFIELD_TYPES):
                 slot = desc._slot
                 mask_in_dtype = np.array(desc._mask, dtype=desc._dtype)
@@ -549,7 +551,7 @@ class PayloadBase(Generic[NpStructT]):
                     if value:
                         arr[slot] |= mask_in_dtype
                 else:
-                    int_val = desc._encode_value(value)
+                    int_val = desc._encode_value(value)  # ty: ignore[unresolved-attribute]
                     shifted = np.array((int_val << desc._shift) & desc._mask, dtype=desc._dtype)
                     arr[slot] = (arr[slot] & ~mask_in_dtype) | shifted
             elif attr_name in names:
@@ -682,17 +684,17 @@ class PayloadBase(Generic[NpStructT]):
             for f in repr_fields:
                 desc = cls._mro_descriptor(f)
                 if isinstance(desc, _GROUP_MASK_TYPES):
-                    slot_col = arr[desc._slot]
+                    slot_col = arr[desc._slot]  # ty: ignore[invalid-argument-type]
                     raw = (slot_col & desc._mask) >> desc._shift
                     if desc._enum is not None and decode_enums:
-                        codes = desc._code_lookup[raw]
+                        codes = desc._code_lookup[raw]  # ty: ignore[not-subscriptable]
                         cols[f] = pd.Categorical.from_codes(codes, categories=desc._categories)
                     elif desc._enum is None and desc._converter is not None:
                         cols[f] = desc._converter.decode_batch(raw.astype(desc._converter.dtype))
                     else:
                         cols[f] = raw
                 elif isinstance(desc, _BIT_FLAG_TYPES):
-                    slot_col = arr[desc._slot]
+                    slot_col = arr[desc._slot]  # ty: ignore[invalid-argument-type]
                     cols[f] = (slot_col & desc._mask) != 0
                 else:
                     cols[f] = np.atleast_1d(getattr(self, f))
@@ -701,7 +703,7 @@ class PayloadBase(Generic[NpStructT]):
         cols = {}
         names = self.dtype.names
         single_value_slot = names == ("value",)
-        for name in names:
+        for name in names:  # ty: ignore[not-iterable]
             desc = cls._mro_descriptor(name)
             uses_converter = isinstance(desc, _FIELD_TYPES) and not isinstance(
                 desc._converter, _IdentityConverter
@@ -710,8 +712,8 @@ class PayloadBase(Generic[NpStructT]):
                 cols[name] = np.atleast_1d(getattr(self, name))
                 continue
 
-            field_dtype, _ = self.dtype.fields[name]
-            sub = arr[name]
+            field_dtype, _ = self.dtype.fields[name]  # ty: ignore[invalid-assignment, invalid-argument-type, not-subscriptable]
+            sub = arr[name]  # ty: ignore[invalid-argument-type]
             if field_dtype.subdtype is None:
                 cols[name] = sub
             else:
@@ -825,7 +827,7 @@ class AnonymousPayload(PayloadBase[NpStructT]):
                 raise TypeError(f"{type(self).__name__}() requires a value")
         if kwargs:
             raise TypeError(f"{type(self).__name__}() got unexpected kwargs: {sorted(kwargs)}")
-        self._arr = np.asarray(value, dtype=self.dtype)
+        self._arr = np.asarray(value, dtype=self.dtype)  # ty: ignore[invalid-assignment]
 
     @classmethod
     def unwrap(cls, arr: "np.ndarray") -> Any:

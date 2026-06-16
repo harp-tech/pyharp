@@ -21,7 +21,7 @@ class PayloadType(Enum):
 
     @property
     def numpy_dtype(self) -> np.dtype:
-        return self.value  # type: ignore
+        return self.value
 
 
 @dataclass(frozen=True)

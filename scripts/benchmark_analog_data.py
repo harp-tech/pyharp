@@ -43,12 +43,12 @@ REPO_ROOT = Path(__file__).parent.parent
 ANALOG_COLUMNS = ["analog_input0", "encoder", "analog_input1"]
 
 
-class AnalogDataPayload(PayloadBase[np.int16]):
+class AnalogDataPayload(PayloadBase[np.int16], length=3):
     """Payload for AnalogData (register 44): three signed 16-bit channels."""
 
-    analog_input0 = Field(converter=IdentityConverter(np.int16))
-    encoder = Field(converter=IdentityConverter(np.int16))
-    analog_input1 = Field(converter=IdentityConverter(np.int16))
+    analog_input0 = Field(converter=IdentityConverter(np.int16), offset=0)
+    encoder = Field(converter=IdentityConverter(np.int16), offset=1)
+    analog_input1 = Field(converter=IdentityConverter(np.int16), offset=2)
 
 
 class AnalogData(RegisterBase[AnalogDataPayload]):
@@ -63,7 +63,7 @@ class AnalogData(RegisterBase[AnalogDataPayload]):
 # Helpers
 # ---------------------------------------------------------------------------
 
-BIN_FILE = REPO_ROOT / "scripts" / "Behavior_44.bin"
+BIN_FILE = Path(r"C:\Users\bruno.cruz\Downloads\Behavior_44.bin")
 
 
 def pyharp_read(path: Path, *, include_timestamp: bool = True):

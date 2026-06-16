@@ -28,10 +28,12 @@ from harp.protocol import (
 
 
 class FileSettings0Payload(StructPayload[np.uint8]):
-    cycles: np.uint32 = Field(converter=IdentityConverter(np.uint32))
-    duration_us: np.uint32 = Field(converter=IdentityConverter(np.uint32))
-    update_frequency_hz: np.uint32 = Field(converter=IdentityConverter(np.uint32))
-    path: str = Field(converter=StringConverter(33), default="220khzwaveform")  # defaults work too
+    cycles: np.uint32 = Field(converter=IdentityConverter(np.uint32), offset=0)
+    duration_us: np.uint32 = Field(converter=IdentityConverter(np.uint32), offset=4)
+    update_frequency_hz: np.uint32 = Field(converter=IdentityConverter(np.uint32), offset=8)
+    path: str = Field(
+        converter=StringConverter(33), default="220khzwaveform", offset=12
+    )  # defaults work too
 
 
 # ---------------------------------------------------------------------------
@@ -61,6 +63,10 @@ if __name__ == "__main__":
     print(f"Payload dtype  : {FileSettings0Payload.dtype}")
     print(f"Payload bytes  : {payload.raw_payload.tobytes().hex()}")
     print(f"Payload        : {payload}")
+    print(f"  cycles              = {payload.cycles}")
+    print(f"  duration_us         = {payload.duration_us}")
+    print(f"  update_frequency_hz = {payload.update_frequency_hz}")
+    print(f"  path                = {payload.path!r}")
 
     # 2. Encode → Harp wire frame
     frame = FileSettings0.format(payload, message_type=MessageType.Write)

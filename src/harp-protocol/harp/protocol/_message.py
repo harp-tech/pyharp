@@ -36,12 +36,12 @@ class HarpMessage:
         message_type: MessageType,
         address: int,
         payload_type: PayloadType,
-        payload: "bytes" = b"",
+        payload: bytes = b"",
         *,
         port: int = _DEFAULT_PORT,
         timestamp: float | None = None,
     ) -> None:
-        self._bytes: "bytes" = build_message_frame(
+        self._bytes: bytes = build_message_frame(
             message_type, address, payload_type, payload, port=port, timestamp=timestamp
         )
 

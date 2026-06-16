@@ -203,7 +203,7 @@ class StringConverter(Converter[str]):
         self.dtype = np.dtype((np.uint8, (length,)))
 
     def decode_scalar(self, view: np.generic) -> str:
-        return bytes(view).rstrip(b"\x00").decode(self._encoding)
+        return bytes(view).rstrip(b"\x00").decode(self._encoding)  # ty: ignore[invalid-argument-type]
 
     def decode_batch(self, view: NDArray[np.generic]) -> Any:
         return np.array(

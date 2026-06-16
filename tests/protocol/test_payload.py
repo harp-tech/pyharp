@@ -12,7 +12,7 @@ class SimplePayload(PayloadBase):
 class BitPackedPayload(PayloadBase):
     packed = Field(converter=_IdentityConverter("u1"))
 
-    def to_dataframe(self) -> pd.DataFrame:
+    def to_dataframe(self, *, decode_enums: bool = True) -> pd.DataFrame:
         return pd.DataFrame(
             {
                 "flag_a": (self.raw_payload["packed"] & 0x01).astype(bool),
