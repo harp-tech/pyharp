@@ -18,6 +18,8 @@ from harp.protocol._payload import (
     PayloadU32,
     PayloadU64,
     Field,
+    BitFlag,
+    GroupMask,
     _IdentityConverter,
 )
 from harp.protocol._payload_type import PayloadType
@@ -430,3 +432,25 @@ def test_repr_fields_auto_derived_from_dtype():
         beta = Field(converter=_IdentityConverter("<u1"), offset=2)
 
     assert P._repr_fields == ("alpha", "beta")
+
+
+def test_repr_fields_auto_derived_mixed_bitfield_and_field():
+    """A payload mixing a masked sub-field with plain Fields keeps all of them,
+    in declaration order (the masked slot must not shadow the plain fields)."""
+
+    class P(PayloadBase):
+        flags = GroupMask(mask=0xFF, offset=0)
+        scale = Field(converter=_IdentityConverter("<f4"), offset=4)
+        count = Field(converter=_IdentityConverter("<u4"), offset=8)
+
+    assert P._repr_fields == ("flags", "scale", "count")
+
+
+def test_repr_fields_auto_derived_shared_slot_bitfields():
+    """Several bitfields packed into one dtype slot each appear in _repr_fields."""
+
+    class P(PayloadBase):
+        low = GroupMask(mask=0x0F, offset=0)
+        high = GroupMask(mask=0xF0, offset=0)
+
+    assert P._repr_fields == ("low", "high")

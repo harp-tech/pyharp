@@ -588,6 +588,21 @@ class PayloadBase(Generic[NpStructT]):
                     out[attr] = val._default
         return out
 
+    @classmethod
+    def _collect_repr_fields(cls) -> "tuple[str, ...]":
+        """Declared attribute names in MRO + definition order.
+
+        Covers plain ``Field``s and masked sub-fields alike (a single dtype slot
+        may back several bitfields, so this enumerates declarations rather than
+        ``dtype.names``).
+        """
+        names: list[str] = []
+        for klass in reversed(cls.__mro__):
+            for attr, val in klass.__dict__.items():
+                if isinstance(val, _SCALAR_DECLARATION_TYPES) and attr not in names:
+                    names.append(attr)
+        return tuple(names)
+
     def __init_subclass__(
         cls,
         *,
@@ -627,17 +642,7 @@ class PayloadBase(Generic[NpStructT]):
             cls._single_member = _resolve_single_member(cls, own_declarations)
 
         if "_repr_fields" not in cls.__dict__:
-            bitfield_names = tuple(
-                name for name, val in vars(cls).items() if isinstance(val, (BitFlag, GroupMask))
-            )
-            if bitfield_names:
-                cls._repr_fields = bitfield_names
-            else:
-                names = cls.dtype.names if hasattr(cls, "dtype") else None
-                if names is not None and names != ("value",):
-                    cls._repr_fields = names
-                else:
-                    cls._repr_fields = ("value",)
+            cls._repr_fields = cls._collect_repr_fields()
 
         cls._scalar_cls = cls
         cls._batch_cls = cls  # rebound below once Batch is generated

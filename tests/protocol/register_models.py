@@ -192,7 +192,6 @@ class ComplexConfigurationPayload(StructPayload[np.uint8], length=17):
     Frequency: np.float32 = Field(IdentityConverter(np.float32), offset=8)
     EventsEnabled: bool = Field(BoolConverter(), offset=12)
     Delta: np.uint32 = Field(IdentityConverter(np.uint32), offset=13)
-    _repr_fields = ("PwmPort", "DutyCycle", "Frequency", "EventsEnabled", "Delta")
 
 
 class ComplexConfiguration(RegisterBase[ComplexConfigurationPayload]):
