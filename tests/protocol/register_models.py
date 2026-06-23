@@ -16,8 +16,8 @@ Design (see notes/payload_api_redesign.md):
 * ``Converter`` instances operate on their own byte layout and are independent of
   the register element type (custom codecs read raw ``uint8`` sub-arrays), so the
   same ``HarpVersionConverter`` works under a U8 or a U32 register.
-* Masked sub-fields use ``GroupMask`` (enum / converter / raw); the right-shift is
-  derived from the mask's trailing zeros.
+* Masked sub-fields use ``GroupMask`` (enum) or ``Field(converter=..., mask=...)``
+  (numeric); the right-shift is derived from the mask's trailing zeros.
 * The register ``length`` (base elements) fixes ``itemsize`` so byte gaps survive.
 * Enum decoding is strict (an out-of-range code raises) — a deliberate divergence
   from the C# generator's unchecked cast.
@@ -269,8 +269,8 @@ class CustomMemberConverter(RegisterBase[CustomMemberConverterPayload]):
 
 
 class BitmaskSplitterPayload(StructPayload[np.uint8]):
-    Low: np.int32 = GroupMask(mask=0x0F, converter=IdentityConverter(np.int32))
-    High: np.int32 = GroupMask(mask=0xF0, converter=IdentityConverter(np.int32))
+    Low: np.int32 = Field(IdentityConverter(np.int32), mask=0x0F)
+    High: np.int32 = Field(IdentityConverter(np.int32), mask=0xF0)
 
 
 class BitmaskSplitter(RegisterBase[BitmaskSplitterPayload]):
@@ -327,7 +327,7 @@ class PulseDO0(RegisterU16):
 
 class StartPulsePayload(StructPayload[np.uint16]):
     DigitalOutput: PwmPort = GroupMask(enum=PwmPort, mask=0xC00)
-    PulseWidth: np.uint16 = GroupMask(mask=0x3FF)
+    PulseWidth: np.uint16 = Field(IdentityConverter(np.uint16), mask=0x3FF)
 
 
 class StartPulse(RegisterBase[StartPulsePayload]):
@@ -343,11 +343,11 @@ class StartPulse(RegisterBase[StartPulsePayload]):
 
 class StartPulseTrainPayload(StructPayload[np.uint16], length=2):
     DigitalOutput: PwmPort = GroupMask(enum=PwmPort, mask=0xC00, offset=0)
-    PulseWidth: np.uint16 = GroupMask(mask=0x3FF, offset=0)
-    Frequency: np.uint8 = GroupMask(
-        mask=0xFF00, converter=IdentityConverter(np.uint8), offset=1, default=1
+    PulseWidth: np.uint16 = Field(IdentityConverter(np.uint16), mask=0x3FF, offset=0)
+    Frequency: np.uint8 = Field(
+        IdentityConverter(np.uint8), mask=0xFF00, offset=1, default=np.uint8(1)
     )
-    PulseCount: np.uint8 = GroupMask(mask=0xFF, converter=IdentityConverter(np.uint8), offset=1)
+    PulseCount: np.uint8 = Field(IdentityConverter(np.uint8), mask=0xFF, offset=1)
 
 
 class StartPulseTrain(RegisterBase[StartPulseTrainPayload]):

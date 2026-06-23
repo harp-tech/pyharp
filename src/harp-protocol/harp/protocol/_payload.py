@@ -50,13 +50,22 @@ def _mask_trailing_zeros(mask: int) -> int:
 
 
 class Field(Generic[T]):
-    """Descriptor for a whole-element (or reinterpreted multi-element) payload view.
+    """Descriptor for a payload view decoded through a :class:`Converter`.
 
-    The view reads ``converter.dtype.itemsize`` bytes starting at ``offset`` (in
-    base-element units; see :class:`StructPayload`) and runs them through
-    ``converter``. The converter owns its own ``dtype`` (byte layout) and is
-    independent of the payload's base element type, so the same converter works
-    under any register width.
+    Two modes, selected by ``mask``:
+
+    * **Whole-element** (``mask=None``, the default) — the view reads
+      ``converter.dtype.itemsize`` bytes starting at ``offset`` (in base-element
+      units; see :class:`StructPayload`) and runs them through ``converter``. The
+      converter owns its own ``dtype`` (byte layout) and is independent of the
+      payload's base element type, so the same converter works under any register
+      width.
+    * **Masked sub-field** (``mask`` set) — the raw value is extracted as
+      ``(element & mask) >> shift`` from the payload's *base element* at ``offset``
+      and then run through ``converter`` (which dictates the output type). The
+      right-shift is derived from ``mask`` (its trailing-zero count). Several masked
+      fields at the same offset share the element slot automatically, and may share
+      it with a :class:`GroupMask` or :class:`BitFlag` on the same word.
 
     ``offset`` defaults to ``0``. Omitting it suits a payload with a single
     member; when a payload has several distinct slots, each must declare an
@@ -68,19 +77,41 @@ class Field(Generic[T]):
         # type-mismatch error. At runtime __new__ is not defined and a Field instance is
         # returned as normal.
         def __new__(  # type: ignore[misc]
-            cls, converter: "_Converter[T]", *, offset: int = 0, default: "T" = ...
+            cls,
+            converter: "_Converter[T]",
+            *,
+            mask: int | None = None,
+            offset: int = 0,
+            default: "T" = ...,
         ) -> "T": ...
 
     def __init__(
-        self, converter: _Converter[T], *, offset: int = 0, default: object = _MISSING
+        self,
+        converter: _Converter[T],
+        *,
+        mask: int | None = None,
+        offset: int = 0,
+        default: object = _MISSING,
     ) -> None:
         self._converter = converter
         self._name: str | None = None
+        self._mask = mask
+        self._shift = _mask_trailing_zeros(mask) if mask is not None else 0
         self._offset = offset
         self._default = default
+        # Derived in PayloadBase.__init_subclass__ for the masked variant:
+        self._slot: str = "value"
+        self._dtype: np.dtype = _DEFAULT_ELEMENT
 
     def __set_name__(self, owner: object, name: str) -> None:
         self._name = name
+
+    def _encode_value(self, value: Any) -> int:
+        """Map a user value back to the integer to be masked + shifted into the slot
+        (masked variant only)."""
+        tmp = np.zeros((), dtype=self._converter.dtype)
+        self._converter.encode_into(tmp, value)
+        return int(tmp)
 
     @overload
     def __get__(self, obj: None, owner: object = None) -> "Field[T]": ...
@@ -89,10 +120,18 @@ class Field(Generic[T]):
     def __get__(self, obj: "PayloadBase | None", owner: object = None) -> Any:
         if obj is None:
             return self
+        if self._mask is not None:
+            raw = (obj._arr[self._slot] & self._mask) >> self._shift
+            return self._converter.decode_scalar(self._converter.dtype.type(raw))
         return self._converter.decode_scalar(obj._arr[self._name])  # ty: ignore[invalid-argument-type]
 
     def _to_batch(self) -> "_FieldBatch[T]":
-        return _FieldBatch(converter=self._converter)
+        return _FieldBatch(
+            converter=self._converter,
+            mask=self._mask,
+            slot=self._slot,
+            dtype=self._dtype,
+        )
 
 
 class BitFlag:
@@ -142,14 +181,12 @@ def _build_enum_lookup(enum_cls: type[enum.IntEnum]) -> "tuple[list[str], np.nda
 
 
 class GroupMask(Generic[E]):
-    """Descriptor for a masked, shifted sub-field of a payload element.
+    """Descriptor for a masked, shifted enum sub-field of a payload element.
 
-    The raw value is extracted as ``(element & mask) >> shift`` and then mapped:
-
-    * ``enum=`` — to an ``enum.IntEnum`` member (strict; unknown code raises);
-    * ``converter=`` — through a :class:`Converter` applied to the *masked*
-      integer (numeric casts, bool, custom);
-    * neither — returned as the raw masked numpy integer (the element's dtype).
+    Readable sugar over a masked :class:`Field`: the raw value is extracted as
+    ``(element & mask) >> shift`` and mapped strictly to an ``enum.IntEnum`` member
+    (an unknown code raises). ``enum=`` is required; for masked *numeric* fields use
+    ``Field(converter=..., mask=...)`` instead.
 
     The right-shift is always derived from ``mask`` (its trailing-zero count, so the
     field aligns to bit 0); ``offset`` defaults to ``0``. The element width and
@@ -159,61 +196,39 @@ class GroupMask(Generic[E]):
 
     if TYPE_CHECKING:
         # enum variant -> the field type is the enum
-        @overload
         def __new__(  # type: ignore[misc]  # noqa: E704
             cls, *, mask: int, enum: "type[E]", offset: int = 0, default: "E" = ...
         ) -> "E": ...
-        # converter variant -> the field type is the converter's output type
-        @overload
-        def __new__(  # type: ignore[misc]  # noqa: E704
-            cls, *, mask: int, converter: "_Converter[T]", offset: int = 0, default: "T" = ...
-        ) -> "T": ...
-        # raw variant -> a plain integer
-        @overload
-        def __new__(  # type: ignore[misc]  # noqa: E704
-            cls, *, mask: int, offset: int = 0, default: int = ...
-        ) -> int: ...
-        def __new__(cls, **kwargs: Any) -> Any: ...  # type: ignore[misc]  # noqa: E704
 
     def __init__(
         self,
         *,
         mask: int,
-        enum: type[E] | None = None,
-        converter: "_Converter[Any] | None" = None,
+        enum: type[E],
         offset: int = 0,
         default: object = _MISSING,
     ) -> None:
-        if enum is not None and converter is not None:
-            raise TypeError("GroupMask accepts at most one of 'enum' or 'converter'")
+        if enum is None:
+            raise TypeError(
+                "GroupMask requires 'enum'; use Field(converter=..., mask=...) for "
+                "masked numeric sub-fields"
+            )
         self._mask = mask
         self._shift = _mask_trailing_zeros(mask)
         self._enum = enum
-        self._converter = converter
         self._offset = offset
         self._default = default
         # Derived in PayloadBase.__init_subclass__:
         self._slot: str = "value"
         self._dtype: np.dtype = _DEFAULT_ELEMENT
-        if enum is not None:
-            self._categories, self._code_lookup = _build_enum_lookup(enum)
-        else:
-            self._categories, self._code_lookup = None, None
+        self._categories, self._code_lookup = _build_enum_lookup(enum)
 
     def _decode_raw(self, raw: Any) -> Any:
-        """Map an extracted (already masked + shifted) integer to its value."""
-        if self._enum is not None:
-            return self._enum(int(raw))
-        if self._converter is not None:
-            return self._converter.decode_scalar(self._converter.dtype.type(raw))
-        return raw
+        """Map an extracted (already masked + shifted) integer to its enum member."""
+        return self._enum(int(raw))
 
     def _encode_value(self, value: Any) -> int:
         """Map a user value back to the integer to be masked + shifted into the slot."""
-        if self._converter is not None and self._enum is None:
-            tmp = np.zeros((), dtype=self._converter.dtype)
-            self._converter.encode_into(tmp, value)
-            return int(tmp)
         return int(value)
 
     @overload
@@ -230,7 +245,6 @@ class GroupMask(Generic[E]):
         return _GroupMaskBatch(
             self._mask,
             self._enum,
-            converter=self._converter,
             slot=self._slot,
             dtype=self._dtype,
         )
@@ -245,9 +259,20 @@ class GroupMask(Generic[E]):
 class _FieldBatch(Generic[T]):
     """Same as _Field but returns an NDArray view for batch payloads rather than a scalar value."""
 
-    def __init__(self, *, converter: _Converter[T]) -> None:
+    def __init__(
+        self,
+        *,
+        converter: _Converter[T],
+        mask: int | None = None,
+        slot: str = "value",
+        dtype: "np.dtype | str | type" = np.uint8,
+    ) -> None:
         self._converter = converter
         self._name: str | None = None
+        self._mask = mask
+        self._shift = _mask_trailing_zeros(mask) if mask is not None else 0
+        self._slot = slot
+        self._dtype = np.dtype(dtype)
 
     def __set_name__(self, owner: object, name: str) -> None:
         self._name = name
@@ -259,6 +284,9 @@ class _FieldBatch(Generic[T]):
     def __get__(self, obj: "PayloadBase | None", owner: object = None) -> Any:
         if obj is None:
             return self
+        if self._mask is not None:
+            raw = (obj._arr[self._slot] & self._mask) >> self._shift
+            return self._converter.decode_batch(raw.astype(self._converter.dtype))
         return self._converter.decode_batch(obj._arr[self._name])
 
 
@@ -292,22 +320,17 @@ class _GroupMaskBatch(Generic[E]):
     def __init__(
         self,
         mask: int,
-        enum: type[E] | None,
+        enum: type[E],
         *,
-        converter: "_Converter[Any] | None" = None,
         slot: str = "value",
         dtype: "np.dtype | str | type" = np.uint8,
     ) -> None:
         self._mask = mask
         self._shift = _mask_trailing_zeros(mask)
         self._enum = enum
-        self._converter = converter
         self._slot = slot
         self._dtype = np.dtype(dtype)
-        if enum is not None:
-            self._categories, self._code_lookup = _build_enum_lookup(enum)
-        else:
-            self._categories, self._code_lookup = None, None
+        self._categories, self._code_lookup = _build_enum_lookup(enum)
 
     @overload
     def __get__(self, obj: None, owner: object = None) -> "_GroupMaskBatch[E]": ...
@@ -316,12 +339,8 @@ class _GroupMaskBatch(Generic[E]):
     def __get__(self, obj: "PayloadBase | None", owner: object = None) -> Any:
         if obj is None:
             return self
-        raw = (obj._arr[self._slot] & self._mask) >> self._shift
-        # Enum batches return raw integer codes (see to_dataframe for Categorical
-        # decoding). Converter batches decode element-wise; raw stays integer.
-        if self._enum is None and self._converter is not None:
-            return self._converter.decode_batch(raw.astype(self._converter.dtype))
-        return raw
+        # Enum batches return raw integer codes (see to_dataframe for Categorical decoding).
+        return (obj._arr[self._slot] & self._mask) >> self._shift
 
 
 _PT = TypeVar("_PT", bound="PayloadBase[Any]")
@@ -360,6 +379,17 @@ _BITFIELD_TYPES = (BitFlag, GroupMask, _BitFlagBatch, _GroupMaskBatch)
 _FIELD_TYPES = (Field, _FieldBatch)
 _GROUP_MASK_TYPES = (GroupMask, _GroupMaskBatch)
 _BIT_FLAG_TYPES = (BitFlag, _BitFlagBatch)
+
+
+def _is_masked(desc: object) -> bool:
+    """A descriptor that reads a masked + shifted sub-field of a shared element slot:
+    every ``BitFlag``/``GroupMask`` (always masked), or a ``Field`` declaring ``mask=``.
+    Unmasked ``Field`` (whole-element view, own slot) returns False."""
+    if isinstance(desc, _BITFIELD_TYPES):
+        return True
+    if isinstance(desc, _FIELD_TYPES):
+        return desc._mask is not None
+    return False
 
 # value/raw_payload deliberately omitted: overriding them is the intended
 # pattern for single-slot converter-driven payloads.
@@ -435,9 +465,20 @@ def _build_struct_dtype(
 
     for attr_name, val in declarations:
         byte_offset = val._offset * elem_size
-        if isinstance(val, (BitFlag, GroupMask)):
+        # A plain Field (no mask=) is the only whole-element view; everything else
+        # (BitFlag, GroupMask, or a Field with mask=) is a masked sub-field. The
+        # isinstance form — rather than _is_masked() — is what lets the type checker
+        # narrow `val` for the slot/converter attribute access in each branch.
+        if isinstance(val, Field) and val._mask is None:  # whole-element Field — own slot
+            field_dtype = val._converter.dtype
+            if attr_name in slots:
+                raise TypeError(f"{cls.__name__}: duplicate field name {attr_name!r}")
+            slots[attr_name] = _FieldSlot(field_dtype, byte_offset)
+        else:  # masked sub-field — share the base-element slot
+            mask = val._mask
+            assert mask is not None  # invariant for every masked descriptor
             val._dtype = elem
-            _validate_mask_fits(cls, attr_name, val._mask, elem)
+            _validate_mask_fits(cls, attr_name, mask, elem)
             shared_slot = mask_slot_by_byte_offset.get(byte_offset)
             if shared_slot is not None:
                 val._slot = shared_slot
@@ -445,11 +486,6 @@ def _build_struct_dtype(
                 mask_slot_by_byte_offset[byte_offset] = attr_name
                 val._slot = attr_name
                 slots[attr_name] = _FieldSlot(elem, byte_offset)
-        else:  # Field
-            field_dtype = val._converter.dtype
-            if attr_name in slots:
-                raise TypeError(f"{cls.__name__}: duplicate field name {attr_name!r}")
-            slots[attr_name] = _FieldSlot(field_dtype, byte_offset)
 
     if length is not None:
         itemsize = length * elem_size
@@ -474,7 +510,11 @@ def _resolve_single_member(
     if len(declarations) != 1:
         return None
     attr, val = declarations[0]
-    if isinstance(val, Field) and val._converter.dtype.itemsize == cls.dtype.itemsize:  # type: ignore[attr-defined]
+    if (
+        isinstance(val, Field)
+        and val._mask is None
+        and val._converter.dtype.itemsize == cls.dtype.itemsize  # type: ignore[attr-defined]
+    ):
         return attr
     return None
 
@@ -542,18 +582,20 @@ class PayloadBase(Generic[NpStructT]):
         # collides with the first masked field's attribute name.
         for attr_name, value in kwargs.items():
             desc = cls._mro_descriptor(attr_name)
-            if isinstance(desc, _FIELD_TYPES):
-                desc._converter.encode_into(arr[desc._name], value)  # ty: ignore[invalid-argument-type]
-            elif isinstance(desc, _BITFIELD_TYPES):
-                slot = desc._slot
+            if isinstance(desc, BitFlag):  # single bit -> set/clear
                 mask_in_dtype = np.array(desc._mask, dtype=desc._dtype)
-                if isinstance(desc, _BIT_FLAG_TYPES):
-                    if value:
-                        arr[slot] |= mask_in_dtype
-                else:
-                    int_val = desc._encode_value(value)  # ty: ignore[unresolved-attribute]
-                    shifted = np.array((int_val << desc._shift) & desc._mask, dtype=desc._dtype)
-                    arr[slot] = (arr[slot] & ~mask_in_dtype) | shifted
+                if value:
+                    arr[desc._slot] |= mask_in_dtype
+            elif isinstance(desc, Field) and desc._mask is None:  # whole-element Field
+                desc._converter.encode_into(arr[desc._name], value)  # ty: ignore[invalid-argument-type]
+            elif isinstance(desc, (GroupMask, Field)):
+                # masked sub-field (enum or numeric) -> encode, shift, merge into shared slot
+                mask = desc._mask
+                assert mask is not None  # invariant for masked descriptors
+                mask_in_dtype = np.array(mask, dtype=desc._dtype)
+                int_val = desc._encode_value(value)
+                shifted = np.array((int_val << desc._shift) & mask, dtype=desc._dtype)
+                arr[desc._slot] = (arr[desc._slot] & ~mask_in_dtype) | shifted
             elif attr_name in names:
                 arr[attr_name] = value  # raw slot with no descriptor
             else:
@@ -683,21 +725,23 @@ class PayloadBase(Generic[NpStructT]):
         cls = type(self)
         repr_fields = self._repr_fields
 
-        has_bitfield = any(isinstance(cls._mro_descriptor(f), _BITFIELD_TYPES) for f in repr_fields)
+        has_bitfield = any(_is_masked(cls._mro_descriptor(f)) for f in repr_fields)
         if has_bitfield:
             cols: dict[str, object] = {}
             for f in repr_fields:
                 desc = cls._mro_descriptor(f)
-                if isinstance(desc, _GROUP_MASK_TYPES):
+                if isinstance(desc, _GROUP_MASK_TYPES):  # masked enum sub-field
                     slot_col = arr[desc._slot]  # ty: ignore[invalid-argument-type]
                     raw = (slot_col & desc._mask) >> desc._shift
-                    if desc._enum is not None and decode_enums:
-                        codes = desc._code_lookup[raw]  # ty: ignore[not-subscriptable]
+                    if decode_enums:
+                        codes = desc._code_lookup[raw]
                         cols[f] = pd.Categorical.from_codes(codes, categories=desc._categories)
-                    elif desc._enum is None and desc._converter is not None:
-                        cols[f] = desc._converter.decode_batch(raw.astype(desc._converter.dtype))
                     else:
                         cols[f] = raw
+                elif isinstance(desc, _FIELD_TYPES) and desc._mask is not None:  # masked numeric sub-field
+                    slot_col = arr[desc._slot]  # ty: ignore[invalid-argument-type]
+                    raw = (slot_col & desc._mask) >> desc._shift
+                    cols[f] = desc._converter.decode_batch(raw.astype(desc._converter.dtype))
                 elif isinstance(desc, _BIT_FLAG_TYPES):
                     slot_col = arr[desc._slot]  # ty: ignore[invalid-argument-type]
                     cols[f] = (slot_col & desc._mask) != 0
