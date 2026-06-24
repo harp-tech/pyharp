@@ -14,7 +14,6 @@ from harp.device import (
     OperationMode,
     # Payload classes
     ClockConfigPayload,
-    DeviceNamePayload,
     OperationControlPayload,
     ResetDevicePayload,
     # Registers
@@ -54,7 +53,7 @@ examples = [
         ),
     ),
     (ResetDevice, ResetDevicePayload(restore_default=True, restore_name=True)),
-    (DeviceName, DeviceNamePayload(value="my-harp-device")),
+    (DeviceName, "my-harp-device"),
     (ClockConfig, ClockConfigPayload(clock_repeater=True, clock_unlock=True)),
     (Heartbeat, np.uint16(1)),
     (HwVersionH, np.uint8(2)),

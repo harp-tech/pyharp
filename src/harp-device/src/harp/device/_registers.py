@@ -2,7 +2,7 @@ import enum
 from typing import ClassVar
 
 import numpy as np
-from harp.protocol._payload import StructPayload, BitFlag, Field, GroupMask
+from harp.protocol._payload import AnonymousPayload, BitFlag, GroupMask, StructPayload
 from harp.protocol._payload_converters import StringConverter as _StringConverter
 from harp.protocol._payload_type import PayloadType
 from harp.protocol._register import RegisterBase, RegisterU8, RegisterU16, RegisterU32
@@ -53,15 +53,11 @@ class ResetDevicePayload(StructPayload[np.uint8]):
     boot_from_eeprom: bool = BitFlag(mask=0x80, default=False)
 
 
-class DeviceNamePayload(StructPayload[np.uint8]):
+class DeviceNamePayload(AnonymousPayload, converter=_StringConverter(25)):
     """Payload for the DeviceName register (address 12).
 
     Stores a user-specified ASCII device name padded to 25 bytes.
     """
-
-    _MAX_LEN: ClassVar[int] = 25
-
-    value: str = Field(converter=_StringConverter(_MAX_LEN))
 
 
 class ClockConfigPayload(StructPayload[np.uint8]):
@@ -104,7 +100,7 @@ class ResetDevice(RegisterBase[ResetDevicePayload]):
     payload_class = ResetDevicePayload
 
 
-class DeviceName(RegisterBase[DeviceNamePayload]):
+class DeviceName(RegisterBase[str]):
     address: ClassVar[int] = 12
     payload_type: ClassVar[PayloadType] = PayloadType.U8
     payload_class = DeviceNamePayload

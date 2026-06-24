@@ -391,6 +391,7 @@ def _is_masked(desc: object) -> bool:
         return desc._mask is not None
     return False
 
+
 # value/raw_payload deliberately omitted: overriding them is the intended
 # pattern for single-slot converter-driven payloads.
 _RESERVED_FIELD_NAMES = frozenset({"_arr", "_dtype", "_repr_fields", "Batch"})
@@ -738,7 +739,9 @@ class PayloadBase(Generic[NpStructT]):
                         cols[f] = pd.Categorical.from_codes(codes, categories=desc._categories)
                     else:
                         cols[f] = raw
-                elif isinstance(desc, _FIELD_TYPES) and desc._mask is not None:  # masked numeric sub-field
+                elif (
+                    isinstance(desc, _FIELD_TYPES) and desc._mask is not None
+                ):  # masked numeric sub-field
                     slot_col = arr[desc._slot]  # ty: ignore[invalid-argument-type]
                     raw = (slot_col & desc._mask) >> desc._shift
                     cols[f] = desc._converter.decode_batch(raw.astype(desc._converter.dtype))
@@ -855,14 +858,34 @@ class AnonymousPayload(PayloadBase[NpStructT]):
     (for 0-D) or ndarray (for sub-array / batch) — there is no
     ``.value`` accessor and the slot name ``value`` is free for use by
     struct payloads.
+
+    A subclass may also pass a ``converter=`` to decode/encode the single slot
+    through a :class:`Converter` — useful for a register that carries one value
+    but needs a domain codec (e.g. ``DeviceName`` → :class:`StringConverter`)::
+
+        class DeviceNamePayload(AnonymousPayload, converter=StringConverter(25)): ...
+
+    The dtype defaults to the converter's own ``dtype`` (an explicit
+    ``scalar_dtype=`` still overrides it). With a converter, the constructor
+    accepts the high-level value (encoding it into the slot), ``unwrap`` decodes
+    back to that value, and ``to_dataframe`` yields the decoded column.
     """
+
+    # Optional codec for the single slot; ``None`` means the raw numpy value is
+    # exposed as-is (the default for the scalar/array Payload* classes).
+    _converter: "ClassVar[_Converter[Any] | None]" = None
 
     def __init_subclass__(
         cls,
         *,
         scalar_dtype: "np.dtype | str | type | None" = None,
+        converter: "_Converter[Any] | None" = None,
         **kwargs: object,
     ) -> None:
+        if converter is not None:
+            cls._converter = converter
+            if scalar_dtype is None:
+                scalar_dtype = converter.dtype
         if scalar_dtype is not None:
             cls.dtype = np.dtype(scalar_dtype)
             cls._repr_fields = ()
@@ -876,21 +899,37 @@ class AnonymousPayload(PayloadBase[NpStructT]):
                 raise TypeError(f"{type(self).__name__}() requires a value")
         if kwargs:
             raise TypeError(f"{type(self).__name__}() got unexpected kwargs: {sorted(kwargs)}")
-        self._arr = np.asarray(value, dtype=self.dtype)  # ty: ignore[invalid-assignment]
+        if self._converter is not None:
+            arr = np.zeros((), dtype=self.dtype)
+            self._converter.encode_into(arr, value)
+            self._arr = arr
+        else:
+            self._arr = np.asarray(value, dtype=self.dtype)  # ty: ignore[invalid-assignment]
 
     @classmethod
     def unwrap(cls, arr: "np.ndarray") -> Any:
+        if cls._converter is not None:
+            return cls._converter.decode_scalar(arr)  # ty: ignore[invalid-argument-type]
         # 0-D → numpy scalar via item-like access (preserves dtype).
         # 1-D / sub-array → return the ndarray as-is.
         return arr if arr.ndim > 0 else arr[()]
 
     def _repr_kwargs(self) -> str:
+        if self._converter is not None:
+            return repr(self._converter.decode_scalar(self._arr))  # ty: ignore[invalid-argument-type]
         return repr(self._arr.tolist() if self._arr.ndim > 0 else self._arr[()])
 
     def __repr__(self) -> str:
         return f"{type(self).__name__}({self._repr_kwargs()})"
 
     def to_dataframe(self, *, decode_enums: bool = True) -> pd.DataFrame:
+        if self._converter is not None:
+            arr = self._arr
+            # decode_batch wants a leading row axis; a single record lacks one
+            # (its ndim equals the converter slot's own ndim).
+            if arr.ndim == self._converter.dtype.ndim:
+                arr = arr[np.newaxis, ...]
+            return pd.DataFrame({"value": self._converter.decode_batch(arr)})
         arr = np.atleast_1d(self._arr)
         # Sub-array dtype (array register): shape is already (N, length).
         if arr.ndim > 1:

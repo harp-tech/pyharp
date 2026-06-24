@@ -18,7 +18,6 @@ from harp.protocol._payload import (
     PayloadU32,
     PayloadU64,
     Field,
-    BitFlag,
     _IdentityConverter,
 )
 from harp.protocol._payload_type import PayloadType
@@ -349,6 +348,65 @@ def test_structured_payload_descriptors_multi():
     np.testing.assert_array_equal(parsed.analog_input0, [100, 110, 120])
     np.testing.assert_array_equal(parsed.encoder, [512, 513, 514])
     np.testing.assert_array_equal(parsed.analog_input1, [-200, -210, -220])
+
+
+def test_anonymous_payload_converter_roundtrip():
+    """AnonymousPayload with a converter= encodes/decodes the single slot.
+
+    Models a register that carries one value but needs a domain codec
+    (e.g. DeviceName -> StringConverter).
+    """
+    from harp.protocol._payload import AnonymousPayload
+    from harp.protocol._payload_converters import StringConverter
+
+    class PayloadDeviceName(AnonymousPayload, converter=StringConverter(25)):
+        pass
+
+    class DeviceName(RegisterBase):
+        address: ClassVar[int] = 12
+        payload_type: ClassVar[PayloadType] = PayloadType.U8
+        payload_class = PayloadDeviceName
+
+    # dtype derives from the converter; raw bytes are the encoded, null-padded value.
+    assert PayloadDeviceName.dtype == np.dtype((np.uint8, (25,)))
+    payload = PayloadDeviceName("Behavior")
+    assert payload.raw_payload.tobytes() == b"Behavior".ljust(25, b"\x00")
+
+    # Register round-trip decodes back to the high-level str, whether format()
+    # is given a payload instance or the bare value (symmetric with parse()).
+    for arg in (payload, "Behavior"):
+        parsed = DeviceName.parse(_parse_frame(DeviceName.format(arg)))
+        assert parsed == "Behavior"
+
+    # to_dataframe decodes both a single record and a batch.
+    assert PayloadDeviceName("Behavior").to_dataframe()["value"].tolist() == ["Behavior"]
+    two = (
+        PayloadDeviceName("Foo").raw_payload.tobytes()
+        + PayloadDeviceName("Bar").raw_payload.tobytes()
+    )
+    batch = PayloadDeviceName.from_buffer(two)
+    assert batch.to_dataframe()["value"].tolist() == ["Foo", "Bar"]
+
+
+def test_anonymous_payload_scalar_converter_roundtrip():
+    """A scalar (non-sub-array) converter= also round-trips through unwrap."""
+    import enum
+
+    from harp.protocol._payload import AnonymousPayload
+    from harp.protocol._payload_converters import EnumConverter
+
+    class Color(enum.IntEnum):
+        RED = 0
+        GREEN = 1
+        BLUE = 2
+
+    class PayloadColor(AnonymousPayload, converter=EnumConverter(Color)):
+        pass
+
+    assert PayloadColor.dtype == np.dtype(np.uint8)
+    raw = PayloadColor(Color.BLUE).raw_payload.tobytes()
+    record = np.frombuffer(raw, dtype=PayloadColor.dtype, count=1)[0]
+    assert PayloadColor.unwrap(record) == Color.BLUE
 
 
 def test_array_register_parse_returns_ndarray():

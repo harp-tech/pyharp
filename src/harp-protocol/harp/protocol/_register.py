@@ -212,7 +212,10 @@ class RegisterBase(ABC, Generic[U]):
             elif isinstance(value, np.ndarray):
                 raw = value.tobytes()
             else:
-                raw = np.asarray(value, dtype=cls.payload_type.numpy_dtype).tobytes()
+                # A bare high-level value (the symmetric counterpart of what
+                # parse() returns): let the payload class encode it, so any
+                # converter (e.g. a str via StringConverter) is applied.
+                raw = cls.payload_class(value).raw_payload.tobytes()
             return build_message_frame(
                 mt, cls.address, cls.payload_type, raw, port=port, timestamp=timestamp
             )
