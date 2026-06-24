@@ -6,7 +6,6 @@ from ._payload_converters import (
     EnumConverter,
     IdentityConverter,
     StringConverter,
-    register_converter,
 )
 from ._payload import (
     PayloadBase,
@@ -71,7 +70,6 @@ __all__ = [
     "StringConverter",
     "BoolConverter",
     "EnumConverter",
-    "register_converter",
     # Payload DSL
     "PayloadBase",
     "StructPayload",
