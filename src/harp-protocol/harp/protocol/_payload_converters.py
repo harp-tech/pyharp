@@ -1,6 +1,5 @@
 import enum as _enum
 from abc import ABC, abstractmethod
-from collections.abc import Callable
 from typing import Any, Generic, TypeVar, cast
 
 import numpy as np
@@ -9,37 +8,6 @@ from numpy.typing import NDArray
 T = TypeVar("T")
 NpScalarT = TypeVar("NpScalarT", bound=np.generic)
 E = TypeVar("E", bound=_enum.IntEnum)
-_ConverterClsT = TypeVar("_ConverterClsT", bound="type[Converter[Any]]")
-
-# ---------------------------------------------------------------------------
-# Registry
-# ---------------------------------------------------------------------------
-
-converter_registry: "dict[str, type[Converter[Any]]]" = {}
-
-
-def register_converter(*, name: str) -> "Callable[[_ConverterClsT], _ConverterClsT]":
-    """Class decorator that registers a ``Converter`` subclass under ``name``.
-
-    Raises ``ValueError`` if the name is already registered.
-
-    Usage::
-
-        @register_converter(name="my_converter")
-        class MyConverter(Converter[int]): ...
-    """
-
-    def _register(cls: "_ConverterClsT") -> "_ConverterClsT":
-        if name in converter_registry:
-            raise ValueError(
-                f"A converter named {name!r} is already registered "
-                f"(existing: {converter_registry[name]!r}, new: {cls!r})"
-            )
-        converter_registry[name] = cls
-        return cls
-
-    return _register
-
 
 # ---------------------------------------------------------------------------
 # Base class
@@ -93,55 +61,46 @@ class IdentityConverter(Converter[NpScalarT]):
         view[...] = value
 
 
-@register_converter(name="byte")
 class UInt8Converter(IdentityConverter[np.uint8]):
     def __init__(self) -> None:
         super().__init__(np.uint8)
 
 
-@register_converter(name="sbyte")
 class SInt8Converter(IdentityConverter[np.int8]):
     def __init__(self) -> None:
         super().__init__(np.int8)
 
 
-@register_converter(name="ushort")
 class UInt16Converter(IdentityConverter[np.uint16]):
     def __init__(self) -> None:
         super().__init__(np.uint16)
 
 
-@register_converter(name="short")
 class Int16Converter(IdentityConverter[np.int16]):
     def __init__(self) -> None:
         super().__init__(np.int16)
 
 
-@register_converter(name="uint")
 class UInt32Converter(IdentityConverter[np.uint32]):
     def __init__(self) -> None:
         super().__init__(np.uint32)
 
 
-@register_converter(name="int")
 class Int32Converter(IdentityConverter[np.int32]):
     def __init__(self) -> None:
         super().__init__(np.int32)
 
 
-@register_converter(name="ulong")
 class UInt64Converter(IdentityConverter[np.uint64]):
     def __init__(self) -> None:
         super().__init__(np.uint64)
 
 
-@register_converter(name="long")
 class Int64Converter(IdentityConverter[np.int64]):
     def __init__(self) -> None:
         super().__init__(np.int64)
 
 
-@register_converter(name="float")
 class FloatConverter(IdentityConverter[np.float32]):
     def __init__(self) -> None:
         super().__init__(np.float32)
@@ -191,11 +150,8 @@ class EnumConverter(Converter[E]):
         view[...] = int(value)
 
 
-@register_converter(name="string")  # TODO check this name against Bonsai
 class StringConverter(Converter[str]):
     """Converts a fixed-length byte array to/from a Python ``str``."""
-
-    init_kwarg_type = str
 
     def __init__(self, length: int, encoding: str = "ascii") -> None:
         self._length = length
