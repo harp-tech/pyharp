@@ -14,6 +14,7 @@ from harp.device import (
     HwVersionL,
     OperationControl,
     ResetDevice,
+    SerialDevice,
     SerialNumber,
     TimestampMicro,
     TimestampSecond,
@@ -95,6 +96,6 @@ def latency_benchmark(dev: Device, n: int = N_READS) -> None:
 
 if __name__ == "__main__":
     # Live device reads (requires hardware)
-    with Device(PORT) as dev:
+    with SerialDevice(PORT) as dev:
         read_core_registers(dev)
         latency_benchmark(dev)
