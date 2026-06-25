@@ -4,13 +4,13 @@ from typing import Any, ClassVar, Self, TypeVar
 
 import queue
 import threading
-from abc import ABC, abstractmethod
 
 from harp.protocol import HarpMessage, MessageType
 from harp.protocol._message import ParsedHarpMessage
 from harp.protocol._register import RegisterBase
 
 from ._framer import HarpFramer
+from ._transport import ITransport, TransportError
 from ._registers import (
     AssemblyVersion,
     ClockConfig,
@@ -34,17 +34,13 @@ from ._registers import (
 P = TypeVar("P")
 
 
-class Device(ABC):
-    """Transport-agnostic base for Harp devices.
+class Device:
+    """Harp device protocol logic (framing, request/reply, register access)
+    over an :class:`~harp.device.ITransport`.
 
-    Owns the protocol logic (framing, request/reply, register access).
-    Subclasses supply a transport via the abstract :meth:`_write`/:meth:`_read`
-    and the optional :meth:`_open`/:meth:`_close` hooks; they store transport
-    config then call ``super().__init__()``, which connects and starts reading.
-
-    Common registers are exposed as class attributes (``dev.read(dev.WhoAmI)``).
-    Set :attr:`__whoami__` to have ``open()`` validate the device identity
-    (``0x0`` skips the check).
+    Must be opened before use, via ``with`` or :meth:`open`. Subclasses add
+    register class attributes and set :attr:`__whoami__` to validate device
+    identity on open (``0x0`` skips the check).
     """
 
     REPLY_TIMEOUT: ClassVar[float] = 5.0  # seconds
@@ -71,43 +67,22 @@ class Device(ABC):
     ClockConfig = ClockConfig
     Heartbeat = Heartbeat
 
-    def __init__(self, *, raise_on_error: bool = True) -> None:
+    def __init__(self, transport: ITransport, *, raise_on_error: bool = True) -> None:
+        self._transport = transport
         self.raise_on_error = raise_on_error
         self._framer = HarpFramer()
         self._pending: dict[int, queue.SimpleQueue] = {}
         self._pending_lock = threading.Lock()
         self._running = False
         self._thread: threading.Thread | None = None
-        self.open()
-
-    # ------------------------------------------------------------------
-    # Transport primitives (implemented by subclasses)
-    # ------------------------------------------------------------------
-
-    def _open(self) -> None:
-        """Open the underlying transport. Default: no-op."""
-
-    @abstractmethod
-    def _write(self, data: bytes) -> None:
-        """Send raw bytes over the transport."""
-
-    @abstractmethod
-    def _read(self) -> bytes:
-        """Return available bytes, or ``b''`` on timeout/idle.
-
-        Block only briefly so the read loop can poll ``_running``, and return
-        ``b''`` rather than raise once the transport is closing.
-        """
-
-    def _close(self) -> None:
-        """Close the underlying transport. Default: no-op."""
 
     # ------------------------------------------------------------------
     # Lifecycle
     # ------------------------------------------------------------------
 
     def open(self) -> Self:
-        self._open()
+        """Open the transport, start the reader thread and validate identity."""
+        self._transport.open()
         self._running = True
         self._thread = threading.Thread(
             target=self._read_loop, daemon=True, name=f"{type(self).__name__}-reader"
@@ -137,9 +112,11 @@ class Device(ABC):
         if self._thread is not None:
             self._thread.join(timeout=2.0)
             self._thread = None
-        self._close()
+        self._transport.close()
 
     def __enter__(self) -> Self:
+        if not self._running:
+            self.open()
         return self
 
     def __exit__(self, *args: object) -> None:
@@ -185,7 +162,12 @@ class Device(ABC):
 
     def _read_loop(self) -> None:
         while self._running:
-            chunk = self._read()
+            try:
+                chunk = self._transport.read()
+            except TransportError:
+                if self._running:
+                    raise
+                break  # expected while shutting down
             if not chunk:
                 continue
 
@@ -213,7 +195,7 @@ class Device(ABC):
         with self._pending_lock:
             self._pending[address] = q
         try:
-            self._write(frame)
+            self._transport.write(frame)
             try:
                 msg = q.get(timeout=self.REPLY_TIMEOUT)
                 if msg.has_error and self.raise_on_error:

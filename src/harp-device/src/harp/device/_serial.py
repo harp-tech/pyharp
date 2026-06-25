@@ -1,42 +1,48 @@
-from typing import ClassVar
+"""Serial transport and factory for Harp devices."""
+
+from typing import TypeVar
 
 import serial
 
 from ._device import Device
+from ._transport import TransportError
+
+D = TypeVar("D", bound=Device)
+
+DEFAULT_BAUDRATE: int = 1_000_000
 
 
-class SerialDevice(Device):
-    """A :class:`Device` whose transport is a serial port."""
+class SerialTransport:
+    """A serial-port :class:`~harp.device.ITransport` (structural conformance)."""
 
-    DEFAULT_BAUDRATE: ClassVar[int] = 1_000_000
-
-    def __init__(
-        self, port: str, baudrate: int = DEFAULT_BAUDRATE, *, raise_on_error: bool = True
-    ) -> None:
+    def __init__(self, port: str, baudrate: int = DEFAULT_BAUDRATE) -> None:
         self._port = port
         self._baudrate = baudrate
         self._serial: serial.Serial | None = None
-        super().__init__(raise_on_error=raise_on_error)
 
-    def _open(self) -> None:
-        self._serial = serial.Serial(self._port, self._baudrate, timeout=0.1)
-        self._serial.dtr = True
+    def open(self) -> None:
+        try:
+            self._serial = serial.Serial(self._port, self._baudrate, timeout=0.1)
+            self._serial.dtr = True
+        except serial.SerialException as exc:
+            raise TransportError(f"Failed to open serial port {self._port!r}: {exc}") from exc
 
-    def _write(self, data: bytes) -> None:
+    def write(self, data: bytes) -> None:
         assert self._serial is not None
-        self._serial.write(data)
+        try:
+            self._serial.write(data)
+        except serial.SerialException as exc:
+            raise TransportError(str(exc)) from exc
 
-    def _read(self) -> bytes:
+    def read(self) -> bytes:
         assert self._serial is not None
         try:
             waiting = self._serial.in_waiting
             return self._serial.read(waiting if waiting > 0 else 1)
-        except serial.SerialException:
-            if self._running:
-                raise
-            return b""
+        except serial.SerialException as exc:
+            raise TransportError(str(exc)) from exc
 
-    def _close(self) -> None:
+    def close(self) -> None:
         if self._serial is None:
             return
         try:
@@ -44,3 +50,22 @@ class SerialDevice(Device):
         except Exception:
             pass
         self._serial.close()
+
+
+def open_serial_device(
+    device: type[D],
+    *,
+    port: str,
+    baudrate: int = DEFAULT_BAUDRATE,
+    raise_on_error: bool = True,
+) -> D:
+    """Build ``device`` over a serial transport and open it.
+
+    Like the builtin :func:`open`, the returned device is already connected;
+    use it directly or in a ``with`` block for guaranteed close::
+
+        with open_serial_device(behavior.Device, port="COM3") as dev:
+            dev.read(behavior.WhoAmI)
+    """
+    transport = SerialTransport(port, baudrate)
+    return device(transport, raise_on_error=raise_on_error).open()

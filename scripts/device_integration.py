@@ -14,11 +14,11 @@ from harp.device import (
     HwVersionL,
     OperationControl,
     ResetDevice,
-    SerialDevice,
     SerialNumber,
     TimestampMicro,
     TimestampSecond,
     WhoAmI,
+    open_serial_device,
 )
 
 PORT = "COM4"
@@ -96,6 +96,6 @@ def latency_benchmark(dev: Device, n: int = N_READS) -> None:
 
 if __name__ == "__main__":
     # Live device reads (requires hardware)
-    with SerialDevice(PORT) as dev:
+    with open_serial_device(Device, port=PORT) as dev:
         read_core_registers(dev)
         latency_benchmark(dev)

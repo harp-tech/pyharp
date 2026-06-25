@@ -25,12 +25,16 @@ from ._registers import (
     TimestampSecond,
     WhoAmI,
 )
-from ._serial import SerialDevice
+from ._serial import SerialTransport, open_serial_device
+from ._transport import ITransport, TransportError
 
 __all__ = [
     "Device",
     "HarpFramer",
-    "SerialDevice",
+    "ITransport",
+    "TransportError",
+    "SerialTransport",
+    "open_serial_device",
     "WhoAmI",
     "HwVersionH",
     "HwVersionL",
