@@ -13,26 +13,24 @@ from harp.device import (
     EnableFlag,
     OperationMode,
     # Payload classes
-    ClockConfigPayload,
+    ClockConfigurationPayload,
     OperationControlPayload,
     ResetDevicePayload,
     # Registers
     AssemblyVersion,
-    ClockConfig,
-    CoreVersionH,
-    CoreVersionL,
+    ClockConfiguration,
+    CoreVersionHigh,
+    CoreVersionLow,
     DeviceName,
-    FirmwareVersionH,
-    FirmwareVersionL,
-    Heartbeat,
-    HwVersionH,
-    HwVersionL,
+    FirmwareVersionHigh,
+    FirmwareVersionLow,
+    HardwareVersionHigh,
+    HardwareVersionLow,
     OperationControl,
     ResetDevice,
     SerialNumber,
-    TimestampMicro,
-    TimestampOffset,
-    TimestampSecond,
+    TimestampMicroseconds,
+    TimestampSeconds,
     WhoAmI,
 )
 
@@ -40,31 +38,29 @@ from harp.protocol import HarpMessage
 
 examples = [
     (WhoAmI, np.uint16(1216)),
-    (TimestampSecond, np.uint32(3600)),
-    (TimestampMicro, np.uint16(500)),
+    (TimestampSeconds, np.uint32(3600)),
+    (TimestampMicroseconds, np.uint16(500)),
     (
         OperationControl,
         OperationControlPayload(
-            operation_mode=OperationMode.Active,
+            operation_mode=OperationMode.ACTIVE,
             dump_registers=True,
-            visual_indicators=EnableFlag.Enabled,
-            operation_led=EnableFlag.Enabled,
-            heartbeat=EnableFlag.Enabled,
+            visual_indicators=EnableFlag.ENABLED,
+            operation_led=EnableFlag.ENABLED,
+            heartbeat=EnableFlag.ENABLED,
         ),
     ),
     (ResetDevice, ResetDevicePayload(restore_default=True, restore_name=True)),
     (DeviceName, "my-harp-device"),
-    (ClockConfig, ClockConfigPayload(clock_repeater=True, clock_unlock=True)),
-    (Heartbeat, np.uint16(1)),
-    (HwVersionH, np.uint8(2)),
-    (HwVersionL, np.uint8(0)),
+    (ClockConfiguration, ClockConfigurationPayload(clock_repeater=True, clock_unlock=True)),
+    (HardwareVersionHigh, np.uint8(2)),
+    (HardwareVersionLow, np.uint8(0)),
     (AssemblyVersion, np.uint8(3)),
-    (CoreVersionH, np.uint8(1)),
-    (CoreVersionL, np.uint8(4)),
-    (FirmwareVersionH, np.uint8(2)),
-    (FirmwareVersionL, np.uint8(1)),
+    (CoreVersionHigh, np.uint8(1)),
+    (CoreVersionLow, np.uint8(4)),
+    (FirmwareVersionHigh, np.uint8(2)),
+    (FirmwareVersionLow, np.uint8(1)),
     (SerialNumber, np.uint16(42)),
-    (TimestampOffset, np.uint8(0)),
 ]
 
 print("=== Live round-trip (format → parse) ===")
@@ -78,14 +74,14 @@ for register, value in examples:
 # ---------------------------------------------------------------------------
 print("\n=== Bitfield scalar access ===")
 ctrl = OperationControlPayload(
-    operation_mode=OperationMode.Active,
-    heartbeat=EnableFlag.Enabled,
-    visual_indicators=EnableFlag.Enabled,
+    operation_mode=OperationMode.ACTIVE,
+    heartbeat=EnableFlag.ENABLED,
+    visual_indicators=EnableFlag.ENABLED,
 )
-print(f"  operation_mode    : {ctrl.operation_mode}")  # OperationMode.Active
-print(f"  heartbeat         : {ctrl.heartbeat}")  # EnableFlag.Enabled
+print(f"  operation_mode    : {ctrl.operation_mode}")  # OperationMode.ACTIVE
+print(f"  heartbeat         : {ctrl.heartbeat}")  # EnableFlag.ENABLED
 print(f"  dump_registers    : {ctrl.dump_registers}")  # False
-print(f"  visual_indicators : {ctrl.visual_indicators}")  # EnableFlag.Enabled
+print(f"  visual_indicators : {ctrl.visual_indicators}")  # EnableFlag.ENABLED
 
 # ---------------------------------------------------------------------------
 # Bulk read from a .bin file (zero-copy, vectorised)

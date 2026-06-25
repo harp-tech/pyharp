@@ -67,7 +67,7 @@ def test_bitflag_batch_returns_ndarray():
 def test_groupmask_single_returns_enum():
     p = _FlagPayload.from_buffer(bytes([0x02]))  # bits 1-2 = 01 -> Active
     result = p.group
-    assert result == OperationMode.Active
+    assert result == OperationMode.ACTIVE
     assert isinstance(result, OperationMode)
 
 
@@ -82,8 +82,8 @@ def test_groupmask_batch_returns_ndarray():
 
 
 def _make_op_ctrl_byte(
-    mode: OperationMode = OperationMode.Standby,
-    heartbeat: EnableFlag = EnableFlag.Disabled,
+    mode: OperationMode = OperationMode.STANDBY,
+    heartbeat: EnableFlag = EnableFlag.DISABLED,
 ) -> int:
     val = int(mode) & 0x03
     val |= (int(heartbeat) & 0x01) << 7
@@ -91,18 +91,18 @@ def _make_op_ctrl_byte(
 
 
 def test_op_ctrl_scalar_from_buffer():
-    val = _make_op_ctrl_byte(OperationMode.Active, EnableFlag.Enabled)
+    val = _make_op_ctrl_byte(OperationMode.ACTIVE, EnableFlag.ENABLED)
     p = OperationControlPayload.from_buffer(bytes([val]))
-    assert p.operation_mode == OperationMode.Active
-    assert p.heartbeat == EnableFlag.Enabled
+    assert p.operation_mode == OperationMode.ACTIVE
+    assert p.heartbeat == EnableFlag.ENABLED
     assert p.dump_registers is False
 
 
 def test_op_ctrl_init_matches_from_buffer():
     p_init = OperationControlPayload(
-        operation_mode=OperationMode.Active, heartbeat=EnableFlag.Enabled
+        operation_mode=OperationMode.ACTIVE, heartbeat=EnableFlag.ENABLED
     )
-    val = _make_op_ctrl_byte(OperationMode.Active, EnableFlag.Enabled)
+    val = _make_op_ctrl_byte(OperationMode.ACTIVE, EnableFlag.ENABLED)
     p_buf = OperationControlPayload.from_buffer(bytes([val]))
     assert p_init.operation_mode == p_buf.operation_mode
     assert p_init.heartbeat == p_buf.heartbeat
@@ -110,8 +110,8 @@ def test_op_ctrl_init_matches_from_buffer():
 
 def test_op_ctrl_batch_descriptor_returns_ndarray():
     vals = [
-        _make_op_ctrl_byte(OperationMode.Active, EnableFlag.Enabled),
-        _make_op_ctrl_byte(OperationMode.Standby, EnableFlag.Disabled),
+        _make_op_ctrl_byte(OperationMode.ACTIVE, EnableFlag.ENABLED),
+        _make_op_ctrl_byte(OperationMode.STANDBY, EnableFlag.DISABLED),
     ]
     p = OperationControlPayload.from_buffer(bytes(vals))
     assert isinstance(p.heartbeat, np.ndarray)
@@ -120,8 +120,8 @@ def test_op_ctrl_batch_descriptor_returns_ndarray():
 
 def test_op_ctrl_to_dataframe():
     vals = [
-        _make_op_ctrl_byte(OperationMode.Active, EnableFlag.Enabled),
-        _make_op_ctrl_byte(OperationMode.Standby, EnableFlag.Disabled),
+        _make_op_ctrl_byte(OperationMode.ACTIVE, EnableFlag.ENABLED),
+        _make_op_ctrl_byte(OperationMode.STANDBY, EnableFlag.DISABLED),
     ]
     p = OperationControlPayload.from_buffer(bytes(vals))
     df = p.to_dataframe(decode_enums=False)
@@ -130,7 +130,7 @@ def test_op_ctrl_to_dataframe():
     np.testing.assert_array_equal(df["heartbeat"], [True, False])
     np.testing.assert_array_equal(
         df["operation_mode"],
-        [int(OperationMode.Active), int(OperationMode.Standby)],
+        [int(OperationMode.ACTIVE), int(OperationMode.STANDBY)],
     )
 
 
@@ -204,20 +204,20 @@ def test_read_frames_payload_type():
 
 def test_read_frames_bitfield_batch():
     vals = [
-        _make_op_ctrl_byte(OperationMode.Active, EnableFlag.Enabled),
-        _make_op_ctrl_byte(OperationMode.Standby, EnableFlag.Disabled),
+        _make_op_ctrl_byte(OperationMode.ACTIVE, EnableFlag.ENABLED),
+        _make_op_ctrl_byte(OperationMode.STANDBY, EnableFlag.DISABLED),
     ]
     raw = _make_frames(vals)
     _, payload = _read_frames(raw)
     np.testing.assert_array_equal(payload.heartbeat, [True, False])
     np.testing.assert_array_equal(
         payload.operation_mode,
-        [int(OperationMode.Active), int(OperationMode.Standby)],
+        [int(OperationMode.ACTIVE), int(OperationMode.STANDBY)],
     )
 
 
 def test_read_frames_to_dataframe():
-    vals = [_make_op_ctrl_byte(OperationMode.Active), _make_op_ctrl_byte(), _make_op_ctrl_byte()]
+    vals = [_make_op_ctrl_byte(OperationMode.ACTIVE), _make_op_ctrl_byte(), _make_op_ctrl_byte()]
     raw = _make_frames(vals)
     _, payload = _read_frames(raw)
     df = payload.to_dataframe()

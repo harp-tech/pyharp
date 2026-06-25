@@ -12,9 +12,10 @@ resolution-markers = [
 
 [manifest]
 members = [
+    "harp",
     "harp-device",
     "harp-protocol",
-    "pyharp",
+    "harp-serial",
 ]
 
 [[package]]
@@ -343,24 +344,83 @@ wheels = [
 ]
 
 [[package]]
-name = "harp-device"
-version = "0.1.0"
-source = { editable = "src/harp-device" }
+name = "harp"
+version = "0.2.0"
+source = { virtual = "." }
 dependencies = [
+    { name = "harp-device" },
     { name = "harp-protocol" },
-    { name = "pyserial" },
+    { name = "harp-serial" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "harp-device" },
+    { name = "harp-protocol" },
+    { name = "harp-serial" },
+    { name = "pytest" },
+    { name = "pytest-cov" },
+    { name = "ruff" },
+    { name = "ty" },
+    { name = "typing-extensions" },
+]
+docs = [
+    { name = "griffe-fieldz" },
+    { name = "mkdocs" },
+    { name = "mkdocs-codeinclude-plugin" },
+    { name = "mkdocs-git-authors-plugin" },
+    { name = "mkdocs-git-committers-plugin-2" },
+    { name = "mkdocs-include-markdown-plugin" },
+    { name = "mkdocs-material" },
+    { name = "mkdocs-monorepo-plugin" },
+    { name = "mkdocstrings-python" },
 ]
 
 [package.metadata]
 requires-dist = [
-    { name = "harp-protocol", editable = "src/harp-protocol" },
-    { name = "pyserial", specifier = ">=3.5" },
+    { name = "harp-device", editable = "src/packages/harp-device" },
+    { name = "harp-protocol", editable = "src/packages/harp-protocol" },
+    { name = "harp-serial", editable = "src/packages/harp-serial" },
 ]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "harp-device", editable = "src/packages/harp-device" },
+    { name = "harp-protocol", editable = "src/packages/harp-protocol" },
+    { name = "harp-serial", editable = "src/packages/harp-serial" },
+    { name = "pytest", specifier = ">=8.3.5" },
+    { name = "pytest-cov", specifier = ">=6.1.1" },
+    { name = "ruff", specifier = ">=0.11.0" },
+    { name = "ty", specifier = ">=0.0.0" },
+    { name = "typing-extensions", specifier = ">=4.15.0" },
+]
+docs = [
+    { name = "griffe-fieldz", specifier = ">=0.2.1" },
+    { name = "mkdocs", specifier = ">=1.6.1" },
+    { name = "mkdocs-codeinclude-plugin", specifier = ">=0.2.1" },
+    { name = "mkdocs-git-authors-plugin", specifier = ">=0.9.4" },
+    { name = "mkdocs-git-committers-plugin-2", specifier = ">=2.5.0" },
+    { name = "mkdocs-include-markdown-plugin", specifier = ">=7.1.6" },
+    { name = "mkdocs-material", specifier = ">=9.6.9" },
+    { name = "mkdocs-monorepo-plugin", specifier = ">=1.1.2" },
+    { name = "mkdocstrings-python", specifier = ">=1.16.6" },
+]
+
+[[package]]
+name = "harp-device"
+version = "0.1.0"
+source = { editable = "src/packages/harp-device" }
+dependencies = [
+    { name = "harp-protocol" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "harp-protocol", editable = "src/packages/harp-protocol" }]
 
 [[package]]
 name = "harp-protocol"
 version = "0.4.0"
-source = { editable = "src/harp-protocol" }
+source = { editable = "src/packages/harp-protocol" }
 dependencies = [
     { name = "numpy" },
     { name = "pandas" },
@@ -372,6 +432,23 @@ requires-dist = [
     { name = "numpy", specifier = ">=1.24" },
     { name = "pandas", specifier = ">=2.0" },
     { name = "typing-extensions", specifier = ">=4.0" },
+]
+
+[[package]]
+name = "harp-serial"
+version = "0.1.0"
+source = { editable = "src/packages/harp-serial" }
+dependencies = [
+    { name = "harp-device" },
+    { name = "harp-protocol" },
+    { name = "pyserial" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "harp-device", editable = "src/packages/harp-device" },
+    { name = "harp-protocol", editable = "src/packages/harp-protocol" },
+    { name = "pyserial", specifier = ">=3.5" },
 ]
 
 [[package]]
@@ -866,65 +943,6 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/c3/b2/bc9c9196916376152d655522fdcebac55e66de6603a76a02bca1b6414f6c/pygments-2.20.0.tar.gz", hash = "sha256:6757cd03768053ff99f3039c1a36d6c0aa0b263438fcab17520b30a303a82b5f", size = 4955991, upload-time = "2026-03-29T13:29:33.898Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/f4/7e/a72dd26f3b0f4f2bf1dd8923c85f7ceb43172af56d63c7383eb62b332364/pygments-2.20.0-py3-none-any.whl", hash = "sha256:81a9e26dd42fd28a23a2d169d86d7ac03b46e2f8b59ed4698fb4785f946d0176", size = 1231151, upload-time = "2026-03-29T13:29:30.038Z" },
-]
-
-[[package]]
-name = "pyharp"
-version = "0.2.0"
-source = { virtual = "." }
-dependencies = [
-    { name = "harp-device" },
-    { name = "harp-protocol" },
-]
-
-[package.dev-dependencies]
-dev = [
-    { name = "harp-device" },
-    { name = "harp-protocol" },
-    { name = "pytest" },
-    { name = "pytest-cov" },
-    { name = "ruff" },
-    { name = "ty" },
-    { name = "typing-extensions" },
-]
-docs = [
-    { name = "griffe-fieldz" },
-    { name = "mkdocs" },
-    { name = "mkdocs-codeinclude-plugin" },
-    { name = "mkdocs-git-authors-plugin" },
-    { name = "mkdocs-git-committers-plugin-2" },
-    { name = "mkdocs-include-markdown-plugin" },
-    { name = "mkdocs-material" },
-    { name = "mkdocs-monorepo-plugin" },
-    { name = "mkdocstrings-python" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "harp-device", editable = "src/harp-device" },
-    { name = "harp-protocol", editable = "src/harp-protocol" },
-]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "harp-device", editable = "src/harp-device" },
-    { name = "harp-protocol", editable = "src/harp-protocol" },
-    { name = "pytest", specifier = ">=8.3.5" },
-    { name = "pytest-cov", specifier = ">=6.1.1" },
-    { name = "ruff", specifier = ">=0.11.0" },
-    { name = "ty", specifier = ">=0.0.0" },
-    { name = "typing-extensions", specifier = ">=4.15.0" },
-]
-docs = [
-    { name = "griffe-fieldz", specifier = ">=0.2.1" },
-    { name = "mkdocs", specifier = ">=1.6.1" },
-    { name = "mkdocs-codeinclude-plugin", specifier = ">=0.2.1" },
-    { name = "mkdocs-git-authors-plugin", specifier = ">=0.9.4" },
-    { name = "mkdocs-git-committers-plugin-2", specifier = ">=2.5.0" },
-    { name = "mkdocs-include-markdown-plugin", specifier = ">=7.1.6" },
-    { name = "mkdocs-material", specifier = ">=9.6.9" },
-    { name = "mkdocs-monorepo-plugin", specifier = ">=1.1.2" },
-    { name = "mkdocstrings-python", specifier = ">=1.16.6" },
 ]
 
 [[package]]

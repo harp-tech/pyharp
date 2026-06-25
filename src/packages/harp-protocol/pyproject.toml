@@ -18,4 +18,4 @@ build-backend = "uv_build"
 
 [tool.uv.build-backend]
 module-name = "harp.protocol"
-module-root = ""
+module-root = "src"

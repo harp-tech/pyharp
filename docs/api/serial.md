@@ -1,4 +1,4 @@
-{% include-markdown "../../src/harp-serial/README.md" %}
+{% include-markdown "../../src/packages/harp-serial/README.md" %}
 
 ---
 

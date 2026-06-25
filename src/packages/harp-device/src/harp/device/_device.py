@@ -13,21 +13,19 @@ from ._framer import HarpFramer
 from ._transport import ITransport, TransportError
 from ._registers import (
     AssemblyVersion,
-    ClockConfig,
-    CoreVersionH,
-    CoreVersionL,
+    ClockConfiguration,
+    CoreVersionHigh,
+    CoreVersionLow,
     DeviceName,
-    FirmwareVersionH,
-    FirmwareVersionL,
-    Heartbeat,
-    HwVersionH,
-    HwVersionL,
+    FirmwareVersionHigh,
+    FirmwareVersionLow,
+    HardwareVersionHigh,
+    HardwareVersionLow,
     OperationControl,
     ResetDevice,
     SerialNumber,
-    TimestampMicro,
-    TimestampOffset,
-    TimestampSecond,
+    TimestampMicroseconds,
+    TimestampSeconds,
     WhoAmI,
 )
 
@@ -50,22 +48,20 @@ class Device:
 
     # -- exposed registers --------------------------------------------------
     WhoAmI = WhoAmI
-    HwVersionH = HwVersionH
-    HwVersionL = HwVersionL
+    HardwareVersionHigh = HardwareVersionHigh
+    HardwareVersionLow = HardwareVersionLow
     AssemblyVersion = AssemblyVersion
-    CoreVersionH = CoreVersionH
-    CoreVersionL = CoreVersionL
-    FirmwareVersionH = FirmwareVersionH
-    FirmwareVersionL = FirmwareVersionL
-    TimestampSecond = TimestampSecond
-    TimestampMicro = TimestampMicro
+    CoreVersionHigh = CoreVersionHigh
+    CoreVersionLow = CoreVersionLow
+    FirmwareVersionHigh = FirmwareVersionHigh
+    FirmwareVersionLow = FirmwareVersionLow
+    TimestampSeconds = TimestampSeconds
+    TimestampMicroseconds = TimestampMicroseconds
     OperationControl = OperationControl
     ResetDevice = ResetDevice
     DeviceName = DeviceName
     SerialNumber = SerialNumber
-    TimestampOffset = TimestampOffset
-    ClockConfig = ClockConfig
-    Heartbeat = Heartbeat
+    ClockConfiguration = ClockConfiguration
 
     def __init__(self, transport: ITransport, *, raise_on_error: bool = True) -> None:
         self._transport = transport

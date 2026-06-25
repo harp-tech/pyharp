@@ -1,5 +1,5 @@
 [project]
-name = "pyharp"
+name = "harp"
 version = "0.2.0"
 description = "Library for data acquisition and control of devices implementing the Harp protocol."
 authors = [{ name= "Hardware and Software Platform, Champalimaud Foundation", email="software@research.fchampalimaud.org"}]
@@ -10,6 +10,7 @@ requires-python = ">=3.10,<4.0"
 dependencies = [
     "harp-protocol",
     "harp-device",
+    "harp-serial",
 ]
 
 [project.urls]
@@ -20,10 +21,11 @@ Documentation = "https://fchampalimaud.github.io/pyharp/"
 [tool.uv.sources]
 harp-protocol = { workspace = true }
 harp-device = { workspace = true }
+harp-serial = { workspace = true }
 
 [tool.uv.workspace]
 members = [
-    "src/*",
+    "src/packages/*",
 ]
 
 [dependency-groups]
@@ -46,6 +48,7 @@ dev = [
     "ty>=0.0.0",
     "harp-protocol",
     "harp-device",
+    "harp-serial",
     "typing-extensions>=4.15.0",
 ]
 
@@ -71,8 +74,9 @@ extra-paths = ["tests"]
 
 [tool.ty.src]
 include = [
-    "src/harp-protocol",
-    "src/harp-device/src",
+    "src/packages/harp-protocol/src",
+    "src/packages/harp-device/src",
+    "src/packages/harp-serial/src",
 ]
 exclude = [
     "tests",

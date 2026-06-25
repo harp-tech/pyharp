@@ -4,8 +4,7 @@ from typing import TypeVar
 
 import serial
 
-from ._device import Device
-from ._transport import TransportError
+from harp.device import Device, TransportError
 
 D = TypeVar("D", bound=Device)
 

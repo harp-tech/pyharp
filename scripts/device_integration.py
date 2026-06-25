@@ -3,43 +3,41 @@ import time
 import numpy as np
 from harp.device import (
     AssemblyVersion,
-    ClockConfig,
-    CoreVersionH,
-    CoreVersionL,
+    ClockConfiguration,
+    CoreVersionHigh,
+    CoreVersionLow,
     Device,
-    FirmwareVersionH,
-    FirmwareVersionL,
-    Heartbeat,
-    HwVersionH,
-    HwVersionL,
+    FirmwareVersionHigh,
+    FirmwareVersionLow,
+    HardwareVersionHigh,
+    HardwareVersionLow,
     OperationControl,
     ResetDevice,
     SerialNumber,
-    TimestampMicro,
-    TimestampSecond,
+    TimestampMicroseconds,
+    TimestampSeconds,
     WhoAmI,
-    open_serial_device,
 )
+from harp.serial import open_serial_device
 
 PORT = "COM4"
 N_READS = 10_000
 
 CORE_REGISTERS = [
     ("WhoAmI", WhoAmI),
-    ("HwVersionH", HwVersionH),
-    ("HwVersionL", HwVersionL),
+    ("HardwareVersionHigh", HardwareVersionHigh),
+    ("HardwareVersionLow", HardwareVersionLow),
     ("AssemblyVersion", AssemblyVersion),
-    ("CoreVersionH", CoreVersionH),
-    ("CoreVersionL", CoreVersionL),
-    ("FirmwareVersionH", FirmwareVersionH),
-    ("FirmwareVersionL", FirmwareVersionL),
-    ("TimestampSecond", TimestampSecond),
-    ("TimestampMicro", TimestampMicro),
+    ("CoreVersionHigh", CoreVersionHigh),
+    ("CoreVersionLow", CoreVersionLow),
+    ("FirmwareVersionHigh", FirmwareVersionHigh),
+    ("FirmwareVersionLow", FirmwareVersionLow),
+    ("TimestampSeconds", TimestampSeconds),
+    ("TimestampMicroseconds", TimestampMicroseconds),
     ("OperationControl", OperationControl),
     ("ResetDevice", ResetDevice),
     ("SerialNumber", SerialNumber),
-    ("ClockConfig", ClockConfig),
-    ("Heartbeat", Heartbeat),
+    ("ClockConfiguration", ClockConfiguration),
 ]
 
 
@@ -97,5 +95,7 @@ def latency_benchmark(dev: Device, n: int = N_READS) -> None:
 if __name__ == "__main__":
     # Live device reads (requires hardware)
     with open_serial_device(Device, port=PORT) as dev:
+        sn_message = dev.read(SerialNumber)
+        sn = sn_message.parsed
         read_core_registers(dev)
         latency_benchmark(dev)
