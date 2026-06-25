@@ -6,6 +6,8 @@ from ._payload_converters import (
     EnumConverter,
     IdentityConverter,
     StringConverter,
+    HarpVersionConverter,
+    HarpVersion,
 )
 from ._payload import (
     PayloadBase,
@@ -71,6 +73,8 @@ __all__ = [
     "StringConverter",
     "BoolConverter",
     "EnumConverter",
+    "HarpVersionConverter",
+    "HarpVersion",
     # Payload DSL
     "PayloadBase",
     "StructPayload",

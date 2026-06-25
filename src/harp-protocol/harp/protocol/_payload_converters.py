@@ -1,7 +1,7 @@
 import enum as _enum
 from abc import ABC, abstractmethod
 from typing import Any, Generic, TypeVar, cast
-
+from dataclasses import dataclass
 import numpy as np
 from numpy.typing import NDArray
 
@@ -171,3 +171,37 @@ class StringConverter(Converter[str]):
         encoded = value.encode(self._encoding)[: self._length]
         padded = encoded.ljust(self._length, b"\x00")
         view[...] = np.frombuffer(padded, dtype=np.uint8)
+
+
+@dataclass(frozen=True)
+class HarpVersion:
+    """Represents a Harp version"""
+
+    major: int
+    minor: int
+    patch: int
+
+    def __str__(self) -> str:
+        return f"{self.major}.{self.minor}.{self.patch}"
+
+
+class HarpVersionConverter(Converter[HarpVersion]):
+    """Converts a 3-element uint8 array to/from a HarpVersion object."""
+
+    init_kwarg_type = HarpVersion
+
+    def __init__(self, component: "np.dtype | str | type" = np.uint8) -> None:
+        self.dtype = np.dtype((component, (3,)))
+
+    def decode_scalar(self, view: np.generic) -> HarpVersion:
+        c = np.asarray(view).tolist()
+        return HarpVersion(int(c[0]), int(c[1]), int(c[2]))
+
+    def decode_batch(self, view: NDArray[np.generic]) -> Any:
+        return np.array(
+            [HarpVersion(int(r[0]), int(r[1]), int(r[2])) for r in np.atleast_2d(view)],
+            dtype=object,
+        )
+
+    def encode_into(self, view: NDArray[np.generic], value: HarpVersion) -> None:
+        view[...] = np.array([value.major, value.minor, value.patch], dtype=self.dtype.base)

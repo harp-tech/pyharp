@@ -5,7 +5,7 @@
 
 import numpy as np
 import pytest
-from harp.protocol import HarpMessage
+from harp.protocol import HarpMessage, HarpVersion
 from tests.protocol.register_models import (
     AnalogData,
     AnalogDataPayload,
@@ -22,7 +22,6 @@ from tests.protocol.register_models import (
     EncoderMode,
     EncoderModeMask,
     EncoderModePayload,
-    HarpVersion,
     PortDIOSet,
     PortDIOSetPayload,
     PulseDO0,

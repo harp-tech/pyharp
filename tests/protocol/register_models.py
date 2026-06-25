@@ -26,7 +26,6 @@ Design (see notes/payload_api_redesign.md):
 from __future__ import annotations
 
 import enum
-from dataclasses import dataclass
 from typing import Any, ClassVar
 
 import numpy as np
@@ -40,6 +39,8 @@ from harp.protocol import (
     GroupMask,
     HarpMessage,
     IdentityConverter,
+    HarpVersionConverter,
+    HarpVersion,
     PayloadType,
     RegisterBase,
     RegisterS32,
@@ -86,42 +87,6 @@ class EncoderModeMask(enum.IntEnum):
 # ===========================================================================
 # Custom interfaceType converters — byte-based, register-element-agnostic.
 # ===========================================================================
-
-
-@dataclass(frozen=True)
-class HarpVersion:
-    """Illustrative domain type for ``interfaceType: HarpVersion`` (3 components)."""
-
-    major: int
-    minor: int
-    patch: int
-
-    def __str__(self) -> str:  # pragma: no cover - cosmetic
-        return f"{self.major}.{self.minor}.{self.patch}"
-
-
-class HarpVersionConverter(Converter[HarpVersion]):
-    """3 components <-> HarpVersion. Parameterized by component width, *not* by the
-    register: ``HarpVersionConverter(np.uint8)`` reads 3 bytes (Version members),
-    ``HarpVersionConverter(np.uint32)`` reads 12 bytes (CustomPayload register)."""
-
-    init_kwarg_type = HarpVersion
-
-    def __init__(self, component: "np.dtype | str | type" = np.uint8) -> None:
-        self.dtype = np.dtype((component, (3,)))
-
-    def decode_scalar(self, view: np.generic) -> HarpVersion:
-        c = np.asarray(view).tolist()
-        return HarpVersion(int(c[0]), int(c[1]), int(c[2]))
-
-    def decode_batch(self, view: NDArray[np.generic]) -> Any:
-        return np.array(
-            [HarpVersion(int(r[0]), int(r[1]), int(r[2])) for r in np.atleast_2d(view)],
-            dtype=object,
-        )
-
-    def encode_into(self, view: NDArray[np.generic], value: HarpVersion) -> None:
-        view[...] = np.array([value.major, value.minor, value.patch], dtype=self.dtype.base)
 
 
 class BytesToIntConverter(Converter[int]):
