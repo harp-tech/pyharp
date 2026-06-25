@@ -12,20 +12,6 @@ from harp.protocol._register import RegisterBase
 from ._framer import HarpFramer
 from ._transport import ITransport, TransportError
 from ._registers import (
-    AssemblyVersion,
-    ClockConfiguration,
-    CoreVersionHigh,
-    CoreVersionLow,
-    DeviceName,
-    FirmwareVersionHigh,
-    FirmwareVersionLow,
-    HardwareVersionHigh,
-    HardwareVersionLow,
-    OperationControl,
-    ResetDevice,
-    SerialNumber,
-    TimestampMicroseconds,
-    TimestampSeconds,
     WhoAmI,
 )
 
@@ -45,23 +31,6 @@ class Device:
 
     #: Expected ``WhoAmI`` of the device this class models; ``0x0`` skips the check.
     __whoami__: ClassVar[int] = 0x0
-
-    # -- exposed registers --------------------------------------------------
-    WhoAmI = WhoAmI
-    HardwareVersionHigh = HardwareVersionHigh
-    HardwareVersionLow = HardwareVersionLow
-    AssemblyVersion = AssemblyVersion
-    CoreVersionHigh = CoreVersionHigh
-    CoreVersionLow = CoreVersionLow
-    FirmwareVersionHigh = FirmwareVersionHigh
-    FirmwareVersionLow = FirmwareVersionLow
-    TimestampSeconds = TimestampSeconds
-    TimestampMicroseconds = TimestampMicroseconds
-    OperationControl = OperationControl
-    ResetDevice = ResetDevice
-    DeviceName = DeviceName
-    SerialNumber = SerialNumber
-    ClockConfiguration = ClockConfiguration
 
     def __init__(self, transport: ITransport, *, raise_on_error: bool = True) -> None:
         self._transport = transport

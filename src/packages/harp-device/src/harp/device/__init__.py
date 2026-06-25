@@ -25,6 +25,7 @@ from ._registers import (
     TimestampSeconds,
     WhoAmI,
 )
+from ._register_map import REGISTER_MAP
 from ._transport import ITransport, TransportError
 
 __all__ = [
@@ -32,6 +33,7 @@ __all__ = [
     "HarpFramer",
     "ITransport",
     "TransportError",
+    "REGISTER_MAP",
     "WhoAmI",
     "HardwareVersionHigh",
     "HardwareVersionLow",
