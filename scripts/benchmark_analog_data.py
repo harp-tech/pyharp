@@ -10,8 +10,8 @@ AnalogData from a Harp binary file into a pandas DataFrame with named columns:
     harp_io.read(file, columns=[...])  →  DataFrame directly
 
   pyharp strategy:
-    AnalogData.read_frames(file)  →  (timestamps, payload)
-    payload.to_dataframe()        →  DataFrame with named columns
+    AnalogData.parse_bulk(file)     →  (..., timestamps, ..., payload)
+    harp.data.to_dataframe(payload) →  DataFrame with named columns
 
 Both are zero-copy for the payload bytes (strided np.ndarray views into the raw
 file buffer).  The harp-python path builds the DataFrame in one shot; the pyharp
@@ -31,6 +31,7 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from scripts._harp_io import read as harp_read  # vendored harp-python read()
 
+from harp.data import read_dataframe, to_dataframe
 from harp.protocol import PayloadBase, Field, PayloadType, RegisterBase, IdentityConverter
 
 
@@ -70,7 +71,7 @@ def pyharp_read(path: Path, *, include_timestamp: bool = True):
     """pyharp path: parse_bulk → to_dataframe."""
     bytes_2_parse = path.read_bytes()
     _data, timestamps, msg_type, payload = AnalogData.parse_bulk(bytes_2_parse)
-    df = payload.to_dataframe()
+    df = to_dataframe(payload)
     if include_timestamp:
         df.insert(0, "timestamp", timestamps)
     return df
@@ -78,7 +79,7 @@ def pyharp_read(path: Path, *, include_timestamp: bool = True):
 
 def pyharp_read_dataframe(path: Path, *, timestamp: bool = True):
     """pyharp one-call path: read_dataframe."""
-    return AnalogData.read_dataframe(path.read_bytes(), timestamp=timestamp)
+    return read_dataframe(AnalogData, path.read_bytes(), timestamp=timestamp)
 
 
 def harp_python_read(path: Path):

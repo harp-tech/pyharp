@@ -79,6 +79,7 @@ nav:
     - examples/index.md
     - Getting Device Info: examples/get_info/get_info.md
     - Read and Write from Registers: examples/read_and_write_from_registers/read_and_write_from_registers.md
+    - Reading Data into a DataFrame: examples/read_data_to_dataframe/read_data_to_dataframe.md
     - Devices: '*include ./harp.devices/*/docs/examples.mkdocs.yml'
   - API:
     - Devices: '*include ./harp.devices/*/mkdocs.yml'

@@ -2,7 +2,6 @@ from abc import ABC, ABCMeta
 from typing import Any, ClassVar, Generic, TypeVar, cast, final, overload
 
 import numpy as np
-import pandas as pd
 from numpy.typing import NDArray
 from typing_extensions import Sentinel
 
@@ -134,38 +133,6 @@ class RegisterBase(ABC, Generic[U]):
 
         payload = payload_cls.from_array(payload_arr)
         return data, timestamps, msgtype_view, cast("Batch[Any]", payload)
-
-    @classmethod
-    def read_dataframe(
-        cls,
-        source: bytes | bytearray | memoryview,
-        *,
-        timestamp: bool = True,
-        message_type: bool = False,
-        decode_enums: bool = True,
-    ) -> "pd.DataFrame":
-        """Parse all frames into a DataFrame.
-
-        ``timestamp`` and ``message_type`` insert leading columns.
-        ``decode_enums`` controls whether ``_GroupMask`` slots become
-        ``pd.Categorical`` (True) or raw integers (False).
-        """
-        _data, timestamps, msg_view, payload = cls.parse_bulk(source, parse_timestamp=timestamp)
-        df = payload.to_dataframe(decode_enums=decode_enums)
-        if message_type and msg_view is not None:
-            _msg_names = np.array(["_NONE", "Read", "Write", "Event"])
-            df.insert(
-                0,
-                "message_type",
-                pd.Categorical(_msg_names[msg_view & 0x03], categories=_msg_names[1:]),
-            )
-        if timestamp:
-            if timestamps is None:
-                raise ValueError(
-                    "Buffer contains no timestamp data; pass timestamp=False to suppress the timestamp column."
-                )
-            df.insert(0, "timestamp", timestamps)
-        return df
 
     @overload
     @classmethod

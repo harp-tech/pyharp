@@ -8,7 +8,6 @@ keywords = ['python', 'harp']
 requires-python = ">=3.10,<4.0"
 dependencies = [
     "numpy>=1.24",
-    "pandas>=2.0",
     "typing-extensions>=4.0",
 ]
 

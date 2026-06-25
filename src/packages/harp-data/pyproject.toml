@@ -1,0 +1,18 @@
+[project]
+name = "harp-data"
+version = "0.1.0"
+description = "Load Harp device data into pandas DataFrames"
+requires-python = ">=3.11"
+dependencies = [
+    "harp-protocol",
+    "numpy>=1.24",
+    "pandas>=2.0",
+]
+
+[build-system]
+requires = ["uv_build>=0.9.5,<0.10.0"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "harp.data"
+module-root = "src"

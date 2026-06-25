@@ -5,6 +5,7 @@
 
 import numpy as np
 import pytest
+from harp.data import to_dataframe
 from harp.protocol import HarpMessage, HarpVersion
 from tests.protocol.register_models import (
     AnalogData,
@@ -208,7 +209,7 @@ def test_complex_configuration_to_dataframe():
         Delta=np.uint32(42),
     )
     batch = ComplexConfigurationPayload.from_buffer(cc.raw_payload.tobytes() * 2)
-    df = batch.to_dataframe()
+    df = to_dataframe(batch)
     assert len(df) == 2
     assert list(df["PwmPort"]) == ["Pwm2", "Pwm2"]
     np.testing.assert_array_equal(df["Delta"], [42, 42])

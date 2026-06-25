@@ -13,7 +13,6 @@ from typing import (
 )
 
 import numpy as np
-import pandas as pd
 from numpy.typing import NDArray
 from typing_extensions import Self, Sentinel, dataclass_transform
 
@@ -26,6 +25,24 @@ E = TypeVar("E", bound=enum.IntEnum)
 
 _MISSING = Sentinel("_MISSING")
 _DEFAULT_ELEMENT = np.dtype(np.uint8)
+
+
+@dataclass(frozen=True, slots=True, eq=False)
+class Column:
+    """One column of a batched payload.
+
+    ``data`` is a 1-D numpy array (one row per frame). When ``categories`` is
+    not ``None`` the column is enum-backed: ``data`` holds integer category
+    *codes* and ``categories`` the ordered labels, so a consumer can map codes
+    to labels without copying.
+
+    ``eq=False`` keeps identity comparison — field-wise equality would hit
+    numpy's ambiguous-truth-value error on the ``data`` array.
+    """
+
+    name: str
+    data: NDArray[Any]
+    categories: Any | None = None
 
 
 @dataclass(frozen=True)
@@ -339,7 +356,7 @@ class _GroupMaskBatch(Generic[E]):
     def __get__(self, obj: "PayloadBase | None", owner: object = None) -> Any:
         if obj is None:
             return self
-        # Enum batches return raw integer codes (see to_dataframe for Categorical decoding).
+        # Enum batches return raw integer codes (see to_columns for label decoding).
         return (obj._arr[self._slot] & self._mask) >> self._shift
 
 
@@ -366,7 +383,7 @@ class Batch(Protocol[_PT]):
 
     def __len__(self) -> int: ...  # type: ignore[empty-body]
 
-    def to_dataframe(self, *, decode_enums: bool = True) -> "pd.DataFrame": ...  # type: ignore[empty-body]
+    def to_columns(self, *, decode_enums: bool = True) -> "list[Column]": ...  # type: ignore[empty-body]
 
     def __getattr__(self, name: str) -> "NDArray[Any]": ...  # type: ignore[empty-body]
 
@@ -533,7 +550,7 @@ class PayloadBase(Generic[NpStructT]):
 
     # Structured numpy dtype describing the memory layout of a single payload record.
     dtype: ClassVar[np.dtype]
-    # Field names shown in __repr__ and used as DataFrame column order.
+    # Field names shown in __repr__ and used as the column order.
     _repr_fields: ClassVar[tuple[str, ...]]
     # The scalar twin of this class (identity for scalar classes, points to scalar from Batch).
     _scalar_cls: ClassVar["type[PayloadBase]"]
@@ -721,38 +738,37 @@ class PayloadBase(Generic[NpStructT]):
     def raw_payload(self) -> NDArray[NpStructT]:
         return self._arr
 
-    def to_dataframe(self, *, decode_enums: bool = True) -> pd.DataFrame:
+    def to_columns(self, *, decode_enums: bool = True) -> list[Column]:
         arr = np.atleast_1d(self._arr)
         cls = type(self)
         repr_fields = self._repr_fields
 
+        cols: list[Column] = []
         has_bitfield = any(_is_masked(cls._mro_descriptor(f)) for f in repr_fields)
         if has_bitfield:
-            cols: dict[str, object] = {}
             for f in repr_fields:
                 desc = cls._mro_descriptor(f)
                 if isinstance(desc, _GROUP_MASK_TYPES):  # masked enum sub-field
                     slot_col = arr[desc._slot]  # ty: ignore[invalid-argument-type]
                     raw = (slot_col & desc._mask) >> desc._shift
                     if decode_enums:
-                        codes = desc._code_lookup[raw]
-                        cols[f] = pd.Categorical.from_codes(codes, categories=desc._categories)
+                        cols.append(Column(f, desc._code_lookup[raw], desc._categories))
                     else:
-                        cols[f] = raw
+                        cols.append(Column(f, raw))
                 elif (
                     isinstance(desc, _FIELD_TYPES) and desc._mask is not None
                 ):  # masked numeric sub-field
                     slot_col = arr[desc._slot]  # ty: ignore[invalid-argument-type]
                     raw = (slot_col & desc._mask) >> desc._shift
-                    cols[f] = desc._converter.decode_batch(raw.astype(desc._converter.dtype))
+                    decoded = desc._converter.decode_batch(raw.astype(desc._converter.dtype))
+                    cols.append(Column(f, decoded))
                 elif isinstance(desc, _BIT_FLAG_TYPES):
                     slot_col = arr[desc._slot]  # ty: ignore[invalid-argument-type]
-                    cols[f] = (slot_col & desc._mask) != 0
+                    cols.append(Column(f, (slot_col & desc._mask) != 0))
                 else:
-                    cols[f] = np.atleast_1d(getattr(self, f))
-            return pd.DataFrame(cols)
+                    cols.append(Column(f, np.atleast_1d(getattr(self, f))))
+            return cols
 
-        cols = {}
         names = self.dtype.names
         single_value_slot = names == ("value",)
         for name in names:  # ty: ignore[not-iterable]
@@ -761,21 +777,21 @@ class PayloadBase(Generic[NpStructT]):
                 desc._converter, _IdentityConverter
             )
             if uses_converter:
-                cols[name] = np.atleast_1d(getattr(self, name))
+                cols.append(Column(name, np.atleast_1d(getattr(self, name))))
                 continue
 
             field_dtype, _ = self.dtype.fields[name]  # ty: ignore[invalid-assignment, invalid-argument-type, not-subscriptable]
             sub = arr[name]  # ty: ignore[invalid-argument-type]
             if field_dtype.subdtype is None:
-                cols[name] = sub
+                cols.append(Column(name, sub))
             else:
                 _, subshape = field_dtype.subdtype
                 count = int(np.prod(subshape))
                 flat = sub.reshape(len(arr), count)
                 for i in range(count):
                     col = str(i) if single_value_slot else f"{name}_{i}"
-                    cols[col] = flat[:, i]
-        return pd.DataFrame(cols)
+                    cols.append(Column(col, flat[:, i]))
+        return cols
 
     def __len__(self) -> int:
         return 1 if self._arr.ndim == 0 else len(self._arr)
@@ -922,19 +938,19 @@ class AnonymousPayload(PayloadBase[NpStructT]):
     def __repr__(self) -> str:
         return f"{type(self).__name__}({self._repr_kwargs()})"
 
-    def to_dataframe(self, *, decode_enums: bool = True) -> pd.DataFrame:
+    def to_columns(self, *, decode_enums: bool = True) -> list[Column]:
         if self._converter is not None:
             arr = self._arr
             # decode_batch wants a leading row axis; a single record lacks one
             # (its ndim equals the converter slot's own ndim).
             if arr.ndim == self._converter.dtype.ndim:
                 arr = arr[np.newaxis, ...]
-            return pd.DataFrame({"value": self._converter.decode_batch(arr)})
+            return [Column("value", self._converter.decode_batch(arr))]
         arr = np.atleast_1d(self._arr)
         # Sub-array dtype (array register): shape is already (N, length).
         if arr.ndim > 1:
-            return pd.DataFrame({str(i): arr[:, i] for i in range(arr.shape[1])})
-        return pd.DataFrame({"value": arr})
+            return [Column(str(i), arr[:, i]) for i in range(arr.shape[1])]
+        return [Column("value", arr)]
 
 
 @final

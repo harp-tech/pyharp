@@ -1,6 +1,7 @@
 import numpy as np
-import pandas as pd
 import pytest
+from harp.data import to_dataframe
+from harp.protocol import Column
 from harp.protocol._payload import PayloadBase, Field, _IdentityConverter
 
 
@@ -12,13 +13,11 @@ class SimplePayload(PayloadBase):
 class BitPackedPayload(PayloadBase):
     packed = Field(converter=_IdentityConverter("u1"))
 
-    def to_dataframe(self, *, decode_enums: bool = True) -> pd.DataFrame:
-        return pd.DataFrame(
-            {
-                "flag_a": (self.raw_payload["packed"] & 0x01).astype(bool),
-                "flag_b": ((self.raw_payload["packed"] >> 1) & 0x01).astype(bool),
-            }
-        )
+    def to_columns(self, *, decode_enums: bool = True) -> list[Column]:
+        return [
+            Column("flag_a", (self.raw_payload["packed"] & 0x01).astype(bool)),
+            Column("flag_b", ((self.raw_payload["packed"] >> 1) & 0x01).astype(bool)),
+        ]
 
 
 def _make_simple_bytes(n: int) -> bytes:
@@ -43,7 +42,7 @@ def test_from_buffer_values():
 
 def test_to_dataframe_columns():
     p = SimplePayload.from_buffer(_make_simple_bytes(3))
-    df = p.to_dataframe()
+    df = to_dataframe(p)
     assert list(df.columns) == ["x", "y"]
     assert len(df) == 3
 
@@ -51,7 +50,7 @@ def test_to_dataframe_columns():
 def test_to_dataframe_override():
     arr = np.array([(0b00000011,), (0b00000001,), (0b00000010,)], dtype=BitPackedPayload.dtype)
     p = BitPackedPayload.from_buffer(arr.tobytes())
-    df = p.to_dataframe()
+    df = to_dataframe(p)
     assert list(df.columns) == ["flag_a", "flag_b"]
     assert list(df["flag_a"]) == [True, True, False]
     assert list(df["flag_b"]) == [True, False, True]

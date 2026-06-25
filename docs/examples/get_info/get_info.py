@@ -1,18 +1,14 @@
-from pyharp.protocol.device import Device
+from harp.device import REGISTER_MAP, Device, WhoAmI
+from harp.serial import open_serial_device
 
 SERIAL_PORT = "/dev/ttyUSB0"  # or "COMx" in Windows ("x" is the number of the serial port)
 
-# Open serial connection and save communication to a file
-device = Device(SERIAL_PORT, "dump.bin")
+# Open a serial connection to the device (closed automatically on exit).
+with open_serial_device(Device, port=SERIAL_PORT) as device:
+    # Identify the device.
+    print("WhoAmI:", device.read(WhoAmI).parsed)
 
-# Display device's info on screen
-device.info()
-
-# Dump device's registers
-reg_dump = device.dump_registers()
-for reg_reply in reg_dump:
-    print(reg_reply)
-    print()
-
-# Close connection
-device.disconnect()
+    # Dump every core register.
+    for address, register in sorted(REGISTER_MAP.items()):
+        reply = device.read(register)
+        print(f"{register.__name__:24s} (addr {address:2d}) = {reply.parsed}")

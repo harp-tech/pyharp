@@ -4,6 +4,7 @@ from typing import ClassVar
 
 import numpy as np
 import pytest
+from harp.data import to_dataframe
 from harp.protocol._message import HarpMessage
 from harp.protocol._message_type import MessageType
 from harp.protocol._payload import (
@@ -204,7 +205,7 @@ def test_structured_register_to_dataframe():
     ).tobytes()
     # Bulk decode goes through .Batch; from_buffer handles the redirect.
     bulk = AnalogDataPayload.from_buffer(raw)
-    df = bulk.to_dataframe()
+    df = to_dataframe(bulk)
     assert list(df.columns) == ["analog_input0", "encoder", "analog_input1"]
     assert len(df) == 2
     assert df["analog_input0"].tolist() == [1, 4]
@@ -379,13 +380,13 @@ def test_anonymous_payload_converter_roundtrip():
         assert parsed == "Behavior"
 
     # to_dataframe decodes both a single record and a batch.
-    assert PayloadDeviceName("Behavior").to_dataframe()["value"].tolist() == ["Behavior"]
+    assert to_dataframe(PayloadDeviceName("Behavior"))["value"].tolist() == ["Behavior"]
     two = (
         PayloadDeviceName("Foo").raw_payload.tobytes()
         + PayloadDeviceName("Bar").raw_payload.tobytes()
     )
     batch = PayloadDeviceName.from_buffer(two)
-    assert batch.to_dataframe()["value"].tolist() == ["Foo", "Bar"]
+    assert to_dataframe(batch)["value"].tolist() == ["Foo", "Bar"]
 
 
 def test_anonymous_payload_scalar_converter_roundtrip():

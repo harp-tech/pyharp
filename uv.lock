@@ -13,6 +13,7 @@ resolution-markers = [
 [manifest]
 members = [
     "harp",
+    "harp-data",
     "harp-device",
     "harp-protocol",
     "harp-serial",
@@ -348,6 +349,7 @@ name = "harp"
 version = "0.2.0"
 source = { virtual = "." }
 dependencies = [
+    { name = "harp-data" },
     { name = "harp-device" },
     { name = "harp-protocol" },
     { name = "harp-serial" },
@@ -355,6 +357,7 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "harp-data" },
     { name = "harp-device" },
     { name = "harp-protocol" },
     { name = "harp-serial" },
@@ -378,6 +381,7 @@ docs = [
 
 [package.metadata]
 requires-dist = [
+    { name = "harp-data", editable = "src/packages/harp-data" },
     { name = "harp-device", editable = "src/packages/harp-device" },
     { name = "harp-protocol", editable = "src/packages/harp-protocol" },
     { name = "harp-serial", editable = "src/packages/harp-serial" },
@@ -385,6 +389,7 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "harp-data", editable = "src/packages/harp-data" },
     { name = "harp-device", editable = "src/packages/harp-device" },
     { name = "harp-protocol", editable = "src/packages/harp-protocol" },
     { name = "harp-serial", editable = "src/packages/harp-serial" },
@@ -407,6 +412,23 @@ docs = [
 ]
 
 [[package]]
+name = "harp-data"
+version = "0.1.0"
+source = { editable = "src/packages/harp-data" }
+dependencies = [
+    { name = "harp-protocol" },
+    { name = "numpy" },
+    { name = "pandas" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "harp-protocol", editable = "src/packages/harp-protocol" },
+    { name = "numpy", specifier = ">=1.24" },
+    { name = "pandas", specifier = ">=2.0" },
+]
+
+[[package]]
 name = "harp-device"
 version = "0.1.0"
 source = { editable = "src/packages/harp-device" }
@@ -423,14 +445,12 @@ version = "0.4.0"
 source = { editable = "src/packages/harp-protocol" }
 dependencies = [
     { name = "numpy" },
-    { name = "pandas" },
     { name = "typing-extensions" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "numpy", specifier = ">=1.24" },
-    { name = "pandas", specifier = ">=2.0" },
     { name = "typing-extensions", specifier = ">=4.0" },
 ]
 

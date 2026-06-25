@@ -11,6 +11,7 @@ dependencies = [
     "harp-protocol",
     "harp-device",
     "harp-serial",
+    "harp-data",
 ]
 
 [project.urls]
@@ -22,6 +23,7 @@ Documentation = "https://fchampalimaud.github.io/pyharp/"
 harp-protocol = { workspace = true }
 harp-device = { workspace = true }
 harp-serial = { workspace = true }
+harp-data = { workspace = true }
 
 [tool.uv.workspace]
 members = [
@@ -49,6 +51,7 @@ dev = [
     "harp-protocol",
     "harp-device",
     "harp-serial",
+    "harp-data",
     "typing-extensions>=4.15.0",
 ]
 
@@ -77,6 +80,7 @@ include = [
     "src/packages/harp-protocol/src",
     "src/packages/harp-device/src",
     "src/packages/harp-serial/src",
+    "src/packages/harp-data/src",
 ]
 exclude = [
     "tests",

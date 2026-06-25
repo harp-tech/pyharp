@@ -1,31 +1,17 @@
-from serial import SerialException
-
-from harp.protocol import MessageType, PayloadType
-from harp.protocol.messages import HarpMessage
-from harp.serial.device import Device
+from harp.device import Device, OperationControl, OperationControlPayload, OperationMode, WhoAmI
+from harp.serial import open_serial_device
 
 SERIAL_PORT = "/dev/ttyUSB0"  # or "COMx" in Windows ("x" is the number of the serial port)
 
-# Open serial connection and save communication to a file
-device = Device(SERIAL_PORT, "dump.bin")
+with open_serial_device(Device, port=SERIAL_PORT) as device:
+    # Read a scalar register.
+    print("WhoAmI:", device.read(WhoAmI).parsed)
 
-# Check if the device is a Harp Behavior
-if not device.WHO_AM_I == 1216:
-    raise SerialException("This is not a Harp Behavior.")
+    # Read a structured register and inspect a field.
+    control = device.read(OperationControl).parsed
+    print("operation_mode before:", control.operation_mode)
 
-# Read initial DI3 state
-reply = device.send(HarpMessage(MessageType.READ, PayloadType.U8, 32))
-print(reply.payload & 0x08)
-
-# Turn DO0 on and read DI3 state after it
-reply = device.send(HarpMessage(MessageType.READ, PayloadType.U8, 34, 0x400))
-reply = device.send(HarpMessage(MessageType.READ, PayloadType.U8, 32))
-print(reply.payload & 0x08)
-
-# Turn DO0 off and read DI3 state again
-reply = device.send(HarpMessage(MessageType.READ, PayloadType.U8, 35, 0x400))
-reply = device.send(HarpMessage(MessageType.READ, PayloadType.U8, 32))
-print(reply.payload & 0x08)
-
-# Close connection
-device.disconnect()
+    # Write the register, then read it back to confirm the change.
+    device.write(OperationControl, OperationControlPayload(operation_mode=OperationMode.ACTIVE))
+    control = device.read(OperationControl).parsed
+    print("operation_mode after:", control.operation_mode)

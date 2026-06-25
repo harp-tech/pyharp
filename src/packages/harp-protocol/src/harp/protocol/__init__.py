@@ -34,6 +34,7 @@ from ._payload import (
     PayloadS64Array,
     PayloadFloatArray,
     AnonymousPayload,
+    Column,
 )
 from ._payload_type import PayloadType
 from ._register import (
@@ -79,6 +80,7 @@ __all__ = [
     "PayloadBase",
     "StructPayload",
     "AnonymousPayload",
+    "Column",
     "Field",
     "BitFlag",
     "GroupMask",

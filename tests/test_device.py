@@ -4,6 +4,7 @@ from typing import ClassVar
 
 import numpy as np
 
+from harp.data import to_dataframe
 from harp.protocol._builder import build_message_frame
 from harp.protocol._message_type import MessageType
 from harp.protocol._payload import PayloadBase, BitFlag, GroupMask
@@ -124,7 +125,7 @@ def test_op_ctrl_to_dataframe():
         _make_op_ctrl_byte(OperationMode.STANDBY, EnableFlag.DISABLED),
     ]
     p = OperationControlPayload.from_buffer(bytes(vals))
-    df = p.to_dataframe(decode_enums=False)
+    df = to_dataframe(p, decode_enums=False)
     assert list(df.columns) == list(OperationControlPayload._repr_fields)
     assert len(df) == 2
     np.testing.assert_array_equal(df["heartbeat"], [True, False])
@@ -153,7 +154,7 @@ def test_pins_batch_ndarray():
 
 def test_pins_to_dataframe():
     p = PinsPayload.from_buffer(bytes([0b00000101, 0b00000010]))
-    df = p.to_dataframe()
+    df = to_dataframe(p)
     assert list(df.columns) == list(PinsPayload._repr_fields)
     assert len(df) == 2
 
@@ -220,7 +221,7 @@ def test_read_frames_to_dataframe():
     vals = [_make_op_ctrl_byte(OperationMode.ACTIVE), _make_op_ctrl_byte(), _make_op_ctrl_byte()]
     raw = _make_frames(vals)
     _, payload = _read_frames(raw)
-    df = payload.to_dataframe()
+    df = to_dataframe(payload)
     assert len(df) == 3
     assert "heartbeat" in df.columns
     assert "operation_mode" in df.columns
