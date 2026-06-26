@@ -92,8 +92,6 @@ class EncoderModeMask(enum.IntEnum):
 class BytesToIntConverter(Converter[int]):
     """N raw bytes (little-endian) <-> Python int. Models ``interfaceType: int`` over a sub-array."""
 
-    init_kwarg_type = int
-
     def __init__(self, length: int, *, signed: bool = False) -> None:
         self._length = length
         self._signed = signed

@@ -2,6 +2,8 @@ from enum import IntEnum
 
 
 class MessageType(IntEnum):
+    """Represents the a message type from the harp protocol"""
+
     Read = 1
     Write = 2
     Event = 3

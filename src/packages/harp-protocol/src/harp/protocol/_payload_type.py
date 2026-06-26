@@ -21,6 +21,7 @@ class PayloadType(Enum):
 
     @property
     def numpy_dtype(self) -> np.dtype:
+        """Returns the corresponding numpy dtype"""
         return self.value
 
 

@@ -110,6 +110,7 @@ class Field(Generic[T]):
         offset: int = 0,
         default: object = _MISSING,
     ) -> None:
+        """Instantiates a new payload Field."""
         self._converter = converter
         self._name: str | None = None
         self._mask = mask
@@ -143,6 +144,7 @@ class Field(Generic[T]):
         return self._converter.decode_scalar(obj._arr[self._name])  # ty: ignore[invalid-argument-type]
 
     def _to_batch(self) -> "_FieldBatch[T]":
+        """Returns the metadata for the corresponding Batch type"""
         return _FieldBatch(
             converter=self._converter,
             mask=self._mask,
@@ -165,6 +167,7 @@ class BitFlag:
         def __new__(cls, *, mask: int, offset: int = 0, default: bool = ...) -> bool: ...  # type: ignore[misc]  # noqa: E704
 
     def __init__(self, *, mask: int, offset: int = 0, default: object = _MISSING) -> None:
+        """Instantiates a new BitFlag field attribute for the payload"""
         self._mask = mask
         self._offset = offset
         self._default = default
@@ -182,6 +185,7 @@ class BitFlag:
         return bool(obj._arr[self._slot] & self._mask)
 
     def _to_batch(self) -> "_BitFlagBatch":
+        """Returns the metadata for the corresponding batch type"""
         return _BitFlagBatch(self._mask, slot=self._slot, dtype=self._dtype)
 
 
@@ -200,7 +204,7 @@ def _build_enum_lookup(enum_cls: type[enum.IntEnum]) -> "tuple[list[str], np.nda
 class GroupMask(Generic[E]):
     """Descriptor for a masked, shifted enum sub-field of a payload element.
 
-    Readable sugar over a masked :class:`Field`: the raw value is extracted as
+    Syntactic sugar over a masked :class:`Field`: the raw value is extracted as
     ``(element & mask) >> shift`` and mapped strictly to an ``enum.IntEnum`` member
     (an unknown code raises). ``enum=`` is required; for masked *numeric* fields use
     ``Field(converter=..., mask=...)`` instead.
@@ -225,6 +229,7 @@ class GroupMask(Generic[E]):
         offset: int = 0,
         default: object = _MISSING,
     ) -> None:
+        """Instantiates a GroupMask field for the payload"""
         if enum is None:
             raise TypeError(
                 "GroupMask requires 'enum'; use Field(converter=..., mask=...) for "
@@ -259,6 +264,7 @@ class GroupMask(Generic[E]):
         return self._decode_raw(raw)
 
     def _to_batch(self) -> "_GroupMaskBatch[E]":
+        """Returns the metadata for the corresponding batch type"""
         return _GroupMaskBatch(
             self._mask,
             self._enum,
@@ -360,7 +366,7 @@ class _GroupMaskBatch(Generic[E]):
         return (obj._arr[self._slot] & self._mask) >> self._shift
 
 
-_PT = TypeVar("_PT", bound="PayloadBase[Any]")
+_PT = TypeVar("_PT", bound="PayloadBase[Any]", covariant=True)
 _MISSING_INIT = Sentinel("_MISSING_INIT")
 
 
@@ -632,6 +638,7 @@ class PayloadBase(Generic[NpStructT]):
     def _collect_bitfields(
         cls,
     ) -> "dict[str, BitFlag | GroupMask | _BitFlagBatch | _GroupMaskBatch]":
+        """Collects all bit-field-like members of the payload"""
         out: dict[str, Any] = {}
         for klass in reversed(cls.__mro__):
             for attr, val in klass.__dict__.items():
@@ -641,6 +648,7 @@ class PayloadBase(Generic[NpStructT]):
 
     @classmethod
     def _collect_defaults(cls) -> "dict[str, Any]":
+        """Collect all members with defined default values"""
         out: dict[str, Any] = {}
         for klass in reversed(cls.__mro__):
             for attr, val in klass.__dict__.items():
@@ -739,6 +747,7 @@ class PayloadBase(Generic[NpStructT]):
         return self._arr
 
     def to_columns(self, *, decode_enums: bool = True) -> list[Column]:
+        """Returns a list of Column where each member represents a field from a payload across multiple messages"""
         arr = np.atleast_1d(self._arr)
         cls = type(self)
         repr_fields = self._repr_fields

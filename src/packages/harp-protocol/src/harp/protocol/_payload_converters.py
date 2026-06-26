@@ -17,12 +17,10 @@ E = TypeVar("E", bound=_enum.IntEnum)
 class Converter(ABC, Generic[T]):
     """Abstract base for payload field converters.
 
-    Subclasses must set ``dtype`` and ``init_kwarg_type`` as class attributes
-    and implement the three abstract methods.
+    Subclasses must set ``dtype` as class attribute and implement the abstract methods.
     """
 
     dtype: np.dtype  # dtype of the raw numpy slot passed to decode/encode
-    init_kwarg_type: type  # used for docs/introspection TODO especially to generate the constructor type hints; not enforced at runtime
 
     @abstractmethod
     def decode_scalar(self, view: np.generic) -> T:
@@ -47,7 +45,6 @@ class IdentityConverter(Converter[NpScalarT]):
 
     def __init__(self, dtype: "np.dtype[NpScalarT] | str | type[NpScalarT]") -> None:
         self.dtype = np.dtype(dtype)
-        self.init_kwarg_type = self.dtype.type
 
     def decode_scalar(self, view: np.generic) -> NpScalarT:
         return cast(
@@ -62,46 +59,64 @@ class IdentityConverter(Converter[NpScalarT]):
 
 
 class UInt8Converter(IdentityConverter[np.uint8]):
+    """A built-in UInt8 passthrough converter"""
+
     def __init__(self) -> None:
         super().__init__(np.uint8)
 
 
 class SInt8Converter(IdentityConverter[np.int8]):
+    """A built-in Int8 passthrough converter"""
+
     def __init__(self) -> None:
         super().__init__(np.int8)
 
 
 class UInt16Converter(IdentityConverter[np.uint16]):
+    """A built-in UInt16 passthrough converter"""
+
     def __init__(self) -> None:
         super().__init__(np.uint16)
 
 
 class Int16Converter(IdentityConverter[np.int16]):
+    """A built-in Int16 passthrough converter"""
+
     def __init__(self) -> None:
         super().__init__(np.int16)
 
 
 class UInt32Converter(IdentityConverter[np.uint32]):
+    """A built-in UInt32 passthrough converter"""
+
     def __init__(self) -> None:
         super().__init__(np.uint32)
 
 
 class Int32Converter(IdentityConverter[np.int32]):
+    """A built-in Int32 passthrough converter"""
+
     def __init__(self) -> None:
         super().__init__(np.int32)
 
 
 class UInt64Converter(IdentityConverter[np.uint64]):
+    """A built-in UInt64 passthrough converter"""
+
     def __init__(self) -> None:
         super().__init__(np.uint64)
 
 
 class Int64Converter(IdentityConverter[np.int64]):
+    """A built-in Int64 passthrough converter"""
+
     def __init__(self) -> None:
         super().__init__(np.int64)
 
 
 class FloatConverter(IdentityConverter[np.float32]):
+    """A built-in float passthrough converter"""
+
     def __init__(self) -> None:
         super().__init__(np.float32)
 
@@ -111,8 +126,6 @@ class BoolConverter(Converter[bool]):
 
     The element is non-zero → ``True``. Operates on a single base element.
     """
-
-    init_kwarg_type = bool
 
     def __init__(self, dtype: "np.dtype | str | type" = np.uint8) -> None:
         self.dtype = np.dtype(dtype)
@@ -138,7 +151,6 @@ class EnumConverter(Converter[E]):
     def __init__(self, enum_cls: "type[E]", dtype: "np.dtype | str | type" = np.uint8) -> None:
         self._enum = enum_cls
         self.dtype = np.dtype(dtype)
-        self.init_kwarg_type = enum_cls
 
     def decode_scalar(self, view: np.generic) -> E:
         return self._enum(int(view))
@@ -186,9 +198,7 @@ class HarpVersion:
 
 
 class HarpVersionConverter(Converter[HarpVersion]):
-    """Converts a 3-element uint8 array to/from a HarpVersion object."""
-
-    init_kwarg_type = HarpVersion
+    """A built-in converter for a HarpVersion object."""
 
     def __init__(self, component: "np.dtype | str | type" = np.uint8) -> None:
         self.dtype = np.dtype((component, (3,)))

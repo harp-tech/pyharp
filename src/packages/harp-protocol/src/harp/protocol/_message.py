@@ -20,6 +20,8 @@ P = TypeVar("P")
 
 
 class HarpParseError(Exception):
+    """An exception raised for errors encountered during message parsing"""
+
     pass
 
 
@@ -136,7 +138,7 @@ class HarpMessage:
 class ParsedHarpMessage(HarpMessage, Generic[P]):
     """A ``HarpMessage`` with a typed parsed payload attached."""
 
-    __slots__ = ("parsed",)
+    __slots__ = ("_parsed",)
 
     def __init__(
         self,
@@ -152,12 +154,17 @@ class ParsedHarpMessage(HarpMessage, Generic[P]):
         super().__init__(
             message_type, address, payload_type, payload, port=port, timestamp=timestamp
         )
-        self.parsed = parsed
+        self._parsed = parsed
 
     @classmethod
     def from_message(cls, msg: HarpMessage, parsed: P) -> "ParsedHarpMessage[P]":
         """Wrap a ``HarpMessage`` with a pre-parsed payload."""
         obj = cls.__new__(cls)
         obj._bytes = msg.bytes
-        obj.parsed = parsed
+        obj._parsed = parsed
         return obj
+
+    @property
+    def parsed(self) -> P:
+        """Returns the parsed payload."""
+        return self._parsed
