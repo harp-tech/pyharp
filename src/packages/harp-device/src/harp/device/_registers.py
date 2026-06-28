@@ -7,7 +7,9 @@ from typing import ClassVar
 import numpy as np
 from harp.protocol import (
     AnonymousPayload,
-    BitFlag,
+    BitMask,
+    BoolConverter,
+    Field,
     GroupMask,
     PayloadType,
     RegisterBase,
@@ -80,9 +82,9 @@ class OperationControlPayload(StructPayload[np.uint8]):
 
     operation_mode: OperationMode = GroupMask(enum=OperationMode, mask=0x3)
     """Specifies the operation mode of the device."""
-    dump_registers: bool = BitFlag(mask=0x8)
+    dump_registers: bool = Field(BoolConverter(), mask=0x8)
     """Specifies whether the device should report the content of all registers on initialization."""
-    mute_replies: bool = BitFlag(mask=0x10)
+    mute_replies: bool = Field(BoolConverter(), mask=0x10)
     """Specifies whether the replies to all commands will be muted, i.e. not sent by the device."""
     visual_indicators: EnableFlag = GroupMask(enum=EnableFlag, mask=0x20)
     """Specifies the state of all visual indicators on the device."""
@@ -92,44 +94,22 @@ class OperationControlPayload(StructPayload[np.uint8]):
     """Specifies whether the device should report the content of the seconds register each second."""
 
 
-class ResetDevicePayload(StructPayload[np.uint8]):
+class ResetDevicePayload(AnonymousPayload[np.uint8]):
     """Represents the payload of the ResetDevice register."""
 
-    restore_default: bool = BitFlag(mask=0x1)
-    """The device will boot with all the registers reset to their default factory values."""
-    restore_eeprom: bool = BitFlag(mask=0x2)
-    """The device will boot and restore all the registers to the values stored in non-volatile memory."""
-    save: bool = BitFlag(mask=0x4)
-    """The device will boot and save all the current register values to non-volatile memory."""
-    restore_name: bool = BitFlag(mask=0x8)
-    """The device will boot with the default device name."""
-    update_firmware: bool = BitFlag(mask=0x20)
-    """The device will enter firmware update mode."""
-    boot_from_default: bool = BitFlag(mask=0x40)
-    """Specifies that the device has booted from default factory values."""
-    boot_from_eeprom: bool = BitFlag(mask=0x80)
-    """Specifies that the device has booted from non-volatile values stored in EEPROM."""
+    __value__: ResetFlags = BitMask(enum=ResetFlags)
 
 
-class DeviceNamePayload(AnonymousPayload, converter=StringConverter(25)):
+class DeviceNamePayload(AnonymousPayload[np.uint8]):
     """Represents the payload of the DeviceName register."""
 
+    __value__: str = Field(StringConverter(25))
 
-class ClockConfigurationPayload(StructPayload[np.uint8]):
+
+class ClockConfigurationPayload(AnonymousPayload[np.uint8]):
     """Represents the payload of the ClockConfiguration register."""
 
-    clock_repeater: bool = BitFlag(mask=0x1)
-    """The device will repeat the clock synchronization signal to the clock output connector, if available."""
-    clock_generator: bool = BitFlag(mask=0x2)
-    """The device resets and generates the clock synchronization signal on the clock output connector, if available."""
-    repeater_capability: bool = BitFlag(mask=0x8)
-    """Specifies the device has the capability to repeat the clock synchronization signal to the clock output connector."""
-    generator_capability: bool = BitFlag(mask=0x10)
-    """Specifies the device has the capability to generate the clock synchronization signal to the clock output connector."""
-    clock_unlock: bool = BitFlag(mask=0x40)
-    """The device will unlock the timestamp register counter and will accept commands to set new timestamp values."""
-    clock_lock: bool = BitFlag(mask=0x80)
-    """The device will lock the timestamp register counter and will not accept commands to set new timestamp values."""
+    __value__: ClockConfigurationFlags = BitMask(enum=ClockConfigurationFlags)
 
 
 class WhoAmI(RegisterU16):
@@ -200,7 +180,7 @@ class OperationControl(RegisterBase[OperationControlPayload]):
     payload_class = OperationControlPayload
 
 
-class ResetDevice(RegisterBase[ResetDevicePayload]):
+class ResetDevice(RegisterBase[ResetFlags]):
     """Resets the device and saves non-volatile registers."""
 
     address: ClassVar[int] = 11
@@ -222,7 +202,7 @@ class SerialNumber(RegisterU16):
     address: ClassVar[int] = 13
 
 
-class ClockConfiguration(RegisterBase[ClockConfigurationPayload]):
+class ClockConfiguration(RegisterBase[ClockConfigurationFlags]):
     """Specifies the configuration for the device synchronization clock."""
 
     address: ClassVar[int] = 14

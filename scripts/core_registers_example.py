@@ -10,12 +10,12 @@ import numpy as np
 
 from harp.device import (
     # Enums / flags
+    ClockConfigurationFlags,
     EnableFlag,
     OperationMode,
+    ResetFlags,
     # Payload classes
-    ClockConfigurationPayload,
     OperationControlPayload,
-    ResetDevicePayload,
     # Registers
     AssemblyVersion,
     ClockConfiguration,
@@ -51,9 +51,9 @@ examples = [
             heartbeat=EnableFlag.ENABLED,
         ),
     ),
-    (ResetDevice, ResetDevicePayload(restore_default=True, restore_name=True)),
+    (ResetDevice, ResetFlags.RESTORE_DEFAULT | ResetFlags.RESTORE_NAME),
     (DeviceName, "my-harp-device"),
-    (ClockConfiguration, ClockConfigurationPayload(clock_repeater=True, clock_unlock=True)),
+    (ClockConfiguration, ClockConfigurationFlags.CLOCK_REPEATER | ClockConfigurationFlags.CLOCK_UNLOCK),
     (HardwareVersionHigh, np.uint8(2)),
     (HardwareVersionLow, np.uint8(0)),
     (AssemblyVersion, np.uint8(3)),

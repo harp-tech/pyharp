@@ -1,5 +1,6 @@
 """Tests for the device layer: descriptors, to_dataframe, and read_frames."""
 
+import enum
 from typing import ClassVar
 
 import numpy as np
@@ -7,7 +8,7 @@ import numpy as np
 from harp.data import to_dataframe
 from harp.protocol._builder import build_message_frame
 from harp.protocol._message_type import MessageType
-from harp.protocol._payload import PayloadBase, BitFlag, GroupMask
+from harp.protocol._payload import PayloadBase, BitMask, GroupMask
 from harp.protocol._payload_type import PayloadType
 
 from harp.device._registers import (
@@ -18,15 +19,19 @@ from harp.device._registers import (
 )
 
 
+class Pins(enum.IntFlag):
+    PIN0 = 0x01
+    PIN1 = 0x02
+    PIN2 = 0x04
+    PIN3 = 0x08
+    PIN4 = 0x10
+    PIN5 = 0x20
+    PIN6 = 0x40
+    PIN7 = 0x80
+
+
 class PinsPayload(PayloadBase[np.uint8]):
-    pin0 = BitFlag(mask=0x01)
-    pin1 = BitFlag(mask=0x02)
-    pin2 = BitFlag(mask=0x04)
-    pin3 = BitFlag(mask=0x08)
-    pin4 = BitFlag(mask=0x10)
-    pin5 = BitFlag(mask=0x20)
-    pin6 = BitFlag(mask=0x40)
-    pin7 = BitFlag(mask=0x80)
+    pins = BitMask(enum=Pins, mask=0xFF)
 
 
 # --- Minimal fixture payload class ------------------------------------------
@@ -36,30 +41,30 @@ class _FlagPayload(PayloadBase[np.uint8]):
     _dtype: ClassVar = np.dtype("u1")
     _repr_fields: ClassVar = ("flag", "group")
 
-    flag = BitFlag(mask=0x01)
+    flag = BitMask(enum=Pins, mask=0x01)
     group = GroupMask(mask=0x06, enum=OperationMode)
 
 
-# --- BitFlag behaviour ------------------------------------------------------
+# --- BitMask behaviour ------------------------------------------------------
 
 
-def test_bitflag_single_returns_bool_true():
+def test_bitmask_single_returns_flag_set():
     p = _FlagPayload.from_buffer(bytes([0x01]))
-    assert p.flag is True
-    assert type(p.flag) is bool
+    assert p.flag == Pins.PIN0
+    assert isinstance(p.flag, Pins)
 
 
-def test_bitflag_single_returns_bool_false():
+def test_bitmask_single_returns_empty_flag():
     p = _FlagPayload.from_buffer(bytes([0x00]))
-    assert p.flag is False
-    assert type(p.flag) is bool
+    assert p.flag == Pins(0)
+    assert isinstance(p.flag, Pins)
 
 
-def test_bitflag_batch_returns_ndarray():
+def test_bitmask_batch_returns_raw_int_ndarray():
     p = _FlagPayload.from_buffer(bytes([0x01, 0x00, 0x01]))
     result = p.flag
     assert isinstance(result, np.ndarray)
-    np.testing.assert_array_equal(result, [True, False, True])
+    np.testing.assert_array_equal(result, [1, 0, 1])
 
 
 # --- GroupMask behaviour -----------------------------------------------------
@@ -140,23 +145,32 @@ def test_op_ctrl_to_dataframe():
 
 def test_pins_single_scalar():
     p = PinsPayload.from_buffer(bytes([0b00000101]))
-    assert p.pin0 is True
-    assert p.pin1 is False
-    assert p.pin2 is True
-    assert p.pin7 is False
+    assert Pins.PIN0 in p.pins
+    assert Pins.PIN1 not in p.pins
+    assert Pins.PIN2 in p.pins
+    assert Pins.PIN7 not in p.pins
 
 
-def test_pins_batch_ndarray():
+def test_pins_batch_raw_int():
     p = PinsPayload.from_buffer(bytes([0b00000001, 0b00000010]))
-    np.testing.assert_array_equal(p.pin0, [True, False])
-    np.testing.assert_array_equal(p.pin1, [False, True])
+    np.testing.assert_array_equal(p.pins, [0b01, 0b10])
 
 
-def test_pins_to_dataframe():
+def test_pins_to_dataframe_single_column():
     p = PinsPayload.from_buffer(bytes([0b00000101, 0b00000010]))
     df = to_dataframe(p)
-    assert list(df.columns) == list(PinsPayload._repr_fields)
+    assert list(df.columns) == ["pins"]
+    np.testing.assert_array_equal(df["pins"], [0b101, 0b10])
     assert len(df) == 2
+
+
+def test_pins_to_dataframe_demuxed():
+    p = PinsPayload.from_buffer(bytes([0b00000101, 0b00000010]))
+    df = to_dataframe(p, demux_bit_masks=True)
+    assert list(df.columns) == [m.name for m in Pins]
+    np.testing.assert_array_equal(df["PIN0"], [True, False])
+    np.testing.assert_array_equal(df["PIN1"], [False, True])
+    np.testing.assert_array_equal(df["PIN2"], [True, False])
 
 
 # --- read_frames round-trip --------------------------------------------------

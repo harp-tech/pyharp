@@ -19,6 +19,8 @@ def _read_bytes(source: Source) -> bytes:
         return source.read()
     return Path(source).read_bytes()
 
+_DEFAULT_COLUMN_NAME = "value"
+
 
 def columns_to_dataframe(columns: list[Column]) -> pd.DataFrame:
     """Assemble :class:`~harp.protocol.Column` objects into a DataFrame.
@@ -28,7 +30,7 @@ def columns_to_dataframe(columns: list[Column]) -> pd.DataFrame:
     """
     return pd.DataFrame(
         {
-            c.name: (
+            (c.name if c.name is not None else _DEFAULT_COLUMN_NAME): (
                 pd.Categorical.from_codes(c.data, categories=c.categories)
                 if c.categories is not None
                 else c.data
@@ -38,9 +40,20 @@ def columns_to_dataframe(columns: list[Column]) -> pd.DataFrame:
     )
 
 
-def to_dataframe(payload: Any, *, decode_enums: bool = True) -> pd.DataFrame:
-    """Turn a (batched) payload into a DataFrame, one row per frame."""
-    return columns_to_dataframe(payload.to_columns(decode_enums=decode_enums))
+def to_dataframe(
+    payload: Any, *, decode_enums: bool = True, demux_bit_masks: bool = False
+) -> pd.DataFrame:
+    """Turn a (batched) payload into a DataFrame, one row per frame.
+
+    ``decode_enums`` relabels enum columns as ``pd.Categorical``; ``demux_bit_masks``
+    expands each flag (``BitMask``) column into one boolean column per flag member.
+    """
+    # TODO: we may need to account for cases where columns have the same name.
+    # this can happen when demuxing bitmasks, for example, where each bitmask column 
+    # is expanded into multiple boolean columns with the same name. 
+    return columns_to_dataframe(
+        payload.to_columns(decode_enums=decode_enums, demux_bit_masks=demux_bit_masks)
+    )
 
 
 def read_dataframe(
@@ -50,16 +63,19 @@ def read_dataframe(
     timestamp: bool = True,
     message_type: bool = False,
     decode_enums: bool = True,
+    demux_bit_masks: bool = False,
 ) -> pd.DataFrame:
     """Parse all frames of ``register`` from ``source`` into a DataFrame.
 
     ``source`` may be a file path, raw bytes, or an open binary file object.
     ``timestamp`` and ``message_type`` insert leading columns; ``decode_enums``
-    controls whether enum fields become ``pd.Categorical`` (True) or raw codes.
+    controls whether enum fields become ``pd.Categorical`` (True) or raw codes;
+    ``demux_bit_masks`` expands each flag (``BitMask``) field into one boolean
+    column per flag member (True) or keeps it as a single raw-integer column.
     """
     raw = _read_bytes(source)
     _data, timestamps, msg_view, payload = register.parse_bulk(raw, parse_timestamp=timestamp)
-    df = to_dataframe(payload, decode_enums=decode_enums)
+    df = to_dataframe(payload, decode_enums=decode_enums, demux_bit_masks=demux_bit_masks)
 
     if message_type and msg_view is not None:
         df.insert(
