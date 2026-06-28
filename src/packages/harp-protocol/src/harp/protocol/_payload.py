@@ -22,6 +22,7 @@ from ._payload_converters import IdentityConverter as _IdentityConverter
 NpStructT = TypeVar("NpStructT", bound=np.generic)
 T = TypeVar("T")
 E = TypeVar("E", bound=enum.IntEnum)
+F = TypeVar("F", bound=enum.IntFlag)
 
 _MISSING = Sentinel("_MISSING")
 _DEFAULT_ELEMENT = np.dtype(np.uint8)
@@ -38,9 +39,11 @@ class Column:
 
     ``eq=False`` keeps identity comparison — field-wise equality would hit
     numpy's ambiguous-truth-value error on the ``data`` array.
+
+    ``name`` is ``None`` for an anonymous single value
     """
 
-    name: str
+    name: str | None
     data: NDArray[Any]
     categories: Any | None = None
 
@@ -82,7 +85,7 @@ class Field(Generic[T]):
       and then run through ``converter`` (which dictates the output type). The
       right-shift is derived from ``mask`` (its trailing-zero count). Several masked
       fields at the same offset share the element slot automatically, and may share
-      it with a :class:`GroupMask` or :class:`BitFlag` on the same word.
+      it with a :class:`GroupMask` or :class:`BitMask` on the same word.
 
     ``offset`` defaults to ``0``. Omitting it suits a payload with a single
     member; when a payload has several distinct slots, each must declare an
@@ -112,17 +115,13 @@ class Field(Generic[T]):
     ) -> None:
         """Instantiates a new payload Field."""
         self._converter = converter
-        self._name: str | None = None
         self._mask = mask
         self._shift = _mask_trailing_zeros(mask) if mask is not None else 0
         self._offset = offset
         self._default = default
-        # Derived in PayloadBase.__init_subclass__ for the masked variant:
-        self._slot: str = "value"
+        # Numpy slot this field reads/writes; assigned in PayloadBase.__init_subclass__.
+        self._slot: str = ""
         self._dtype: np.dtype = _DEFAULT_ELEMENT
-
-    def __set_name__(self, owner: object, name: str) -> None:
-        self._name = name
 
     def _encode_value(self, value: Any) -> int:
         """Map a user value back to the integer to be masked + shifted into the slot
@@ -130,6 +129,12 @@ class Field(Generic[T]):
         tmp = np.zeros((), dtype=self._converter.dtype)
         self._converter.encode_into(tmp, value)
         return int(tmp)
+
+    def _bind_slot(self, slot: str, elem: np.dtype) -> None:
+        """Bind this field to its numpy ``slot`` (called by ``_build_struct_dtype``)."""
+        self._slot = slot
+        if self._mask is not None:  # masked sub-field reads the base element
+            self._dtype = elem
 
     @overload
     def __get__(self, obj: None, owner: object = None) -> "Field[T]": ...
@@ -141,7 +146,7 @@ class Field(Generic[T]):
         if self._mask is not None:
             raw = (obj._arr[self._slot] & self._mask) >> self._shift
             return self._converter.decode_scalar(self._converter.dtype.type(raw))
-        return self._converter.decode_scalar(obj._arr[self._name])  # ty: ignore[invalid-argument-type]
+        return self._converter.decode_scalar(obj._arr[self._slot])  # ty: ignore[invalid-argument-type]
 
     def _to_batch(self) -> "_FieldBatch[T]":
         """Returns the metadata for the corresponding Batch type"""
@@ -152,41 +157,26 @@ class Field(Generic[T]):
             dtype=self._dtype,
         )
 
+    def _columns(
+        self, arr: "NDArray[Any]", name: "str | None", *, decode_enums: bool, demux_bit_masks: bool
+    ) -> "list[Column]":
+        """Render this field as one or more batched :class:`Column`s (see ``to_columns``).
 
-class BitFlag:
-    """Descriptor for a single bit within a payload element, exposed as ``bool``.
-
-    Reads the base element at ``offset`` (base-element units; defaults to ``0``)
-    and tests ``element & mask``. The element width and the physical storage slot
-    are derived from the payload's base element type, so several bit flags at the
-    same offset automatically share storage.
-    """
-
-    if TYPE_CHECKING:
-
-        def __new__(cls, *, mask: int, offset: int = 0, default: bool = ...) -> bool: ...  # type: ignore[misc]  # noqa: E704
-
-    def __init__(self, *, mask: int, offset: int = 0, default: object = _MISSING) -> None:
-        """Instantiates a new BitFlag field attribute for the payload"""
-        self._mask = mask
-        self._offset = offset
-        self._default = default
-        # Derived in PayloadBase.__init_subclass__:
-        self._slot: str = "value"
-        self._dtype: np.dtype = _DEFAULT_ELEMENT
-
-    @overload
-    def __get__(self, obj: None, owner: object = None) -> "BitFlag": ...
-    @overload
-    def __get__(self, obj: "PayloadBase", owner: object = None) -> bool: ...
-    def __get__(self, obj: "PayloadBase | None", owner: object = None) -> Any:
-        if obj is None:
-            return self
-        return bool(obj._arr[self._slot] & self._mask)
-
-    def _to_batch(self) -> "_BitFlagBatch":
-        """Returns the metadata for the corresponding batch type"""
-        return _BitFlagBatch(self._mask, slot=self._slot, dtype=self._dtype)
+        ``name`` is the column name, or ``None`` for an anonymous root value (the
+        consuming package decides the fallback label)."""
+        if self._mask is not None:  # masked numeric sub-field
+            raw = (arr[self._slot] & self._mask) >> self._shift
+            return [Column(name, self._converter.decode_batch(raw.astype(self._converter.dtype)))]
+        if not isinstance(self._converter, _IdentityConverter):  # whole-element, decoded
+            return [Column(name, self._converter.decode_batch(arr[self._slot]))]
+        sub = arr[self._slot]  # whole-element, raw passthrough
+        if sub.ndim <= 1:
+            return [Column(name, sub)]
+        # sub-array -> one column per element; index is intrinsic identity, so a
+        # nameless (root) array is positional, a named field is prefixed.
+        flat = sub.reshape(len(arr), -1)
+        label = (lambda i: str(i)) if name is None else (lambda i: f"{name}_{i}")
+        return [Column(label(i), flat[:, i]) for i in range(flat.shape[1])]
 
 
 def _build_enum_lookup(enum_cls: type[enum.IntEnum]) -> "tuple[list[str], np.ndarray]":
@@ -240,8 +230,8 @@ class GroupMask(Generic[E]):
         self._enum = enum
         self._offset = offset
         self._default = default
-        # Derived in PayloadBase.__init_subclass__:
-        self._slot: str = "value"
+        # Numpy slot assigned in PayloadBase.__init_subclass__.
+        self._slot: str = ""
         self._dtype: np.dtype = _DEFAULT_ELEMENT
         self._categories, self._code_lookup = _build_enum_lookup(enum)
 
@@ -252,6 +242,11 @@ class GroupMask(Generic[E]):
     def _encode_value(self, value: Any) -> int:
         """Map a user value back to the integer to be masked + shifted into the slot."""
         return int(value)
+
+    def _bind_slot(self, slot: str, elem: np.dtype) -> None:
+        """Bind this group mask to its shared numpy ``slot``."""
+        self._slot = slot
+        self._dtype = elem
 
     @overload
     def __get__(self, obj: None, owner: object = None) -> "GroupMask[E]": ...
@@ -272,6 +267,108 @@ class GroupMask(Generic[E]):
             dtype=self._dtype,
         )
 
+    def _columns(
+        self, arr: "NDArray[Any]", name: "str | None", *, decode_enums: bool, demux_bit_masks: bool
+    ) -> "list[Column]":
+        """One enum column: category codes + labels (``decode_enums``) or raw codes."""
+        raw = (arr[self._slot] & self._mask) >> self._shift
+        if decode_enums:
+            return [Column(name, self._code_lookup[raw], self._categories)]
+        return [Column(name, raw)]
+
+
+class BitMask(Generic[F]):
+    """Descriptor for a masked ``enum.IntFlag`` view of a payload element.
+
+    The flag counterpart of :class:`GroupMask`: the raw value is extracted as
+    ``element & mask`` and mapped to an ``enum.IntFlag`` member (decoding is
+    *permissive* — combined flag values such as ``A | B`` are valid, matching the
+    C# generator's unchecked cast). ``enum=`` is required and must be an
+    ``IntFlag`` subclass.
+
+    Unlike :class:`GroupMask` there is **no shift**: ``IntFlag`` member values are
+    absolute bit positions, so the flags are read and written in place. ``mask``
+    defaults to the full base element (the common whole-register bitMask case) and
+    may be narrowed to embed a flag set inside a wider element. The element width
+    and storage slot are derived from the payload's base element type, so several
+    masked fields at the same offset share storage automatically.
+    """
+
+    if TYPE_CHECKING:
+        # flag variant -> the field type is the IntFlag
+        def __new__(  # type: ignore[misc]  # noqa: E704
+            cls, *, enum: "type[F]", mask: int | None = None, offset: int = 0, default: "F" = ...
+        ) -> "F": ...
+
+    def __init__(
+        self,
+        *,
+        enum: type[F],
+        mask: int | None = None,
+        offset: int = 0,
+        default: object = _MISSING,
+    ) -> None:
+        """Instantiates a BitMask field for the payload"""
+        if enum is None:
+            raise TypeError("BitMask requires 'enum' (an enum.IntFlag subclass)")
+        # mask=None is resolved to the full base element in _build_struct_dtype.
+        self._mask = mask
+        self._shift = 0  # IntFlag members are absolute bit positions; never shifted
+        self._enum = enum
+        self._offset = offset
+        self._default = default
+        # Numpy slot assigned in PayloadBase.__init_subclass__.
+        self._slot: str = ""
+        self._dtype: np.dtype = _DEFAULT_ELEMENT
+
+    def _decode_raw(self, raw: Any) -> Any:
+        """Map an extracted (masked) integer to its IntFlag value (permissive)."""
+        return self._enum(int(raw))
+
+    def _encode_value(self, value: Any) -> int:
+        """Map a user value back to the integer to be masked into the slot."""
+        return int(value)
+
+    def _bind_slot(self, slot: str, elem: np.dtype) -> None:
+        """Bind this flag mask to its shared numpy ``slot``; default the mask to the full element."""
+        self._slot = slot
+        self._dtype = elem
+        if self._mask is None:
+            self._mask = (1 << (elem.itemsize * 8)) - 1
+
+    @overload
+    def __get__(self, obj: None, owner: object = None) -> "BitMask[F]": ...
+    @overload
+    def __get__(self, obj: "PayloadBase", owner: object = None) -> F: ...
+    def __get__(self, obj: "PayloadBase | None", owner: object = None) -> Any:
+        if obj is None:
+            return self
+        raw = obj._arr[self._slot] & self._mask
+        return self._decode_raw(raw)
+
+    def _to_batch(self) -> "_BitMaskBatch[F]":
+        """Returns the metadata for the corresponding batch type"""
+        return _BitMaskBatch(
+            self._mask,
+            self._enum,
+            slot=self._slot,
+            dtype=self._dtype,
+        )
+
+    def _columns(
+        self, arr: "NDArray[Any]", name: "str | None", *, decode_enums: bool, demux_bit_masks: bool
+    ) -> "list[Column]":
+        """A single raw-integer column, or (``demux_bit_masks``) one bool column per flag member."""
+        raw = arr[self._slot] & self._mask
+        if not demux_bit_masks:
+            return [Column(name, raw)]
+        # One boolean column per flag member that fits the field.
+        return [
+            Column(member.name, (raw & int(member)) != 0)
+            for member in self._enum
+            if not (int(member) & ~self._mask)  # skip bits that can't fit the field
+        ]
+
 
 # ---------------------------------------------------------------------------
 # Descriptors — batch variants (return ndarray views)
@@ -287,18 +384,14 @@ class _FieldBatch(Generic[T]):
         *,
         converter: _Converter[T],
         mask: int | None = None,
-        slot: str = "value",
+        slot: str = "",
         dtype: "np.dtype | str | type" = np.uint8,
     ) -> None:
         self._converter = converter
-        self._name: str | None = None
         self._mask = mask
         self._shift = _mask_trailing_zeros(mask) if mask is not None else 0
         self._slot = slot
         self._dtype = np.dtype(dtype)
-
-    def __set_name__(self, owner: object, name: str) -> None:
-        self._name = name
 
     @overload
     def __get__(self, obj: None, owner: object = None) -> "_FieldBatch[T]": ...
@@ -310,31 +403,34 @@ class _FieldBatch(Generic[T]):
         if self._mask is not None:
             raw = (obj._arr[self._slot] & self._mask) >> self._shift
             return self._converter.decode_batch(raw.astype(self._converter.dtype))
-        return self._converter.decode_batch(obj._arr[self._name])
+        return self._converter.decode_batch(obj._arr[self._slot])
 
 
-class _BitFlagBatch:
-    """Same as _BitFlag but returns an NDArray view for batch payloads rather than a scalar value."""
+class _BitMaskBatch(Generic[F]):
+    """Same as BitMask but returns an NDArray view for batch payloads rather than a scalar value."""
 
     def __init__(
         self,
         mask: int,
+        enum: type[F],
         *,
-        slot: str = "value",
+        slot: str = "",
         dtype: "np.dtype | str | type" = np.uint8,
     ) -> None:
         self._mask = mask
+        self._shift = 0
+        self._enum = enum
         self._slot = slot
         self._dtype = np.dtype(dtype)
 
     @overload
-    def __get__(self, obj: None, owner: object = None) -> "_BitFlagBatch": ...
+    def __get__(self, obj: None, owner: object = None) -> "_BitMaskBatch[F]": ...
     @overload
-    def __get__(self, obj: "PayloadBase", owner: object = None) -> "NDArray[np.bool_]": ...
+    def __get__(self, obj: "PayloadBase", owner: object = None) -> "NDArray[Any]": ...
     def __get__(self, obj: "PayloadBase | None", owner: object = None) -> Any:
         if obj is None:
             return self
-        return (obj._arr[self._slot] & self._mask) != 0
+        return obj._arr[self._slot] & self._mask
 
 
 class _GroupMaskBatch(Generic[E]):
@@ -345,7 +441,7 @@ class _GroupMaskBatch(Generic[E]):
         mask: int,
         enum: type[E],
         *,
-        slot: str = "value",
+        slot: str = "",
         dtype: "np.dtype | str | type" = np.uint8,
     ) -> None:
         self._mask = mask
@@ -389,30 +485,17 @@ class Batch(Protocol[_PT]):
 
     def __len__(self) -> int: ...  # type: ignore[empty-body]
 
-    def to_columns(self, *, decode_enums: bool = True) -> "list[Column]": ...  # type: ignore[empty-body]
+    def to_columns(  # type: ignore[empty-body]
+        self, *, decode_enums: bool = True, demux_bit_masks: bool = False
+    ) -> "list[Column]": ...
 
     def __getattr__(self, name: str) -> "NDArray[Any]": ...  # type: ignore[empty-body]
 
 
 # Helpers for type checking using isinstance()
-_SCALAR_DECLARATION_TYPES = (Field, BitFlag, GroupMask)
-_BATCH_DECLARATION_TYPES = (_FieldBatch, _BitFlagBatch, _GroupMaskBatch)
+_SCALAR_DECLARATION_TYPES = (Field, GroupMask, BitMask)
+_BATCH_DECLARATION_TYPES = (_FieldBatch, _GroupMaskBatch, _BitMaskBatch)
 _DECLARATION_TYPES = _SCALAR_DECLARATION_TYPES + _BATCH_DECLARATION_TYPES
-_BITFIELD_TYPES = (BitFlag, GroupMask, _BitFlagBatch, _GroupMaskBatch)
-_FIELD_TYPES = (Field, _FieldBatch)
-_GROUP_MASK_TYPES = (GroupMask, _GroupMaskBatch)
-_BIT_FLAG_TYPES = (BitFlag, _BitFlagBatch)
-
-
-def _is_masked(desc: object) -> bool:
-    """A descriptor that reads a masked + shifted sub-field of a shared element slot:
-    every ``BitFlag``/``GroupMask`` (always masked), or a ``Field`` declaring ``mask=``.
-    Unmasked ``Field`` (whole-element view, own slot) returns False."""
-    if isinstance(desc, _BITFIELD_TYPES):
-        return True
-    if isinstance(desc, _FIELD_TYPES):
-        return desc._mask is not None
-    return False
 
 
 # value/raw_payload deliberately omitted: overriding them is the intended
@@ -478,10 +561,14 @@ def _validate_no_overlap(cls: type, slots: "dict[str, _FieldSlot]", itemsize: in
 
 def _build_struct_dtype(
     cls: "type[PayloadBase]",
-    declarations: "list[tuple[str, Field | BitFlag | GroupMask]]",
+    declarations: "list[tuple[str, Field | GroupMask | BitMask]]",
     length: int | None,
 ) -> np.dtype:
-    """Build the numpy structured dtype from field declarations."""
+    """Build the numpy structured dtype from field declarations.
+
+    Each descriptor binds itself to its numpy slot via ``_bind_slot``; this
+    function resolves only cross-field layout — which masked fields share a slot,
+    plus offsets, overlap, and itemsize."""
     elem = cls._elem_dtype
     elem_size = elem.itemsize
     slots: dict[str, _FieldSlot] = {}
@@ -490,25 +577,19 @@ def _build_struct_dtype(
     for attr_name, val in declarations:
         byte_offset = val._offset * elem_size
         # A plain Field (no mask=) is the only whole-element view; everything else
-        # (BitFlag, GroupMask, or a Field with mask=) is a masked sub-field. The
-        # isinstance form — rather than _is_masked() — is what lets the type checker
-        # narrow `val` for the slot/converter attribute access in each branch.
+        # (GroupMask, BitMask, or a Field with mask=) is a masked sub-field. The
+        # isinstance form lets the type checker narrow `val` to access ``_converter``.
         if isinstance(val, Field) and val._mask is None:  # whole-element Field — own slot
-            field_dtype = val._converter.dtype
             if attr_name in slots:
                 raise TypeError(f"{cls.__name__}: duplicate field name {attr_name!r}")
-            slots[attr_name] = _FieldSlot(field_dtype, byte_offset)
-        else:  # masked sub-field — share the base-element slot
-            mask = val._mask
-            assert mask is not None  # invariant for every masked descriptor
-            val._dtype = elem
-            _validate_mask_fits(cls, attr_name, mask, elem)
-            shared_slot = mask_slot_by_byte_offset.get(byte_offset)
-            if shared_slot is not None:
-                val._slot = shared_slot
-            else:
-                mask_slot_by_byte_offset[byte_offset] = attr_name
-                val._slot = attr_name
+            val._bind_slot(attr_name, elem)
+            slots[attr_name] = _FieldSlot(val._converter.dtype, byte_offset)
+        else:  # masked sub-field — shares the base-element slot at its offset
+            owner = mask_slot_by_byte_offset.setdefault(byte_offset, attr_name)
+            val._bind_slot(owner, elem)
+            assert val._mask is not None  # _bind_slot ensures every masked field has a mask
+            _validate_mask_fits(cls, attr_name, val._mask, elem)
+            if owner == attr_name:
                 slots[attr_name] = _FieldSlot(elem, byte_offset)
 
     if length is not None:
@@ -524,23 +605,6 @@ def _build_struct_dtype(
             "itemsize": itemsize,
         }
     )
-
-
-def _resolve_single_member(
-    cls: "type[PayloadBase]", declarations: "list[tuple[str, Any]]"
-) -> "str | None":
-    """A payload with exactly one full-span ``Field`` unwraps to that member on
-    ``parse`` (register-level ``interfaceType``), avoiding a ``.value`` hop."""
-    if len(declarations) != 1:
-        return None
-    attr, val = declarations[0]
-    if (
-        isinstance(val, Field)
-        and val._mask is None
-        and val._converter.dtype.itemsize == cls.dtype.itemsize  # type: ignore[attr-defined]
-    ):
-        return attr
-    return None
 
 
 class PayloadBase(Generic[NpStructT]):
@@ -562,8 +626,6 @@ class PayloadBase(Generic[NpStructT]):
     _scalar_cls: ClassVar["type[PayloadBase]"]
     # The batch twin of this class (identity until the Batch sibling is generated).
     _batch_cls: ClassVar["type[PayloadBase]"]
-    # Cached map of attribute name → _BitFlag/_GroupMask descriptor, built once at class definition.
-    _bitfields: ClassVar[dict[str, Any]]
     # Cached map of attribute name → default value for fields that declare one.
     _defaults: ClassVar[dict[str, Any]]
     # Auto-generated sibling class whose descriptors return NDArray views instead of scalars.
@@ -571,7 +633,7 @@ class PayloadBase(Generic[NpStructT]):
     # Base element dtype (from the ``StructPayload[...]`` type arg); governs offset
     # arithmetic and the integer width used for masked reads. Defaults to uint8.
     _elem_dtype: ClassVar[np.dtype] = _DEFAULT_ELEMENT
-    # Attribute name of the lone full-span member, if any: ``parse`` unwraps to it.
+    # The ``__value__`` field of an AnonymousPayload root, else None: ``parse`` unwraps to it.
     _single_member: ClassVar[str | None] = None
     # The underlying numpy array holding one (0-D) or many (1-D) payload records.
     _arr: NDArray[NpStructT]
@@ -606,14 +668,10 @@ class PayloadBase(Generic[NpStructT]):
         # collides with the first masked field's attribute name.
         for attr_name, value in kwargs.items():
             desc = cls._mro_descriptor(attr_name)
-            if isinstance(desc, BitFlag):  # single bit -> set/clear
-                mask_in_dtype = np.array(desc._mask, dtype=desc._dtype)
-                if value:
-                    arr[desc._slot] |= mask_in_dtype
-            elif isinstance(desc, Field) and desc._mask is None:  # whole-element Field
-                desc._converter.encode_into(arr[desc._name], value)  # ty: ignore[invalid-argument-type]
-            elif isinstance(desc, (GroupMask, Field)):
-                # masked sub-field (enum or numeric) -> encode, shift, merge into shared slot
+            if isinstance(desc, Field) and desc._mask is None:  # whole-element Field
+                desc._converter.encode_into(arr[desc._slot], value)  # ty: ignore[invalid-argument-type]
+            elif isinstance(desc, (GroupMask, BitMask, Field)):
+                # masked sub-field -> encode, shift, merge into the shared slot
                 mask = desc._mask
                 assert mask is not None  # invariant for masked descriptors
                 mask_in_dtype = np.array(mask, dtype=desc._dtype)
@@ -635,24 +693,12 @@ class PayloadBase(Generic[NpStructT]):
         return None
 
     @classmethod
-    def _collect_bitfields(
-        cls,
-    ) -> "dict[str, BitFlag | GroupMask | _BitFlagBatch | _GroupMaskBatch]":
-        """Collects all bit-field-like members of the payload"""
-        out: dict[str, Any] = {}
-        for klass in reversed(cls.__mro__):
-            for attr, val in klass.__dict__.items():
-                if isinstance(val, _BITFIELD_TYPES):
-                    out[attr] = val
-        return out
-
-    @classmethod
     def _collect_defaults(cls) -> "dict[str, Any]":
         """Collect all members with defined default values"""
         out: dict[str, Any] = {}
         for klass in reversed(cls.__mro__):
             for attr, val in klass.__dict__.items():
-                if isinstance(val, (Field, BitFlag, GroupMask)) and val._default is not _MISSING:
+                if isinstance(val, (Field, GroupMask, BitMask)) and val._default is not _MISSING:
                     out[attr] = val._default
         return out
 
@@ -707,7 +753,10 @@ class PayloadBase(Generic[NpStructT]):
 
         if own_declarations:
             cls.dtype = _build_struct_dtype(cls, own_declarations, length)
-            cls._single_member = _resolve_single_member(cls, own_declarations)
+            # Only an AnonymousPayload root (its lone __value__ field) unwraps on
+            # parse; a StructPayload always returns the wrapper, never auto-unwraps.
+            if getattr(cls, "_root", False):
+                cls._single_member = own_declarations[0][0]
 
         if "_repr_fields" not in cls.__dict__:
             cls._repr_fields = cls._collect_repr_fields()
@@ -727,7 +776,6 @@ class PayloadBase(Generic[NpStructT]):
                 _batch_of=cls,
             )
 
-        cls._bitfields = cls._collect_bitfields()
         cls._defaults = cls._collect_defaults()
 
     @classmethod
@@ -746,60 +794,29 @@ class PayloadBase(Generic[NpStructT]):
     def raw_payload(self) -> NDArray[NpStructT]:
         return self._arr
 
-    def to_columns(self, *, decode_enums: bool = True) -> list[Column]:
-        """Returns a list of Column where each member represents a field from a payload across multiple messages"""
+    def to_columns(
+        self, *, decode_enums: bool = True, demux_bit_masks: bool = False
+    ) -> list[Column]:
+        """Returns a list of Column where each member represents a field from a payload across multiple messages.
+
+        ``decode_enums`` controls whether ``GroupMask`` (enum) columns become
+        category codes + labels (True) or raw integer codes (False) — a
+        shape-preserving relabel. ``demux_bit_masks`` controls whether a
+        ``BitMask`` (flag) column is expanded into one boolean column per flag
+        member (True) or kept as a single raw-integer column (False) — a shape
+        change. The two are orthogonal and apply to different descriptor kinds.
+        """
         arr = np.atleast_1d(self._arr)
-        cls = type(self)
-        repr_fields = self._repr_fields
-
+        # Each descriptor renders its own column(s); resolve via the scalar twin.
+        scalar_cls = type(self)._scalar_cls
         cols: list[Column] = []
-        has_bitfield = any(_is_masked(cls._mro_descriptor(f)) for f in repr_fields)
-        if has_bitfield:
-            for f in repr_fields:
-                desc = cls._mro_descriptor(f)
-                if isinstance(desc, _GROUP_MASK_TYPES):  # masked enum sub-field
-                    slot_col = arr[desc._slot]  # ty: ignore[invalid-argument-type]
-                    raw = (slot_col & desc._mask) >> desc._shift
-                    if decode_enums:
-                        cols.append(Column(f, desc._code_lookup[raw], desc._categories))
-                    else:
-                        cols.append(Column(f, raw))
-                elif (
-                    isinstance(desc, _FIELD_TYPES) and desc._mask is not None
-                ):  # masked numeric sub-field
-                    slot_col = arr[desc._slot]  # ty: ignore[invalid-argument-type]
-                    raw = (slot_col & desc._mask) >> desc._shift
-                    decoded = desc._converter.decode_batch(raw.astype(desc._converter.dtype))
-                    cols.append(Column(f, decoded))
-                elif isinstance(desc, _BIT_FLAG_TYPES):
-                    slot_col = arr[desc._slot]  # ty: ignore[invalid-argument-type]
-                    cols.append(Column(f, (slot_col & desc._mask) != 0))
-                else:
-                    cols.append(Column(f, np.atleast_1d(getattr(self, f))))
-            return cols
-
-        names = self.dtype.names
-        single_value_slot = names == ("value",)
-        for name in names:  # ty: ignore[not-iterable]
-            desc = cls._mro_descriptor(name)
-            uses_converter = isinstance(desc, _FIELD_TYPES) and not isinstance(
-                desc._converter, _IdentityConverter
+        for f in self._repr_fields:
+            desc = scalar_cls._mro_descriptor(f)
+            cols.extend(
+                desc._columns(  # ty: ignore[possibly-unbound-attribute]
+                    arr, f, decode_enums=decode_enums, demux_bit_masks=demux_bit_masks
+                )
             )
-            if uses_converter:
-                cols.append(Column(name, np.atleast_1d(getattr(self, name))))
-                continue
-
-            field_dtype, _ = self.dtype.fields[name]  # ty: ignore[invalid-assignment, invalid-argument-type, not-subscriptable]
-            sub = arr[name]  # ty: ignore[invalid-argument-type]
-            if field_dtype.subdtype is None:
-                cols.append(Column(name, sub))
-            else:
-                _, subshape = field_dtype.subdtype
-                count = int(np.prod(subshape))
-                flat = sub.reshape(len(arr), count)
-                for i in range(count):
-                    col = str(i) if single_value_slot else f"{name}_{i}"
-                    cols.append(Column(col, flat[:, i]))
         return cols
 
     def __len__(self) -> int:
@@ -818,17 +835,11 @@ class PayloadBase(Generic[NpStructT]):
     def unwrap(cls, arr: "np.ndarray") -> Any:
         """Dispatch hook used by ``RegisterBase.parse``.
 
-        Struct payloads return a typed wrapper so descriptors like
-        ``payload.Channel0`` work. Anonymous payloads override this to
-        return the raw numpy scalar/ndarray directly.
-
-        This allows us to not have to use hacky descriptors for single-field
-        struct payloads (e.g. a struct with one uint16 field can just be a
-        PayloadU16 subclass) while still supporting the full descriptor
-        machinery for multi-field struct payloads.
-
-        A struct payload with exactly one full-span member (register-level
-        ``interfaceType``) unwraps directly to that member's value.
+        Struct payloads always return a typed wrapper so descriptors like
+        ``payload.Channel0`` work. Anonymous payloads override this to return the
+        raw numpy scalar/ndarray directly, or — for an ``AnonymousPayload`` root —
+        the unwrapped ``__value__`` (the single-member branch below, reached via
+        the override's ``super()`` call). A struct payload never auto-unwraps.
         """
         obj = cls.from_array(arr)
         if cls._single_member is not None and arr.ndim == 0:
@@ -843,12 +854,12 @@ class PayloadBase(Generic[NpStructT]):
 
 @dataclass_transform(
     kw_only_default=True,
-    field_specifiers=(Field, BitFlag, GroupMask),
+    field_specifiers=(Field, GroupMask, BitMask),
 )
 class StructPayload(PayloadBase[NpStructT]):
     """Base class for struct register payloads with typed field descriptors.
 
-    Subclasses declare fields using ``Field``, ``BitFlag``, or ``GroupMask``
+    Subclasses declare fields using ``Field``, ``GroupMask``, or ``BitMask``
     descriptors.  Type checkers synthesize a keyword-only ``__init__`` from
     those declarations, so constructor calls are fully type-checked and have
     IDE autocompletion.
@@ -862,7 +873,7 @@ class StructPayload(PayloadBase[NpStructT]):
 
         class MyPayload(StructPayload[np.uint8]):
             channel: np.uint16 = Field(UInt16Converter(), offset=0)
-            enabled: bool = BitFlag(mask=0x01, offset=2)
+            flags: MyFlags = BitMask(enum=MyFlags, offset=2)
     """
 
 
@@ -884,39 +895,83 @@ class AnonymousPayload(PayloadBase[NpStructT]):
     ``.value`` accessor and the slot name ``value`` is free for use by
     struct payloads.
 
-    A subclass may also pass a ``converter=`` to decode/encode the single slot
-    through a :class:`Converter` — useful for a register that carries one value
-    but needs a domain codec (e.g. ``DeviceName`` → :class:`StringConverter`)::
+    For a register that carries one *decoded* value (a codec, enum, or flag), a
+    subclass declares a single ``__value__`` *descriptor* field.
+    The descriptor may be a :class:`Field` (any :class:`Converter` codec),
+    a :class:`GroupMask` (enum), or a :class:`BitMask`
+    (flag)::
 
-        class DeviceNamePayload(AnonymousPayload, converter=StringConverter(25)): ...
+        class DeviceNamePayload(AnonymousPayload[np.uint8]):
+            __value__: str = Field(StringConverter(25))
 
-    The dtype defaults to the converter's own ``dtype`` (an explicit
-    ``scalar_dtype=`` still overrides it). With a converter, the constructor
-    accepts the high-level value (encoding it into the slot), ``unwrap`` decodes
-    back to that value, and ``to_dataframe`` yields the decoded column.
+        class EncoderModePayload(AnonymousPayload[np.uint8]):
+            __value__: EncoderModeMask = GroupMask(enum=EncoderModeMask, mask=0xFF)
+
+        class ResetDevicePayload(AnonymousPayload[np.uint8]):
+            __value__: ResetFlags = BitMask(enum=ResetFlags)
+
+    The ``__value__`` field makes "this payload *is* one value" structural and
+    explicit: exactly one field, named ``__value__``, unwrapped on ``parse`` and
+    accessed as ``.__value__``. Declaring any other field is an error. Because the
+    value stays a descriptor, ``to_columns`` keeps full rendering — enum
+    categoricals and ``demux_bit_masks`` flag expansion. ``__value__`` is mutually
+    exclusive with ``scalar_dtype=``.
+
+    Every concrete subclass must define its single slot exactly one way:
+    ``__value__`` (a descriptor) or ``scalar_dtype=`` (a raw numpy dtype; an
+    explicit ``dtype`` in the body, used by the array-register metaclass, also
+    counts). Defining none is a definition-time error.
     """
 
-    # Optional codec for the single slot; ``None`` means the raw numpy value is
-    # exposed as-is (the default for the scalar/array Payload* classes).
-    _converter: "ClassVar[_Converter[Any] | None]" = None
+    # The reserved field name for the single root view (cf. pydantic's __root__).
+    _VALUE_FIELD: ClassVar[str] = "__value__"
+    # True when in descriptor-root mode (the single view is the ``__value__`` field).
+    _root: ClassVar[bool] = False
 
     def __init_subclass__(
         cls,
         *,
         scalar_dtype: "np.dtype | str | type | None" = None,
-        converter: "_Converter[Any] | None" = None,
         **kwargs: object,
     ) -> None:
-        if converter is not None:
-            cls._converter = converter
-            if scalar_dtype is None:
-                scalar_dtype = converter.dtype
+        # A class-body descriptor field selects root mode; it must be named __value__.
+        body_fields = [
+            n for n, v in cls.__dict__.items() if isinstance(v, _SCALAR_DECLARATION_TYPES)
+        ]
+        if body_fields:
+            if scalar_dtype is not None:
+                raise TypeError(
+                    f"{cls.__name__}: __value__ is mutually exclusive with scalar_dtype="
+                )
+            if body_fields != [cls._VALUE_FIELD]:
+                raise TypeError(
+                    f"{cls.__name__}: a single-value (root) payload declares exactly one field "
+                    f"named {cls._VALUE_FIELD!r}; found {body_fields}. Use StructPayload for "
+                    f"multi-field payloads."
+                )
+            cls._root = True
+            super().__init_subclass__(**kwargs)
+            return
+        # Raw scalar slot required, unless a Batch twin / array concrete supplies dtype.
+        if scalar_dtype is None and "_batch_of" not in kwargs and "dtype" not in cls.__dict__:
+            raise TypeError(
+                f"{cls.__name__}: an AnonymousPayload subclass must define its single slot via a "
+                f"{cls._VALUE_FIELD!r} descriptor field or scalar_dtype= (a codec is a "
+                f"{cls._VALUE_FIELD!r} Field with a Converter)."
+            )
         if scalar_dtype is not None:
             cls.dtype = np.dtype(scalar_dtype)
             cls._repr_fields = ()
         super().__init_subclass__(**kwargs)
 
     def __init__(self, value: object = _MISSING_INIT, /, **kwargs: object) -> None:  # type: ignore[override]
+        if type(self)._root:
+            # root mode: PayloadBase encodes the value into the single __value__ field
+            if value is not _MISSING_INIT:
+                super().__init__(value)
+            else:
+                super().__init__(**kwargs)
+            return
         if value is _MISSING_INIT:
             if "value" in kwargs:
                 value = kwargs.pop("value")
@@ -924,42 +979,39 @@ class AnonymousPayload(PayloadBase[NpStructT]):
                 raise TypeError(f"{type(self).__name__}() requires a value")
         if kwargs:
             raise TypeError(f"{type(self).__name__}() got unexpected kwargs: {sorted(kwargs)}")
-        if self._converter is not None:
-            arr = np.zeros((), dtype=self.dtype)
-            self._converter.encode_into(arr, value)
-            self._arr = arr
-        else:
-            self._arr = np.asarray(value, dtype=self.dtype)  # ty: ignore[invalid-assignment]
+        self._arr = np.asarray(value, dtype=self.dtype)  # ty: ignore[invalid-assignment]
 
     @classmethod
     def unwrap(cls, arr: "np.ndarray") -> Any:
-        if cls._converter is not None:
-            return cls._converter.decode_scalar(arr)  # ty: ignore[invalid-argument-type]
+        if cls._root:
+            return super().unwrap(arr)  # PayloadBase single-member unwrap (.__value__)
         # 0-D → numpy scalar via item-like access (preserves dtype).
         # 1-D / sub-array → return the ndarray as-is.
         return arr if arr.ndim > 0 else arr[()]
 
     def _repr_kwargs(self) -> str:
-        if self._converter is not None:
-            return repr(self._converter.decode_scalar(self._arr))  # ty: ignore[invalid-argument-type]
+        if type(self)._root:
+            return super()._repr_kwargs()
         return repr(self._arr.tolist() if self._arr.ndim > 0 else self._arr[()])
 
     def __repr__(self) -> str:
         return f"{type(self).__name__}({self._repr_kwargs()})"
 
-    def to_columns(self, *, decode_enums: bool = True) -> list[Column]:
-        if self._converter is not None:
-            arr = self._arr
-            # decode_batch wants a leading row axis; a single record lacks one
-            # (its ndim equals the converter slot's own ndim).
-            if arr.ndim == self._converter.dtype.ndim:
-                arr = arr[np.newaxis, ...]
-            return [Column("value", self._converter.decode_batch(arr))]
+    def to_columns(
+        self, *, decode_enums: bool = True, demux_bit_masks: bool = False
+    ) -> list[Column]:
+        # Anonymous values carry no name (name=None); the consumer supplies the label.
+        if type(self)._root:
+            arr = np.atleast_1d(self._arr)
+            root = type(self)._scalar_cls._mro_descriptor(self._VALUE_FIELD)
+            return root._columns(  # ty: ignore[possibly-unbound-attribute]
+                arr, None, decode_enums=decode_enums, demux_bit_masks=demux_bit_masks
+            )
         arr = np.atleast_1d(self._arr)
-        # Sub-array dtype (array register): shape is already (N, length).
+        # Sub-array dtype (array register): one column per element, positionally named.
         if arr.ndim > 1:
             return [Column(str(i), arr[:, i]) for i in range(arr.shape[1])]
-        return [Column("value", arr)]
+        return [Column(None, arr)]
 
 
 @final

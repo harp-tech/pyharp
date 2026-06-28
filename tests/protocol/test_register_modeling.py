@@ -22,9 +22,9 @@ from tests.protocol.register_models import (
     DigitalInputs,
     EncoderMode,
     EncoderModeMask,
-    EncoderModePayload,
     PortDIOSet,
     PortDIOSetPayload,
+    PortDigitalIOS,
     PulseDO0,
     PulseDOPort0,
     PwmPort,
@@ -89,9 +89,10 @@ def test_custom_member_converter_roundtrip():
 
 
 def test_encoder_mode_roundtrip():
-    p = _roundtrip(EncoderMode, EncoderModePayload(Mode=EncoderModeMask.Displacement))
-    assert p.Mode == EncoderModeMask.Displacement
-    assert isinstance(p.Mode, EncoderModeMask)
+    # Single whole-register groupMask -> parse() unwraps to the bare enum.
+    p = _roundtrip(EncoderMode, EncoderModeMask.Displacement)
+    assert p == EncoderModeMask.Displacement
+    assert isinstance(p, EncoderModeMask)
 
 
 # ---------------------------------------------------------------------------
@@ -162,9 +163,11 @@ def test_bitmask_splitter_masked_ints():
     assert p.raw_payload.tobytes() == bytes([0x5A])  # High packs into the top nibble
 
 
-def test_port_dio_set_bitflags():
-    p = _roundtrip(PortDIOSet, PortDIOSetPayload(DIO0=True, DIO3=True))
-    assert p.DIO0 is True and p.DIO3 is True and p.DIO1 is False
+def test_port_dio_set_bitmask():
+    # Single whole-register bitMask -> parse() unwraps to the bare IntFlag.
+    p = _roundtrip(PortDIOSet, PortDigitalIOS.DIO0 | PortDigitalIOS.DIO3)
+    assert p == PortDigitalIOS.DIO0 | PortDigitalIOS.DIO3
+    assert PortDigitalIOS.DIO1 not in p
     assert PortDIOSetPayload.dtype.itemsize == 1
 
 
@@ -174,16 +177,18 @@ def test_port_dio_set_bitflags():
 
 
 def test_custom_payload_single_member_unwrap():
-    assert CustomPayloadPayload._single_member == "value"
+    # Root payload: single __value__ view, unwrapped on parse.
+    assert CustomPayloadPayload._single_member == "__value__"
+    assert CustomPayloadPayload._root is True
     # U32[3] HarpVersion -> 12-byte buffer (3 x u32), same converter class.
     assert CustomPayloadPayload.dtype.itemsize == 12
-    parsed = _roundtrip(CustomPayload, CustomPayloadPayload(value=HarpVersion(3, 1, 4)))
+    parsed = _roundtrip(CustomPayload, CustomPayloadPayload(HarpVersion(3, 1, 4)))
     assert isinstance(parsed, HarpVersion)
     assert parsed == HarpVersion(3, 1, 4)
 
 
 # ---------------------------------------------------------------------------
-# Strict enums: an out-of-range masked code raises (divergence from C#)
+# Strict enums: an out-of-range masked code raises
 # ---------------------------------------------------------------------------
 
 

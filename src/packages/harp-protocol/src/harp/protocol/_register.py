@@ -60,11 +60,17 @@ class _RegisterMeta(ABCMeta):
 class RegisterBase(ABC, Generic[U]):
     """Abstract base for all typed Harp registers.
 
-    The generic parameter ``U`` is the static return type of :meth:`parse`:
+    The generic parameter ``U`` is the static return type of :meth:`parse` — the
+    user-facing value, *not* necessarily ``payload_class`` (that is the wire
+    encoding). The two coincide only for multi-member struct payloads:
 
     * scalar registers → a numpy scalar (e.g. ``np.uint16``);
     * array registers  → ``NDArray[…]`` of fixed length;
-    * structured registers → the payload class itself.
+    * multi-member struct registers → the payload class itself;
+    * single-member registers that unwrap on parse → the inner value type, e.g.
+      ``RegisterBase[str]`` (DeviceName), ``RegisterBase[HarpVersion]``, or
+      ``RegisterBase[ClockConfigurationFlags]`` for a whole-register ``BitMask``
+      / ``GroupMask`` — even though each still has a ``payload_class``.
 
     Subclasses must define ``address``, ``payload_type``, and
     ``payload_class`` as ``ClassVar``s.

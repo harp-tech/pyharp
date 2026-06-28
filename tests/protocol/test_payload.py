@@ -13,7 +13,9 @@ class SimplePayload(PayloadBase):
 class BitPackedPayload(PayloadBase):
     packed = Field(converter=_IdentityConverter("u1"))
 
-    def to_columns(self, *, decode_enums: bool = True) -> list[Column]:
+    def to_columns(
+        self, *, decode_enums: bool = True, demux_bit_masks: bool = False
+    ) -> list[Column]:
         return [
             Column("flag_a", (self.raw_payload["packed"] & 0x01).astype(bool)),
             Column("flag_b", ((self.raw_payload["packed"] >> 1) & 0x01).astype(bool)),

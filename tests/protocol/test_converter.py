@@ -15,7 +15,7 @@ import pytest
 from harp.data import to_dataframe
 from harp.protocol._payload import (
     PayloadBase,
-    BitFlag,
+    BitMask,
     Field,
     GroupMask,
     _IdentityConverter,
@@ -32,6 +32,10 @@ class _Color(enum.IntEnum):
     Red = 0
     Green = 1
     Blue = 2
+
+
+class _Flag(enum.IntFlag):
+    A = 0x01
 
 
 # ---------------------------------------------------------------------------
@@ -187,20 +191,20 @@ def test_bitfield_payloads_ndim_aware():
     """Scalar records stay on the declared class; batches route to the auto-derived ``Batch`` twin."""
 
     class _Flags(PayloadBase):
-        flag = BitFlag(mask=0x01)
+        flag = BitMask(enum=_Flag, mask=0x01)
         group = GroupMask(mask=0x06, enum=_Color)
 
     # 0-D scalar record: flag=1, group bits=01 (Green)
     scalar = _Flags.from_array(np.array((0x03,), dtype=_Flags.dtype))
     assert type(scalar) is _Flags
-    assert scalar.flag is True
+    assert scalar.flag is _Flag.A
     assert scalar.group is _Color.Green
 
     # 1-D batch — Batch sibling, ndarray-typed accessors.
     batch = _Flags.from_buffer(bytes([0x01, 0x02]))
     assert type(batch) is _Flags.Batch
     assert isinstance(batch, _Flags)
-    np.testing.assert_array_equal(batch.flag, [True, False])
+    np.testing.assert_array_equal(batch.flag, [1, 0])
     np.testing.assert_array_equal(batch.group, [0, 1])
 
 
@@ -208,11 +212,11 @@ def test_bitfield_kwarg_init_round_trip():
     """PayloadBase.__init__ supports bitfield kwargs with OR-into-slot encoding."""
 
     class _Flags(PayloadBase):
-        flag = BitFlag(mask=0x01)
+        flag = BitMask(enum=_Flag, mask=0x01)
         group = GroupMask(mask=0x06, enum=_Color)
 
-    p = _Flags(flag=True, group=_Color.Green)
-    assert p.flag is True
+    p = _Flags(flag=_Flag.A, group=_Color.Green)
+    assert p.flag is _Flag.A
     assert p.group is _Color.Green
     # Wire byte: flag bit + (Green << 1) = 0x01 | 0x02 = 0x03. Masked fields on one
     # element share a slot named after the first declared field ("flag").

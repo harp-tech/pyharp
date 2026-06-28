@@ -122,7 +122,7 @@ class FloatConverter(IdentityConverter[np.float32]):
 
 
 class BoolConverter(Converter[bool]):
-    """Whole-element ``interfaceType: bool`` (distinct from a single ``BitFlag`` bit).
+    """Whole-element ``interfaceType: bool`` (or a single masked bit via ``Field(BoolConverter(), mask=...)``).
 
     The element is non-zero → ``True``. Operates on a single base element.
     """

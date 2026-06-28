@@ -352,24 +352,26 @@ def test_structured_payload_descriptors_multi():
 
 
 def test_anonymous_payload_converter_roundtrip():
-    """AnonymousPayload with a converter= encodes/decodes the single slot.
+    """A ``__value__`` Field codec encodes/decodes the single slot.
 
     Models a register that carries one value but needs a domain codec
     (e.g. DeviceName -> StringConverter).
     """
-    from harp.protocol._payload import AnonymousPayload
+    from harp.protocol._payload import AnonymousPayload, Field
     from harp.protocol._payload_converters import StringConverter
 
-    class PayloadDeviceName(AnonymousPayload, converter=StringConverter(25)):
-        pass
+    class PayloadDeviceName(AnonymousPayload[np.uint8]):
+        __value__: str = Field(StringConverter(25))
 
     class DeviceName(RegisterBase):
         address: ClassVar[int] = 12
         payload_type: ClassVar[PayloadType] = PayloadType.U8
         payload_class = PayloadDeviceName
 
-    # dtype derives from the converter; raw bytes are the encoded, null-padded value.
-    assert PayloadDeviceName.dtype == np.dtype((np.uint8, (25,)))
+    # dtype derives from the converter (one structured slot); raw bytes are the
+    # encoded, null-padded value.
+    assert PayloadDeviceName.dtype.names == ("__value__",)
+    assert PayloadDeviceName.dtype.itemsize == 25
     payload = PayloadDeviceName("Behavior")
     assert payload.raw_payload.tobytes() == b"Behavior".ljust(25, b"\x00")
 
@@ -390,10 +392,10 @@ def test_anonymous_payload_converter_roundtrip():
 
 
 def test_anonymous_payload_scalar_converter_roundtrip():
-    """A scalar (non-sub-array) converter= also round-trips through unwrap."""
+    """A scalar (non-sub-array) ``__value__`` codec also round-trips through unwrap."""
     import enum
 
-    from harp.protocol._payload import AnonymousPayload
+    from harp.protocol._payload import AnonymousPayload, Field
     from harp.protocol._payload_converters import EnumConverter
 
     class Color(enum.IntEnum):
@@ -401,10 +403,10 @@ def test_anonymous_payload_scalar_converter_roundtrip():
         GREEN = 1
         BLUE = 2
 
-    class PayloadColor(AnonymousPayload, converter=EnumConverter(Color)):
-        pass
+    class PayloadColor(AnonymousPayload[np.uint8]):
+        __value__: Color = Field(EnumConverter(Color))
 
-    assert PayloadColor.dtype == np.dtype(np.uint8)
+    assert PayloadColor.dtype.itemsize == 1
     raw = PayloadColor(Color.BLUE).raw_payload.tobytes()
     record = np.frombuffer(raw, dtype=PayloadColor.dtype, count=1)[0]
     assert PayloadColor.unwrap(record) == Color.BLUE

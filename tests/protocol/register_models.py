@@ -19,11 +19,8 @@ Design (see notes/payload_api_redesign.md):
 * Masked sub-fields use ``GroupMask`` (enum) or ``Field(converter=..., mask=...)``
   (numeric); the right-shift is derived from the mask's trailing zeros.
 * The register ``length`` (base elements) fixes ``itemsize`` so byte gaps survive.
-* Enum decoding is strict (an out-of-range code raises) — a deliberate divergence
-  from the C# generator's unchecked cast.
+* Enum decoding is strict: an out-of-range code raises.
 """
-
-from __future__ import annotations
 
 import enum
 from typing import Any, ClassVar
@@ -32,7 +29,8 @@ import numpy as np
 from numpy.typing import NDArray
 
 from harp.protocol import (
-    BitFlag,
+    AnonymousPayload,
+    BitMask,
     BoolConverter,
     Converter,
     Field,
@@ -150,7 +148,9 @@ class AnalogData(RegisterBase[AnalogDataPayload]):
 
 
 class ComplexConfigurationPayload(StructPayload[np.uint8], length=17):
-    PwmPort: PwmPort = GroupMask(enum=PwmPort, mask=0xFF, offset=0)
+    PwmPort: "PwmPort" = GroupMask(
+        enum=PwmPort, mask=0xFF, offset=0
+    )  # quoted: member name shadows enum type
     DutyCycle: np.float32 = Field(IdentityConverter(np.float32), offset=4)
     Frequency: np.float32 = Field(IdentityConverter(np.float32), offset=8)
     EventsEnabled: bool = Field(BoolConverter(), offset=12)
@@ -190,8 +190,8 @@ class Version(RegisterBase[VersionPayload]):
 # ===========================================================================
 
 
-class CustomPayloadPayload(StructPayload[np.uint32], length=3):
-    value: HarpVersion = Field(HarpVersionConverter(np.uint32))
+class CustomPayloadPayload(AnonymousPayload[np.uint32]):
+    __value__: HarpVersion = Field(HarpVersionConverter(np.uint32))
 
 
 class CustomPayload(RegisterBase[HarpVersion]):
@@ -200,8 +200,8 @@ class CustomPayload(RegisterBase[HarpVersion]):
     payload_class = CustomPayloadPayload
 
 
-class CustomRawPayloadPayload(StructPayload[np.uint32], length=3):
-    value: HarpVersion = Field(HarpVersionConverter(np.uint32))
+class CustomRawPayloadPayload(AnonymousPayload[np.uint32]):
+    __value__: HarpVersion = Field(HarpVersionConverter(np.uint32))
 
 
 class CustomRawPayload(RegisterBase[HarpVersion]):
@@ -252,19 +252,17 @@ class Counter0(RegisterS32):
 
 
 # ===========================================================================
-# 41  PortDIOSet : U8, Write — bitMask PortDigitalIOS. Bits >= 0x100 do not fit a
-#     U8 payload; the C# generator truncates them too, so only DIO0..DIO3 model.
+# 41  PortDIOSet : U8, Write — bitMask PortDigitalIOS. A single BitMask over the
+#     whole byte; bits >= 0x100 can't fit a U8 so they are dropped. Single-member
+#     -> parse() unwraps to a bare PortDigitalIOS.
 # ===========================================================================
 
 
-class PortDIOSetPayload(StructPayload[np.uint8]):
-    DIO0: bool = BitFlag(mask=0x1)
-    DIO1: bool = BitFlag(mask=0x2)
-    DIO2: bool = BitFlag(mask=0x4)
-    DIO3: bool = BitFlag(mask=0x8)
+class PortDIOSetPayload(AnonymousPayload[np.uint8]):
+    __value__: PortDigitalIOS = BitMask(enum=PortDigitalIOS, mask=0xFF)
 
 
-class PortDIOSet(RegisterBase[PortDIOSetPayload]):
+class PortDIOSet(RegisterBase[PortDigitalIOS]):
     address: ClassVar[int] = 41
     payload_type: ClassVar[PayloadType] = PayloadType.U8
     payload_class = PortDIOSetPayload
@@ -324,11 +322,11 @@ class StartPulseTrain(RegisterBase[StartPulseTrainPayload]):
 # ===========================================================================
 
 
-class EncoderModePayload(StructPayload[np.uint8]):
-    Mode: EncoderModeMask = GroupMask(enum=EncoderModeMask, mask=0xFF)
+class EncoderModePayload(AnonymousPayload[np.uint8]):
+    __value__: EncoderModeMask = GroupMask(enum=EncoderModeMask, mask=0xFF)
 
 
-class EncoderMode(RegisterBase[EncoderModePayload]):
+class EncoderMode(RegisterBase[EncoderModeMask]):
     address: ClassVar[int] = 103
     payload_type: ClassVar[PayloadType] = PayloadType.U8
     payload_class = EncoderModePayload
@@ -409,8 +407,9 @@ def main() -> None:  # pragma: no cover - manual exploration entry point
     assert int(_roundtrip(Counter0, np.int32(-100000))) == -100000
     print("Counter0                 OK")
 
-    p = _roundtrip(PortDIOSet, PortDIOSetPayload(DIO0=True, DIO3=True))
-    assert p.DIO0 is True and p.DIO3 is True and p.DIO1 is False
+    p = _roundtrip(PortDIOSet, PortDigitalIOS.DIO0 | PortDigitalIOS.DIO3)
+    assert p == PortDigitalIOS.DIO0 | PortDigitalIOS.DIO3  # single-member unwrap
+    assert PortDigitalIOS.DIO1 not in p
     assert PortDIOSetPayload.dtype.itemsize == 1
     print("PortDIOSet               OK")
 
@@ -439,8 +438,8 @@ def main() -> None:  # pragma: no cover - manual exploration entry point
     assert int(StartPulseTrainPayload(PulseCount=np.uint8(3)).Frequency) == 1  # defaultValue
     print("StartPulseTrain          OK  (4 masked members, 2 words, default Frequency=1)")
 
-    p = _roundtrip(EncoderMode, EncoderModePayload(Mode=EncoderModeMask.Displacement))
-    assert p.Mode == EncoderModeMask.Displacement
+    p = _roundtrip(EncoderMode, EncoderModeMask.Displacement)
+    assert p == EncoderModeMask.Displacement  # single-member unwrap
     print("EncoderMode              OK")
 
     print("\nAll device.yml registers round-trip cleanly.")
