@@ -49,6 +49,7 @@ examples = [
             visual_indicators=EnableFlag.ENABLED,
             operation_led=EnableFlag.ENABLED,
             heartbeat=EnableFlag.ENABLED,
+            mute_replies=True,
         ),
     ),
     (ResetDevice, ResetFlags.RESTORE_DEFAULT | ResetFlags.RESTORE_NAME),
@@ -81,11 +82,16 @@ ctrl = OperationControlPayload(
     operation_mode=OperationMode.ACTIVE,
     heartbeat=EnableFlag.ENABLED,
     visual_indicators=EnableFlag.ENABLED,
+    dump_registers=False,
+    mute_replies=False,
+    operation_led=EnableFlag.DISABLED,
 )
 print(f"  operation_mode    : {ctrl.operation_mode}")  # OperationMode.ACTIVE
 print(f"  heartbeat         : {ctrl.heartbeat}")  # EnableFlag.ENABLED
 print(f"  dump_registers    : {ctrl.dump_registers}")  # False
 print(f"  visual_indicators : {ctrl.visual_indicators}")  # EnableFlag.ENABLED
+print(f"  mute_replies      : {ctrl.mute_replies}")  # False
+print(f"  operation_led     : {ctrl.operation_led}")  # EnableFlag.DISABLED
 
 # ---------------------------------------------------------------------------
 # Bulk read from a .bin file (zero-copy, vectorised)
@@ -99,6 +105,10 @@ print(f"  {len(timestamps)} frame(s) read")
 print(f"  timestamps (s) : {timestamps}")
 print(f"  operation_mode : {payload.operation_mode}")
 print(f"  heartbeat      : {payload.heartbeat}")
+print(f"  dump_registers : {payload.dump_registers}")
+print(f"  visual_indicators : {payload.visual_indicators}")
+print(f"  mute_replies      : {payload.mute_replies}")
+print(f"  operation_led     : {payload.operation_led}")
 
 print("\n  DataFrame:")
 df = to_dataframe(payload)
