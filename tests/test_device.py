@@ -5,7 +5,7 @@ from typing import ClassVar
 
 import numpy as np
 
-from harp.data import to_dataframe
+from harp.data import payload_to_dataframe
 from harp.protocol._builder import build_message_frame
 from harp.protocol._message_type import MessageType
 from harp.protocol._payload import PayloadBase, BitMask, GroupMask
@@ -130,7 +130,7 @@ def test_op_ctrl_to_dataframe():
         _make_op_ctrl_byte(OperationMode.STANDBY, EnableFlag.DISABLED),
     ]
     p = OperationControlPayload.from_buffer(bytes(vals))
-    df = to_dataframe(p, decode_enums=False)
+    df = payload_to_dataframe(p, decode_enums=False)
     assert list(df.columns) == list(OperationControlPayload._repr_fields)
     assert len(df) == 2
     np.testing.assert_array_equal(df["heartbeat"], [True, False])
@@ -158,7 +158,7 @@ def test_pins_batch_raw_int():
 
 def test_pins_to_dataframe_single_column():
     p = PinsPayload.from_buffer(bytes([0b00000101, 0b00000010]))
-    df = to_dataframe(p)
+    df = payload_to_dataframe(p)
     assert list(df.columns) == ["pins"]
     np.testing.assert_array_equal(df["pins"], [0b101, 0b10])
     assert len(df) == 2
@@ -166,7 +166,7 @@ def test_pins_to_dataframe_single_column():
 
 def test_pins_to_dataframe_demuxed():
     p = PinsPayload.from_buffer(bytes([0b00000101, 0b00000010]))
-    df = to_dataframe(p, demux_bit_masks=True)
+    df = payload_to_dataframe(p, demux_bit_masks=True)
     assert list(df.columns) == [m.name for m in Pins]
     np.testing.assert_array_equal(df["PIN0"], [True, False])
     np.testing.assert_array_equal(df["PIN1"], [False, True])
@@ -235,7 +235,7 @@ def test_read_frames_to_dataframe():
     vals = [_make_op_ctrl_byte(OperationMode.ACTIVE), _make_op_ctrl_byte(), _make_op_ctrl_byte()]
     raw = _make_frames(vals)
     _, payload = _read_frames(raw)
-    df = to_dataframe(payload)
+    df = payload_to_dataframe(payload)
     assert len(df) == 3
     assert "heartbeat" in df.columns
     assert "operation_mode" in df.columns

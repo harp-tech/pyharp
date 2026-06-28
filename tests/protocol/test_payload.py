@@ -1,6 +1,6 @@
 import numpy as np
 import pytest
-from harp.data import to_dataframe
+from harp.data import payload_to_dataframe
 from harp.protocol import Column
 from harp.protocol._payload import PayloadBase, Field, _IdentityConverter
 
@@ -44,7 +44,7 @@ def test_from_buffer_values():
 
 def test_to_dataframe_columns():
     p = SimplePayload.from_buffer(_make_simple_bytes(3))
-    df = to_dataframe(p)
+    df = payload_to_dataframe(p)
     assert list(df.columns) == ["x", "y"]
     assert len(df) == 3
 
@@ -52,7 +52,7 @@ def test_to_dataframe_columns():
 def test_to_dataframe_override():
     arr = np.array([(0b00000011,), (0b00000001,), (0b00000010,)], dtype=BitPackedPayload.dtype)
     p = BitPackedPayload.from_buffer(arr.tobytes())
-    df = to_dataframe(p)
+    df = payload_to_dataframe(p)
     assert list(df.columns) == ["flag_a", "flag_b"]
     assert list(df["flag_a"]) == [True, True, False]
     assert list(df["flag_b"]) == [True, False, True]

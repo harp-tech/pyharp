@@ -12,7 +12,7 @@ import enum
 
 import numpy as np
 import pytest
-from harp.data import to_dataframe
+from harp.data import payload_to_dataframe
 from harp.protocol._payload import (
     PayloadBase,
     BitMask,
@@ -126,7 +126,7 @@ def test_string_converter_to_dataframe():
     rec1 = _NamedPayload(name="hi", delta=1).raw_payload.tobytes()
     rec2 = _NamedPayload(name="bye", delta=2).raw_payload.tobytes()
     batch = _NamedPayload.from_buffer(rec1 + rec2)
-    df = to_dataframe(batch)
+    df = payload_to_dataframe(batch)
     # Non-identity converter produces one column per field — no sub-array
     # expansion for the string field.
     assert list(df.columns) == ["name", "delta"]

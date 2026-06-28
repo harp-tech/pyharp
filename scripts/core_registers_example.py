@@ -34,7 +34,7 @@ from harp.device import (
     WhoAmI,
 )
 
-from harp.data import to_dataframe
+from harp.data import payload_to_dataframe
 from harp.protocol import HarpMessage
 
 examples = [
@@ -111,6 +111,6 @@ print(f"  mute_replies      : {payload.mute_replies}")
 print(f"  operation_led     : {payload.operation_led}")
 
 print("\n  DataFrame:")
-df = to_dataframe(payload)
+df = payload_to_dataframe(payload)
 df.insert(0, "timestamp", timestamps)
 print(df.to_string(index=False))

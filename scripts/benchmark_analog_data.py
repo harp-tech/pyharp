@@ -31,7 +31,7 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from scripts._harp_io import read as harp_read  # vendored harp-python read()
 
-from harp.data import read_dataframe, to_dataframe
+from harp.data import parse_to_dataframe, payload_to_dataframe
 from harp.protocol import PayloadBase, Field, PayloadType, RegisterBase, IdentityConverter
 
 
@@ -71,7 +71,7 @@ def pyharp_read(path: Path, *, include_timestamp: bool = True):
     """pyharp path: parse_bulk → to_dataframe."""
     bytes_2_parse = path.read_bytes()
     _data, timestamps, msg_type, payload = AnalogData.parse_bulk(bytes_2_parse)
-    df = to_dataframe(payload)
+    df = payload_to_dataframe(payload)
     if include_timestamp:
         df.insert(0, "timestamp", timestamps)
     return df
@@ -79,7 +79,7 @@ def pyharp_read(path: Path, *, include_timestamp: bool = True):
 
 def pyharp_read_dataframe(path: Path, *, timestamp: bool = True):
     """pyharp one-call path: read_dataframe."""
-    return read_dataframe(AnalogData, path.read_bytes(), timestamp=timestamp)
+    return parse_to_dataframe(AnalogData, path.read_bytes(), timestamp=timestamp)
 
 
 def harp_python_read(path: Path):

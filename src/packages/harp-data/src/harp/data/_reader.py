@@ -5,7 +5,7 @@ from typing import Any, BinaryIO, Union
 
 import numpy as np
 import pandas as pd
-from harp.protocol import Column, RegisterBase
+from harp.protocol import RegisterBase
 
 Source = Union[str, Path, bytes, bytearray, memoryview, BinaryIO]
 
@@ -23,25 +23,7 @@ def _read_bytes(source: Source) -> bytes:
 _DEFAULT_COLUMN_NAME = "value"
 
 
-def columns_to_dataframe(columns: list[Column]) -> pd.DataFrame:
-    """Assemble :class:`~harp.protocol.Column` objects into a DataFrame.
-
-    Enum-backed columns (``categories`` set) become ``pd.Categorical`` built
-    from codes — no string materialization; everything else is used as-is.
-    """
-    return pd.DataFrame(
-        {
-            (c.name if c.name is not None else _DEFAULT_COLUMN_NAME): (
-                pd.Categorical.from_codes(c.data, categories=c.categories)
-                if c.categories is not None
-                else c.data
-            )
-            for c in columns
-        }
-    )
-
-
-def to_dataframe(
+def payload_to_dataframe(
     payload: Any, *, decode_enums: bool = True, demux_bit_masks: bool = False
 ) -> pd.DataFrame:
     """Turn a (batched) payload into a DataFrame, one row per frame.
@@ -52,12 +34,20 @@ def to_dataframe(
     # TODO: we may need to account for cases where columns have the same name.
     # this can happen when demuxing bitmasks, for example, where each bitmask column
     # is expanded into multiple boolean columns with the same name.
-    return columns_to_dataframe(
-        payload.to_columns(decode_enums=decode_enums, demux_bit_masks=demux_bit_masks)
+    cols = payload.to_columns(decode_enums=decode_enums, demux_bit_masks=demux_bit_masks)
+    return pd.DataFrame(
+        {
+            (c.name if c.name is not None else _DEFAULT_COLUMN_NAME): (
+                pd.Categorical.from_codes(c.data, categories=c.categories)
+                if c.categories is not None
+                else c.data
+            )
+            for c in cols
+        }
     )
 
 
-def read_dataframe(
+def parse_to_dataframe(
     register: type[RegisterBase[Any]],
     source: Source,
     *,
@@ -76,7 +66,7 @@ def read_dataframe(
     """
     raw = _read_bytes(source)
     _data, timestamps, msg_view, payload = register.parse_bulk(raw, parse_timestamp=timestamp)
-    df = to_dataframe(payload, decode_enums=decode_enums, demux_bit_masks=demux_bit_masks)
+    df = payload_to_dataframe(payload, decode_enums=decode_enums, demux_bit_masks=demux_bit_masks)
 
     if message_type and msg_view is not None:
         df.insert(
