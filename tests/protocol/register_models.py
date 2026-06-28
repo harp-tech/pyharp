@@ -148,7 +148,9 @@ class AnalogData(RegisterBase[AnalogDataPayload]):
 
 
 class ComplexConfigurationPayload(StructPayload[np.uint8], length=17):
-    PwmPort: "PwmPort" = GroupMask(enum=PwmPort, mask=0xFF, offset=0)  # quoted: member name shadows enum type
+    PwmPort: "PwmPort" = GroupMask(
+        enum=PwmPort, mask=0xFF, offset=0
+    )  # quoted: member name shadows enum type
     DutyCycle: np.float32 = Field(IdentityConverter(np.float32), offset=4)
     Frequency: np.float32 = Field(IdentityConverter(np.float32), offset=8)
     EventsEnabled: bool = Field(BoolConverter(), offset=12)

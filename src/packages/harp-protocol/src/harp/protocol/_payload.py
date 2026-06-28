@@ -897,7 +897,7 @@ class AnonymousPayload(PayloadBase[NpStructT]):
 
     For a register that carries one *decoded* value (a codec, enum, or flag), a
     subclass declares a single ``__value__`` *descriptor* field.
-    The descriptor may be a :class:`Field` (any :class:`Converter` codec), 
+    The descriptor may be a :class:`Field` (any :class:`Converter` codec),
     a :class:`GroupMask` (enum), or a :class:`BitMask`
     (flag)::
 

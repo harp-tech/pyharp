@@ -53,7 +53,10 @@ examples = [
     ),
     (ResetDevice, ResetFlags.RESTORE_DEFAULT | ResetFlags.RESTORE_NAME),
     (DeviceName, "my-harp-device"),
-    (ClockConfiguration, ClockConfigurationFlags.CLOCK_REPEATER | ClockConfigurationFlags.CLOCK_UNLOCK),
+    (
+        ClockConfiguration,
+        ClockConfigurationFlags.CLOCK_REPEATER | ClockConfigurationFlags.CLOCK_UNLOCK,
+    ),
     (HardwareVersionHigh, np.uint8(2)),
     (HardwareVersionLow, np.uint8(0)),
     (AssemblyVersion, np.uint8(3)),

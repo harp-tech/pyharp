@@ -19,6 +19,7 @@ def _read_bytes(source: Source) -> bytes:
         return source.read()
     return Path(source).read_bytes()
 
+
 _DEFAULT_COLUMN_NAME = "value"
 
 
@@ -49,8 +50,8 @@ def to_dataframe(
     expands each flag (``BitMask``) column into one boolean column per flag member.
     """
     # TODO: we may need to account for cases where columns have the same name.
-    # this can happen when demuxing bitmasks, for example, where each bitmask column 
-    # is expanded into multiple boolean columns with the same name. 
+    # this can happen when demuxing bitmasks, for example, where each bitmask column
+    # is expanded into multiple boolean columns with the same name.
     return columns_to_dataframe(
         payload.to_columns(decode_enums=decode_enums, demux_bit_masks=demux_bit_masks)
     )
