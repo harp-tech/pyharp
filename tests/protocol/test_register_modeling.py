@@ -188,7 +188,7 @@ def test_custom_payload_single_member_unwrap():
 
 
 # ---------------------------------------------------------------------------
-# Strict enums: an out-of-range masked code raises (divergence from C#)
+# Strict enums: an out-of-range masked code raises
 # ---------------------------------------------------------------------------
 
 

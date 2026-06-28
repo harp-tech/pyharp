@@ -19,11 +19,8 @@ Design (see notes/payload_api_redesign.md):
 * Masked sub-fields use ``GroupMask`` (enum) or ``Field(converter=..., mask=...)``
   (numeric); the right-shift is derived from the mask's trailing zeros.
 * The register ``length`` (base elements) fixes ``itemsize`` so byte gaps survive.
-* Enum decoding is strict (an out-of-range code raises) — a deliberate divergence
-  from the C# generator's unchecked cast.
+* Enum decoding is strict: an out-of-range code raises.
 """
-
-from __future__ import annotations
 
 import enum
 from typing import Any, ClassVar
@@ -151,7 +148,7 @@ class AnalogData(RegisterBase[AnalogDataPayload]):
 
 
 class ComplexConfigurationPayload(StructPayload[np.uint8], length=17):
-    PwmPort: PwmPort = GroupMask(enum=PwmPort, mask=0xFF, offset=0)
+    PwmPort: "PwmPort" = GroupMask(enum=PwmPort, mask=0xFF, offset=0)  # quoted: member name shadows enum type
     DutyCycle: np.float32 = Field(IdentityConverter(np.float32), offset=4)
     Frequency: np.float32 = Field(IdentityConverter(np.float32), offset=8)
     EventsEnabled: bool = Field(BoolConverter(), offset=12)
@@ -254,8 +251,8 @@ class Counter0(RegisterS32):
 
 # ===========================================================================
 # 41  PortDIOSet : U8, Write — bitMask PortDigitalIOS. A single BitMask over the
-#     whole byte; bits >= 0x100 can't fit a U8 (and the C# generator's byte cast
-#     drops them too). Single-member -> parse() unwraps to a bare PortDigitalIOS.
+#     whole byte; bits >= 0x100 can't fit a U8 so they are dropped. Single-member
+#     -> parse() unwraps to a bare PortDigitalIOS.
 # ===========================================================================
 
 
