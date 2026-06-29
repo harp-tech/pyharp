@@ -24,7 +24,7 @@ _DEFAULT_COLUMN_NAME = "value"
 
 
 def payload_to_dataframe(
-    payload: Any, *, decode_enums: bool = True, demux_bit_masks: bool = False
+    payload: Any, *, decode_enums: bool = True, demux_bit_masks: bool = False, copy: bool = False
 ) -> pd.DataFrame:
     """Turn a (batched) payload into a DataFrame, one row per frame.
 
@@ -43,7 +43,8 @@ def payload_to_dataframe(
                 else c.data
             )
             for c in cols
-        }
+        },
+        copy=copy,
     )
 
 
