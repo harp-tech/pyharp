@@ -302,6 +302,11 @@ def main() -> None:
         "--only", nargs="+", metavar="NAME", help="restrict to these register names (default: all)"
     )
     parser.add_argument("--report", type=Path, default=REPORT_PATH)
+    parser.add_argument(
+        "--head",
+        action="store_true",
+        help="print head(5) of each register's DataFrame to stdout (not saved to the report)",
+    )
     args = parser.parse_args()
 
     selected = _select(args.only)
@@ -322,6 +327,10 @@ def main() -> None:
             f"to_columns={_fmt_ms(res.cols.mean):>9s}ms "
             f"df={_fmt_ms(res.df_preread.mean):>9s}ms"
         )
+        if args.head:
+            df = parse_to_dataframe(reg.register, path.read_bytes(), timestamp=True)
+            print(df.head(5))
+            print()
 
     args.report.parent.mkdir(parents=True, exist_ok=True)
     report = build_report(results, runs=args.runs)
