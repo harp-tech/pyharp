@@ -173,11 +173,15 @@ class StringConverter(Converter[str]):
     def decode_scalar(self, view: np.generic) -> str:
         return bytes(view).rstrip(b"\x00").decode(self._encoding)  # ty: ignore[invalid-argument-type]
 
+    _VIEW_CASTABLE_ENCODINGS = frozenset({"ascii", "latin1", "latin-1", "iso-8859-1"})
+
     def decode_batch(self, view: NDArray[np.generic]) -> Any:
-        return np.array(
-            [bytes(row).rstrip(b"\x00").decode(self._encoding) for row in view],
-            dtype=object,
-        )
+        if self._encoding not in self._VIEW_CASTABLE_ENCODINGS:
+            return np.array(
+                [bytes(row).rstrip(b"\x00").decode(self._encoding) for row in view],
+                dtype=object,
+            )
+        return view.reshape(-1, self._length).view(f"S{self._length}").reshape(-1).astype(str)
 
     def encode_into(self, view: NDArray[np.generic], value: str) -> None:
         encoded = value.encode(self._encoding)[: self._length]

@@ -73,19 +73,17 @@ class BytesToIntConverter(Converter[int]):
     def __init__(self, length: int, *, signed: bool = False) -> None:
         self._length = length
         self._signed = signed
+        endian = "<" if length > 1 else ""
+        kind = "i" if signed else "u"
+        self._native = IdentityConverter(f"{endian}{kind}{length}")
         self.dtype = np.dtype((np.uint8, (length,)))
 
     def decode_scalar(self, view: np.generic) -> int:
         return int.from_bytes(bytes(np.asarray(view).tolist()), "little", signed=self._signed)
 
     def decode_batch(self, view: NDArray[np.generic]) -> Any:
-        return np.array(
-            [
-                int.from_bytes(bytes(np.asarray(r).tolist()), "little", signed=self._signed)
-                for r in np.atleast_2d(view)
-            ],
-            dtype=object,
-        )
+        rows = np.atleast_2d(view).reshape(-1, self._length)
+        return self._native.decode_batch(rows.view(self._native.dtype).reshape(-1))
 
     def encode_into(self, view: NDArray[np.generic], value: int) -> None:
         view[...] = np.frombuffer(
