@@ -1,27 +1,3 @@
-"""Reference models for every register in the canonical generator test device
-(``harp-tech/generators`` -> ``tests/Metadata/device.yml``), built with the
-``harp.protocol`` public API.
-
-These act as fixtures for ``test_register_modeling.py`` and demonstrate that the
-API can express every payload shape the Harp protocol allows (gaps, overlaps,
-masks, reinterpreted sub-regions, custom domain types) before building a
-spec->code generator. Run it directly to round-trip every register::
-
-    uv run python -m tests.protocol.register_models
-
-Design (see notes/payload_api_redesign.md):
-
-* A payload is a flat buffer of base-``type`` elements; each member is a typed
-  view ``(offset, mask, converter)``. ``offset`` is in base-element units.
-* ``Converter`` instances operate on their own byte layout and are independent of
-  the register element type (custom codecs read raw ``uint8`` sub-arrays), so the
-  same ``HarpVersionConverter`` works under a U8 or a U32 register.
-* Masked sub-fields use ``GroupMask`` (enum) or ``Field(converter=..., mask=...)``
-  (numeric); the right-shift is derived from the mask's trailing zeros.
-* The register ``length`` (base elements) fixes ``itemsize`` so byte gaps survive.
-* Enum decoding is strict: an out-of-range code raises.
-"""
-
 import enum
 from typing import Any, ClassVar
 
@@ -47,6 +23,10 @@ from harp.protocol import (
     StringConverter,
     StructPayload,
 )
+
+# This file targets the device.yml here
+# https://raw.githubusercontent.com/harp-tech/generators/refs/heads/main/tests/Metadata/device.yml
+
 
 # ===========================================================================
 # device.yml bitMasks + groupMasks
@@ -387,9 +367,9 @@ def main() -> None:  # pragma: no cover - manual exploration entry point
     np.testing.assert_array_equal(p.InterfaceHash, np.arange(20))
     print(f"Version                  OK  ({VersionPayload.dtype.itemsize} bytes)")
 
-    p = _roundtrip(CustomPayload, CustomPayloadPayload(value=HarpVersion(3, 1, 4)))
+    p = _roundtrip(CustomPayload, HarpVersion(3, 1, 4))
     assert p == HarpVersion(3, 1, 4)  # single-member unwrap -> bare HarpVersion
-    p = _roundtrip(CustomRawPayload, CustomRawPayloadPayload(value=HarpVersion(0, 0, 1)))
+    p = _roundtrip(CustomRawPayload, HarpVersion(0, 0, 1))
     assert p == HarpVersion(0, 0, 1)
     print("CustomPayload/RawPayload OK  (single-member unwrap)")
 

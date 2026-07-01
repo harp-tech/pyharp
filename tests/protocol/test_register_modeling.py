@@ -1,5 +1,5 @@
 """Acceptance tests: the device.yml coverage model in
-``tests.protocol.register_models`` round-trips, and the new API behaviours
+``harp.benchmarks.register_models`` round-trips, and the new API behaviours
 (offsets/gaps, masked overlap, single-member unwrap, strict enums) hold.
 """
 
@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 from harp.data import payload_to_dataframe
 from harp.protocol import HarpMessage, HarpVersion
-from tests.protocol.register_models import (
+from harp.benchmarks.register_models import (
     AnalogData,
     AnalogDataPayload,
     BitmaskSplitter,

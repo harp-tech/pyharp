@@ -24,6 +24,7 @@ harp-protocol = { workspace = true }
 harp-device = { workspace = true }
 harp-serial = { workspace = true }
 harp-data = { workspace = true }
+harp-benchmarks = { workspace = true }
 
 [tool.uv.workspace]
 members = [
@@ -52,6 +53,7 @@ dev = [
     "harp-device",
     "harp-serial",
     "harp-data",
+    "harp-benchmarks",
     "typing-extensions>=4.15.0",
 ]
 

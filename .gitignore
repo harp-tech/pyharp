@@ -175,3 +175,5 @@ cython_debug/
 
 # vscode
 .vscode/
+# Internal benchmark artifacts (harp-benchmarks)
+/benchmark/

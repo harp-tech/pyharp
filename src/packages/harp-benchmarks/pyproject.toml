@@ -1,0 +1,27 @@
+[project]
+name = "harp-benchmarks"
+version = "0.1.0"
+description = "Internal parsing-speed benchmarks for the Harp register/payload API."
+requires-python = ">=3.11"
+# INTERNAL ONLY — never published to PyPI. The "Private :: Do Not Upload" trove
+# classifier is rejected by PyPI (and twine/uv publish), so an accidental upload
+# of this distribution fails fast.
+classifiers = ["Private :: Do Not Upload"]
+dependencies = [
+    "harp-protocol",
+    "harp-data",
+    "numpy>=1.24",
+    "pandas>=2.0",
+]
+
+[project.scripts]
+harp-benchmark = "harp.benchmarks.benchmark:main"
+harp-benchmark-generate = "harp.benchmarks.generate:main"
+
+[build-system]
+requires = ["uv_build>=0.9.5,<0.10.0"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "harp.benchmarks"
+module-root = "src"

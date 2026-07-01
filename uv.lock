@@ -13,6 +13,7 @@ resolution-markers = [
 [manifest]
 members = [
     "harp",
+    "harp-benchmarks",
     "harp-data",
     "harp-device",
     "harp-protocol",
@@ -357,6 +358,7 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "harp-benchmarks" },
     { name = "harp-data" },
     { name = "harp-device" },
     { name = "harp-protocol" },
@@ -389,6 +391,7 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "harp-benchmarks", editable = "src/packages/harp-benchmarks" },
     { name = "harp-data", editable = "src/packages/harp-data" },
     { name = "harp-device", editable = "src/packages/harp-device" },
     { name = "harp-protocol", editable = "src/packages/harp-protocol" },
@@ -409,6 +412,25 @@ docs = [
     { name = "mkdocs-material", specifier = ">=9.6.9" },
     { name = "mkdocs-monorepo-plugin", specifier = ">=1.1.2" },
     { name = "mkdocstrings-python", specifier = ">=1.16.6" },
+]
+
+[[package]]
+name = "harp-benchmarks"
+version = "0.1.0"
+source = { editable = "src/packages/harp-benchmarks" }
+dependencies = [
+    { name = "harp-data" },
+    { name = "harp-protocol" },
+    { name = "numpy" },
+    { name = "pandas" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "harp-data", editable = "src/packages/harp-data" },
+    { name = "harp-protocol", editable = "src/packages/harp-protocol" },
+    { name = "numpy", specifier = ">=1.24" },
+    { name = "pandas", specifier = ">=2.0" },
 ]
 
 [[package]]
