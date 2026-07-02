@@ -212,10 +212,8 @@ class HarpVersionConverter(Converter[HarpVersion]):
         return HarpVersion(int(c[0]), int(c[1]), int(c[2]))
 
     def decode_batch(self, view: NDArray[np.generic]) -> Any:
-        return np.array(
-            [HarpVersion(int(r[0]), int(r[1]), int(r[2])) for r in np.atleast_2d(view)],
-            dtype=object,
-        )
+        v = np.atleast_2d(view)
+        return np.frompyfunc(HarpVersion, 3, 1)(v[:, 0], v[:, 1], v[:, 2])
 
     def encode_into(self, view: NDArray[np.generic], value: HarpVersion) -> None:
         view[...] = np.array([value.major, value.minor, value.patch], dtype=self.dtype.base)
