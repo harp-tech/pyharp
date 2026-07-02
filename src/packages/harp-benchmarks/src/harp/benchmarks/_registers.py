@@ -58,6 +58,7 @@ class BenchmarkedRegister(NamedTuple):
     name: str
     register: type[RegisterBase[Any]]
     value: Any
+    timestamped: bool = True
 
     @property
     def address(self) -> int:
@@ -68,7 +69,8 @@ class BenchmarkedRegister(NamedTuple):
         return f"{self.name}_{self.address}.bin"
 
 
-def _build() -> list[BenchmarkedRegister]:
+def _base_registers() -> list[BenchmarkedRegister]:
+    """One (timestamped) fixture per register — :func:`_build` derives the untimestamped twin."""
     return [
         BenchmarkedRegister("DigitalInputs", DigitalInputs, np.uint8(0b1010)),
         BenchmarkedRegister(
@@ -140,6 +142,20 @@ def _build() -> list[BenchmarkedRegister]:
         ),
         BenchmarkedRegister("EncoderMode", EncoderMode, EncoderModeMask.Displacement),
     ]
+
+
+def _build() -> list[BenchmarkedRegister]:
+    """Expand every base fixture into a timestamped + untimestamped pair.
+
+    ``parse_bulk`` detects timestamping from the wire format at runtime (not
+    statically), so every register needs a corpus of each shape to exercise both
+    the eager (``timestamps`` present) and ``None`` decode paths.
+    """
+    registers: list[BenchmarkedRegister] = []
+    for reg in _base_registers():
+        registers.append(reg)
+        registers.append(reg._replace(name=f"{reg.name}NoTimestamp", timestamped=False))
+    return registers
 
 
 BENCHMARK_REGISTERS: list[BenchmarkedRegister] = _build()

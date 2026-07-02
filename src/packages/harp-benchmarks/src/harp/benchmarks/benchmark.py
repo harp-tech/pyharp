@@ -111,13 +111,13 @@ def benchmark_register(reg: BenchmarkedRegister, path: Path, *, runs: int) -> Re
         file_bytes=file_bytes,
     )
     df_pre = _time(
-        lambda: parse_to_dataframe(register, raw, timestamp=True),
+        lambda: parse_to_dataframe(register, raw, timestamp=reg.timestamped),
         runs=runs,
         frames=frames,
         file_bytes=file_bytes,
     )
     df_re = _time(
-        lambda: parse_to_dataframe(register, path.read_bytes(), timestamp=True),
+        lambda: parse_to_dataframe(register, path.read_bytes(), timestamp=reg.timestamped),
         runs=runs,
         frames=frames,
         file_bytes=file_bytes,

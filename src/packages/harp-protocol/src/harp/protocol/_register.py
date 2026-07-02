@@ -47,6 +47,48 @@ _R = TypeVar("_R")
 _AR = TypeVar("_AR", bound="RegisterBase[Any]")
 
 
+class _LazyTimestamps:
+    """Seconds + microseconds timestamp views, combined into float64 on first use.
+
+    Combining the raw views costs an O(n) pass over every frame (two ``astype``
+    casts plus a multiply-add), independent of the register's payload — so eagerly
+    computing it in ``parse_bulk`` taxes every call even when the caller never
+    reads the timestamps. Deferring the combine until the array is actually
+    accessed (and caching the result) avoids that cost in the common case where
+    only the payload is needed.
+    """
+
+    __slots__ = ("_ts_s", "_ts_us", "_values")
+
+    def __init__(self, ts_s: np.ndarray, ts_us: np.ndarray) -> None:
+        self._ts_s = ts_s
+        self._ts_us = ts_us
+        self._values: np.ndarray | None = None
+
+    def _resolve(self) -> np.ndarray:
+        if self._values is None:
+            out = np.multiply(self._ts_us, _TICK_PERIOD_S, dtype=np.float64)
+            np.add(self._ts_s, out, out=out)
+            self._values = out
+        return self._values
+
+    def __array__(self, dtype: "np.dtype | None" = None) -> np.ndarray:
+        arr = self._resolve()
+        return arr if dtype is None else arr.astype(dtype)
+
+    def __len__(self) -> int:
+        return len(self._ts_s)
+
+    def __iter__(self):
+        return iter(self._resolve())
+
+    def __getitem__(self, item: Any) -> Any:
+        return self._resolve()[item]
+
+    def __repr__(self) -> str:
+        return repr(self._resolve())
+
+
 class _RegisterMeta(ABCMeta):
     """Calling a register class with an address creates a one-off subclass: ``RegisterU32(0x08)``."""
 
@@ -99,7 +141,7 @@ class RegisterBase(ABC, Generic[U]):
         source: bytes | bytearray | memoryview,
         *,
         parse_timestamp: bool = True,
-    ) -> "tuple[np.ndarray, np.ndarray | None, np.ndarray | None, Batch[Any]]":
+    ) -> "tuple[np.ndarray, _LazyTimestamps | None, np.ndarray | None, Batch[Any]]":
         """Parse a bulk buffer containing one or more frames of this register type. Returns (data, timestamps, msgtype_view, payload)."""
         # Returns (data, timestamps, msgtype_view, payload). ``data`` is
         payload_cls = cls.payload_class
@@ -122,7 +164,7 @@ class RegisterBase(ABC, Generic[U]):
             ts_us = np.ndarray(
                 nrows, dtype="<u2", buffer=data, offset=_TS_MICROS_OFFSET, strides=stride
             )
-            timestamps = ts_s.astype(np.float64) + ts_us.astype(np.float64) * _TICK_PERIOD_S
+            timestamps = _LazyTimestamps(ts_s, ts_us)
         # TODO we may want to check if the timestamp is not present and users ask to be parsed. In that case we can either raise an error or return a nan-filled array
         else:
             timestamps = None

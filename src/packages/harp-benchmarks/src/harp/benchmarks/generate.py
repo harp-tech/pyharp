@@ -11,9 +11,13 @@ def corpus_path(reg: BenchmarkedRegister):
     return DATA_DIR / reg.filename
 
 
+def _frame_timestamp(reg: BenchmarkedRegister) -> int | None:
+    return _TIMESTAMP if reg.timestamped else None
+
+
 def generate_one(reg: BenchmarkedRegister, entries: int) -> tuple[str, int, int]:
     """Write ``entries`` frames for ``reg``. Returns (path, frame_size, file_size)."""
-    frame = reg.register.format(reg.value, timestamp=_TIMESTAMP)
+    frame = reg.register.format(reg.value, timestamp=_frame_timestamp(reg))
     path = corpus_path(reg)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_bytes(frame * entries)
@@ -31,7 +35,7 @@ def ensure_corpus(
     """
     path = corpus_path(reg)
     if path.exists() and not force:
-        frame_size = len(reg.register.format(reg.value, timestamp=_TIMESTAMP))
+        frame_size = len(reg.register.format(reg.value, timestamp=_frame_timestamp(reg)))
         if path.stat().st_size == frame_size * entries:
             return path, False
     generate_one(reg, entries)
