@@ -143,6 +143,10 @@ class Device:
             self._event_thread.join(timeout=2.0)
             self._event_thread = None
         self._transport.close()
+        with self._sub_lock:
+            self._subscriptions.clear()
+            self._registers.clear()
+            self._catch_all.clear()
 
     def __enter__(self) -> Self:
         if not self._running:
@@ -213,9 +217,7 @@ class Device:
         Returns a :class:`Subscription`; call :meth:`Subscription.unsubscribe` to
         stop.
         """
-        sub = Subscription(
-            self, register.address, handler, _normalize_message_types(message_types)
-        )
+        sub = Subscription(self, register.address, handler, _normalize_message_types(message_types))
         with self._sub_lock:
             self._subscriptions.setdefault(register.address, []).append(sub)
             self._registers[register.address] = register
