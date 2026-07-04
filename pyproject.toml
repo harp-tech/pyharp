@@ -87,6 +87,7 @@ dev = [
     "harp-data",
     "harp-benchmarks",
     "typing-extensions>=4.15.0",
+    "reactivex>=4",  # for harp-device[rx] adapter + its tests
 ]
 
 [tool.codespell]

@@ -7,6 +7,9 @@ dependencies = [
     "harp-protocol",
 ]
 
+[project.optional-dependencies]
+rx = ["reactivex>=4"]
+
 [build-system]
 requires = ["uv_build>=0.9.5"]
 build-backend = "uv_build"

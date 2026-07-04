@@ -323,6 +323,7 @@ dev = [
     { name = "harp-serial" },
     { name = "pytest" },
     { name = "pytest-cov" },
+    { name = "reactivex" },
     { name = "ruff" },
     { name = "ty" },
     { name = "typing-extensions" },
@@ -355,6 +356,7 @@ dev = [
     { name = "harp-serial", editable = "src/packages/harp-serial" },
     { name = "pytest", specifier = ">=8.3.5" },
     { name = "pytest-cov", specifier = ">=6.1.1" },
+    { name = "reactivex", specifier = ">=4" },
     { name = "ruff", specifier = ">=0.11.0" },
     { name = "ty", specifier = ">=0.0.0" },
     { name = "typing-extensions", specifier = ">=4.15.0" },
@@ -415,8 +417,17 @@ dependencies = [
     { name = "harp-protocol" },
 ]
 
+[package.optional-dependencies]
+rx = [
+    { name = "reactivex" },
+]
+
 [package.metadata]
-requires-dist = [{ name = "harp-protocol", editable = "src/packages/harp-protocol" }]
+requires-dist = [
+    { name = "harp-protocol", editable = "src/packages/harp-protocol" },
+    { name = "reactivex", marker = "extra == 'rx'", specifier = ">=4" },
+]
+provides-extras = ["rx"]
 
 [[package]]
 name = "harp-protocol"
@@ -1112,6 +1123,18 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/eb/2e/79c822141bfd05a853236b504869ebc6b70159afc570e1d5a20641782eaa/pyyaml_env_tag-1.1.tar.gz", hash = "sha256:2eb38b75a2d21ee0475d6d97ec19c63287a7e140231e4214969d0eac923cd7ff", size = 5737, upload-time = "2025-05-13T15:24:01.64Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/04/11/432f32f8097b03e3cd5fe57e88efb685d964e2e5178a48ed61e841f7fdce/pyyaml_env_tag-1.1-py3-none-any.whl", hash = "sha256:17109e1a528561e32f026364712fee1264bc2ea6715120891174ed1b980d2e04", size = 4722, upload-time = "2025-05-13T15:23:59.629Z" },
+]
+
+[[package]]
+name = "reactivex"
+version = "4.1.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/b6/af/38a4b62468e4c5bd50acf511d86fe62e65a466aa6abb55b1d59a4a9e57f3/reactivex-4.1.0.tar.gz", hash = "sha256:c7499e3c802bccaa20839b3e17355a7d939573fded3f38ba3d4796278a169a3d", size = 113482, upload-time = "2025-11-05T21:44:24.557Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/ba/9e/3c2f5d3abb6c5d82f7696e1e3c69b7279049e928596ce82ed25ca97a08f3/reactivex-4.1.0-py3-none-any.whl", hash = "sha256:485750ec8d9b34bcc8ff4318971d234dc4f595058a1b4435a74aefef4b2bc9bd", size = 218588, upload-time = "2025-11-05T21:44:23.015Z" },
 ]
 
 [[package]]
