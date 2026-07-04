@@ -1,4 +1,4 @@
-from ._device import Device
+from ._device import Device, EventHandler, Subscription
 from ._framer import HarpFramer
 from ._registers import (
     AssemblyVersion,
@@ -30,6 +30,8 @@ from ._transport import ITransport, TransportError
 
 __all__ = [
     "Device",
+    "EventHandler",
+    "Subscription",
     "HarpFramer",
     "ITransport",
     "TransportError",

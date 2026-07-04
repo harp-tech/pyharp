@@ -1,7 +1,9 @@
 """Transport-agnostic Harp device base class."""
 
+from collections.abc import Callable, Iterable
 from typing import Any, ClassVar, Self, TypeVar
 
+import logging
 import queue
 import threading
 
@@ -16,6 +18,53 @@ from ._registers import (
 )
 
 P = TypeVar("P")
+
+_logger = logging.getLogger(__name__)
+
+#: A callback receiving a typed, parsed event for a specific register.
+EventHandler = Callable[[ParsedHarpMessage[P]], None]
+
+#: Message types a subscription reacts to, as a single type or an iterable.
+MessageTypeFilter = MessageType | Iterable[MessageType]
+
+#: Default filter for :meth:`Device.subscribe`: unsolicited events only.
+_DEFAULT_MESSAGE_TYPES: frozenset[MessageType] = frozenset({MessageType.Event})
+
+
+def _normalize_message_types(message_types: MessageTypeFilter) -> frozenset[MessageType]:
+    if isinstance(message_types, MessageType):
+        return frozenset({message_types})
+    return frozenset(message_types)
+
+
+class Subscription:
+    """Handle returned by :meth:`Device.subscribe`. Cancel with
+    :meth:`unsubscribe`, or use as a context manager to auto-cancel on exit."""
+
+    def __init__(
+        self,
+        device: "Device",
+        address: int | None,
+        handler: Callable[[Any], None],
+        message_types: frozenset[MessageType],
+    ) -> None:
+        self._device = device
+        self._address = address  # None => catch-all
+        self._handler = handler
+        self._message_types = message_types
+        self._active = True
+
+    def unsubscribe(self) -> None:
+        """Stop delivering events to this subscription. Idempotent."""
+        if self._active:
+            self._device._remove_subscription(self)
+            self._active = False
+
+    def __enter__(self) -> "Subscription":
+        return self
+
+    def __exit__(self, *args: object) -> None:
+        self.unsubscribe()
 
 
 class Device:
@@ -41,6 +90,14 @@ class Device:
         self._running = False
         self._thread: threading.Thread | None = None
 
+        # Event subscriptions, delivered off the reader thread (see _event_loop).
+        self._subscriptions: dict[int, list[Subscription]] = {}
+        self._registers: dict[int, type[RegisterBase[Any]]] = {}
+        self._catch_all: list[Subscription] = []
+        self._sub_lock = threading.Lock()
+        self._event_queue: queue.SimpleQueue[HarpMessage | None] = queue.SimpleQueue()
+        self._event_thread: threading.Thread | None = None
+
     # ------------------------------------------------------------------
     # Lifecycle
     # ------------------------------------------------------------------
@@ -49,6 +106,10 @@ class Device:
         """Open the transport, start the reader thread and validate identity."""
         self._transport.open()
         self._running = True
+        self._event_thread = threading.Thread(
+            target=self._event_loop, daemon=True, name=f"{type(self).__name__}-events"
+        )
+        self._event_thread.start()
         self._thread = threading.Thread(
             target=self._read_loop, daemon=True, name=f"{type(self).__name__}-reader"
         )
@@ -77,6 +138,10 @@ class Device:
         if self._thread is not None:
             self._thread.join(timeout=2.0)
             self._thread = None
+        if self._event_thread is not None:
+            self._event_queue.put(None)  # wake the loop so it can exit
+            self._event_thread.join(timeout=2.0)
+            self._event_thread = None
         self._transport.close()
 
     def __enter__(self) -> Self:
@@ -119,11 +184,115 @@ class Device:
         return ParsedHarpMessage.from_message(msg, register.parse(msg))
 
     # ------------------------------------------------------------------
-    # Internals
+    # Events
     # ------------------------------------------------------------------
 
-    def _on_event(self, msg: HarpMessage) -> None:
-        """Handle an Event message from the reader thread. Default: discard."""
+    def subscribe(
+        self,
+        register: type[RegisterBase[P]],
+        handler: EventHandler[P],
+        *,
+        message_types: MessageTypeFilter = MessageType.Event,
+    ) -> Subscription:
+        """Call ``handler`` with a typed, parsed :class:`ParsedHarpMessage` each
+        time the device emits a message for ``register``.
+
+        By default only unsolicited ``Event`` messages are delivered. Pass
+        ``message_types`` (a :class:`MessageType` or an iterable of them) to also
+        observe ``Read``/``Write`` replies, e.g.
+        ``message_types=(MessageType.Event, MessageType.Write)``.
+
+        Handlers run on a single dedicated event thread, shared by *all*
+        subscribers, so they may block or call back into :meth:`read`/:meth:`write`
+        without deadlocking the reader or delaying synchronous requests. However,
+        because that thread is shared, handlers are invoked **sequentially, in
+        subscription order, one message at a time**: a slow handler delays every
+        other subscriber and backs up later messages. Keep handlers quick, and
+        offload heavy work to your own thread or queue.
+
+        Returns a :class:`Subscription`; call :meth:`Subscription.unsubscribe` to
+        stop.
+        """
+        sub = Subscription(
+            self, register.address, handler, _normalize_message_types(message_types)
+        )
+        with self._sub_lock:
+            self._subscriptions.setdefault(register.address, []).append(sub)
+            self._registers[register.address] = register
+        return sub
+
+    def subscribe_all(
+        self,
+        handler: Callable[[HarpMessage], None],
+        *,
+        message_types: MessageTypeFilter = MessageType.Event,
+    ) -> Subscription:
+        """Call ``handler`` with the raw :class:`HarpMessage` for every message,
+        regardless of address, whose type is in ``message_types`` (default:
+        ``Event`` only). Pass more types for a full-traffic firehose, e.g. a
+        logger. See :meth:`subscribe` for threading and cancellation semantics."""
+        sub = Subscription(self, None, handler, _normalize_message_types(message_types))
+        with self._sub_lock:
+            self._catch_all.append(sub)
+        return sub
+
+    def _remove_subscription(self, sub: "Subscription") -> None:
+        with self._sub_lock:
+            if sub._address is None:
+                try:
+                    self._catch_all.remove(sub)
+                except ValueError:
+                    pass
+            else:
+                subs = self._subscriptions.get(sub._address)
+                if subs is not None:
+                    try:
+                        subs.remove(sub)
+                    except ValueError:
+                        pass
+                    if not subs:
+                        del self._subscriptions[sub._address]
+                        self._registers.pop(sub._address, None)
+
+    def _event_loop(self) -> None:
+        while True:
+            msg = self._event_queue.get()
+            if msg is None:  # shutdown sentinel
+                break
+            self._deliver_event(msg)
+
+    def _deliver_event(self, msg: HarpMessage) -> None:
+        with self._sub_lock:
+            subs = list(self._subscriptions.get(msg.address, ()))
+            register = self._registers.get(msg.address)
+            catch_all = list(self._catch_all)
+
+        matching = [s for s in subs if msg.message_type in s._message_types]
+        if matching and register is not None:
+            try:
+                parsed = ParsedHarpMessage.from_message(msg, register.parse(msg))
+            except Exception:
+                _logger.exception(
+                    "Failed to parse %r for address 0x%02x", msg.message_type, msg.address
+                )
+            else:
+                for sub in matching:
+                    self._safe_call(sub._handler, parsed)
+
+        for sub in catch_all:
+            if msg.message_type in sub._message_types:
+                self._safe_call(sub._handler, msg)
+
+    @staticmethod
+    def _safe_call(handler: Callable[[Any], None], arg: Any) -> None:
+        try:
+            handler(arg)
+        except Exception:
+            _logger.exception("Event handler %r raised", handler)
+
+    # ------------------------------------------------------------------
+    # Internals
+    # ------------------------------------------------------------------
 
     def _read_loop(self) -> None:
         while self._running:
@@ -141,19 +310,18 @@ class Device:
                 self._dispatch(msg)
 
     def _dispatch(self, msg: HarpMessage) -> None:
-        if msg.message_type in (MessageType.Read, MessageType.Write):
+        # Fast path: correlate replies to a pending synchronous request. This is
+        # O(1) and non-blocking, so it never stalls behind a slow subscriber.
+        # Events are unsolicited and never correlate.
+        if msg.message_type != MessageType.Event:
             with self._pending_lock:
                 q = self._pending.get(msg.address)
             if q is not None:
                 q.put(msg)
-        elif msg.message_type == MessageType.Event:
-            self._on_event(msg)
-        else:
-            # Unknown message type
-            with self._pending_lock:
-                q = self._pending.get(msg.address)
-            if q is not None:
-                q.put(msg)
+
+        # In parallel: fan *every* message out to the observation stream, where
+        # subscribers filter by message type on the dedicated event thread.
+        self._event_queue.put(msg)
 
     def _request(self, address: int, frame: bytes) -> HarpMessage:
         q: queue.SimpleQueue = queue.SimpleQueue()
