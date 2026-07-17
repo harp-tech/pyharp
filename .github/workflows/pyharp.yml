@@ -29,6 +29,9 @@ jobs:
       - name: Install python dependencies
         run: uv sync --group dev
 
+      - name: Run codespell
+        run: uv run codespell
+
       - name: Run ruff format
         run: uv run ruff format --check
 

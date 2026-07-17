@@ -76,6 +76,7 @@ docs = [
 ]
 
 dev = [
+    "codespell>=2.3.0",
     "pytest>=8.3.5",
     "pytest-cov>=6.1.1",
     "ruff>=0.11.0",
@@ -87,6 +88,10 @@ dev = [
     "harp-benchmarks",
     "typing-extensions>=4.15.0",
 ]
+
+[tool.codespell]
+skip = "*.lock,./.venv,./site,./.git,./.mypy_cache,./.ruff_cache,./.pytest_cache,*.pyc"
+check-filenames = true
 
 [tool.ruff.lint.pydocstyle]
 convention = "numpy"
