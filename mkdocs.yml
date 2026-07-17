@@ -18,9 +18,6 @@ plugins:
             show_source: false
             extensions:
               - griffe_fieldz
-  - git-committers:
-      repository: harp-tech/pyharp
-      branch: main
   - git-authors
 
 

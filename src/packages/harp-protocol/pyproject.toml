@@ -5,14 +5,14 @@ description = "Library with the base types for Harp protocol usage."
 authors = [{ name = "harp-tech", email = "contact@harp-tech.org" }]
 license = "MIT"
 keywords = ['python', 'harp']
-requires-python = ">=3.10,<4.0"
+requires-python = ">=3.11"
 dependencies = [
     "numpy>=1.24",
     "typing-extensions>=4.0",
 ]
 
 [build-system]
-requires = ["uv_build>=0.9.5,<0.10.0"]
+requires = ["uv_build>=0.9.5"]
 build-backend = "uv_build"
 
 [tool.uv.build-backend]

@@ -17,7 +17,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        python-version: ["3.10", "3.11", "3.12", "3.13"]
+        python-version: ["3.11", "3.12", "3.13"]
       fail-fast: false
     steps:
       - uses: actions/checkout@v7
@@ -73,8 +73,17 @@ jobs:
       - name: Validate version format
         run: uv version ${{ steps.get_version.outputs.version }} --dry-run
 
-      - name: Set version
-        run: uv version ${{ steps.get_version.outputs.version }}
+      - name: Set version across all workspace packages
+        shell: bash
+        run: |
+          version="${{ steps.get_version.outputs.version }}"
+          # Discover every workspace member (root + src/packages/*) by its declared
+          # package name so all versions move in lock-step with the release tag.
+          mapfile -t pkgs < <(grep -h '^name = ' pyproject.toml src/packages/*/pyproject.toml | sed -E 's/^name = "(.*)"/\1/')
+          for pkg in "${pkgs[@]}"; do
+            echo "Setting $pkg -> $version"
+            uv version --package "$pkg" "$version"
+          done
 
       - name: Build
         run: uv build --all-packages

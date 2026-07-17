@@ -6,15 +6,15 @@ pandas-free `ColumnData` view that this package assembles into a DataFrame.
 
 ## Read a register from a file
 
-`read_dataframe` takes a register and a source (path, bytes, or open binary
+`parse_to_dataframe` takes a register and a source (path, bytes, or open binary
 file) and returns one row per frame:
 
 ```python
-from harp.data import read_dataframe
+from harp.data import parse_to_dataframe
 from my_device import AnalogData
 
-df = read_dataframe(AnalogData, "AnalogData.bin")
-df = read_dataframe(AnalogData, raw, timestamp=True, message_type=False, decode_enums=True)
+df = parse_to_dataframe(AnalogData, "AnalogData.bin")
+df = parse_to_dataframe(AnalogData, raw, timestamp=True, message_type=False, decode_enums=True)
 ```
 
 Enum fields decode to `pd.Categorical` (`decode_enums=False` keeps raw codes).
@@ -25,8 +25,8 @@ If you already have a batched payload (e.g. from `register.parse_bulk`), convert
 it directly:
 
 ```python
-from harp.data import to_dataframe
+from harp.data import payload_to_dataframe
 
 _data, timestamps, _msg, payload = AnalogData.parse_bulk(raw)
-df = to_dataframe(payload)
+df = payload_to_dataframe(payload)
 ```

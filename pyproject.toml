@@ -1,12 +1,34 @@
 [project]
 name = "harp"
-version = "0.2.0"
+version = "0.0.0"
 description = "Library for data acquisition and control of devices implementing the Harp protocol."
 authors = [{ name = "harp-tech", email = "contact@harp-tech.org" }]
 license = "MIT"
+license-files = ["LICENSE"]
 readme = 'README.md'
-keywords = ['python', 'harp']
-requires-python = ">=3.10,<4.0"
+keywords = [
+    "harp",
+    "harp-protocol",
+    "data-acquisition",
+    "serial",
+    "hardware",
+    "device-control",
+]
+requires-python = ">=3.11"
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Developers",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering",
+    "Topic :: System :: Hardware :: Hardware Drivers",
+]
 dependencies = [
     "harp-protocol",
     "harp-device",
@@ -15,9 +37,20 @@ dependencies = [
 ]
 
 [project.urls]
+Homepage = "https://harp-tech.org/"
 Repository = "https://github.com/harp-tech/pyharp/"
-"Bug Tracker" = "https://github.com/harp-tech/pyharp/issues"
 Documentation = "https://harp-tech.org/pyharp/"
+"Bug Tracker" = "https://github.com/harp-tech/pyharp/issues"
+Changelog = "https://github.com/harp-tech/pyharp/releases"
+
+[build-system]
+requires = ["uv_build>=0.9.5"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "harp"
+module-root = "src"
+namespace = true
 
 [tool.uv.sources]
 harp-protocol = { workspace = true }
@@ -37,7 +70,6 @@ docs = [
     "mkdocs>=1.6.1",
     "mkdocs-codeinclude-plugin>=0.2.1",
     "mkdocs-git-authors-plugin>=0.9.4",
-    "mkdocs-git-committers-plugin-2>=2.5.0",
     "mkdocs-include-markdown-plugin>=7.1.6",
     "mkdocs-material>=9.6.9",
     "mkdocstrings-python>=1.16.6",
