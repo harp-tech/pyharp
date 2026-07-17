@@ -4,9 +4,11 @@
 
 ::: harp.protocol.MessageType
 ::: harp.protocol.PayloadType
-::: harp.protocol.CommonRegisters
-::: harp.protocol.OperationMode
-::: harp.protocol.OperationCtrl
-::: harp.protocol.ResetMode
-::: harp.protocol.ClockConfig
-::: harp.protocol.messages.HarpMessage
+::: harp.protocol.HarpMessage
+::: harp.protocol.RegisterBase
+::: harp.protocol.StructPayload
+::: harp.protocol.AnonymousPayload
+::: harp.protocol.Field
+::: harp.protocol.GroupMask
+::: harp.protocol.BitMask
+::: harp.protocol.Converter

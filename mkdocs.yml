@@ -1,7 +1,7 @@
 site_name: pyharp
-repo_url: https://github.com/fchampalimaud/pyharp
-repo_name: "fchampalimaud/pyharp"
-copyright: Copyright &copy; 2025, Hardware and Software Platform, Champalimaud Foundation
+repo_url: https://github.com/harp-tech/pyharp
+repo_name: "harp-tech/pyharp"
+copyright: Copyright (c) harp-tech and Contributors
 
 plugins:
   - search
@@ -20,7 +20,7 @@ plugins:
             extensions:
               - griffe_fieldz
   - git-committers:
-      repository: fchampalimaud/pyharp
+      repository: harp-tech/pyharp
       branch: main
   - git-authors
 
@@ -89,7 +89,7 @@ nav:
 extra:
   social:
     - icon: fontawesome/brands/github
-      link: https://github.com/fchampalimaud/pyharp
+      link: https://github.com/harp-tech/pyharp
 
 extra_css:
 - stylesheets/extra.css

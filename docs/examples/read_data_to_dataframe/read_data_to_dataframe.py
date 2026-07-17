@@ -6,6 +6,6 @@ from harp.device import OperationControl
 df = parse_to_dataframe(OperationControl, "OperationControl.bin", timestamp=True)
 print(df.head())
 
-# `read_dataframe` also accepts raw bytes or an open binary file object:
+# `parse_to_dataframe` also accepts raw bytes or an open binary file object:
 with open("OperationControl.bin", "rb") as f:
     df = parse_to_dataframe(OperationControl, f)

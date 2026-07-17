@@ -2,7 +2,7 @@
 name = "harp-protocol"
 version = "0.4.0"
 description = "Library with the base types for Harp protocol usage."
-authors = [{ name= "Hardware and Software Platform, Champalimaud Foundation", email="software@research.fchampalimaud.org"}]
+authors = [{ name = "harp-tech", email = "contact@harp-tech.org" }]
 license = "MIT"
 keywords = ['python', 'harp']
 requires-python = ">=3.10,<4.0"

@@ -2,5 +2,5 @@
 
 ---
 
-::: harp.serial.Device
-::: harp.serial.TimeoutStrategy
+::: harp.serial.SerialTransport
+::: harp.serial.open_serial_device

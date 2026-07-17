@@ -2,7 +2,7 @@
 name = "harp"
 version = "0.2.0"
 description = "Library for data acquisition and control of devices implementing the Harp protocol."
-authors = [{ name= "Hardware and Software Platform, Champalimaud Foundation", email="software@research.fchampalimaud.org"}]
+authors = [{ name = "harp-tech", email = "contact@harp-tech.org" }]
 license = "MIT"
 readme = 'README.md'
 keywords = ['python', 'harp']
@@ -15,9 +15,9 @@ dependencies = [
 ]
 
 [project.urls]
-Repository = "https://github.com/fchampalimaud/pyharp/"
-"Bug Tracker" = "https://github.com/fchampalimaud/pyharp/issues"
-Documentation = "https://fchampalimaud.github.io/pyharp/"
+Repository = "https://github.com/harp-tech/pyharp/"
+"Bug Tracker" = "https://github.com/harp-tech/pyharp/issues"
+Documentation = "https://harp-tech.org/pyharp/"
 
 [tool.uv.sources]
 harp-protocol = { workspace = true }
