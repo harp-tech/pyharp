@@ -17,6 +17,7 @@ dependencies = [
 [project.scripts]
 harp-benchmark = "harp.benchmarks.benchmark:main"
 harp-benchmark-generate = "harp.benchmarks.generate:main"
+harp-benchmark-compare = "harp.benchmarks.compare:main"
 
 [build-system]
 requires = ["uv_build>=0.9.5"]
