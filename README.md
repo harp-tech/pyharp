@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/harp-tech/pyharp/master/docs/assets/logo.svg" alt="Harp logo" width="400">
+  <img src="docs/assets/logo.svg" alt="Harp logo" width="400">
 </p>
 
 # harp
