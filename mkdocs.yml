@@ -7,7 +7,6 @@ plugins:
   - search
   - autorefs
   - codeinclude
-  - monorepo
   - include-markdown
   - mkdocstrings:
       handlers:
@@ -44,7 +43,6 @@ theme:
   name: material
   icon:
     repo: fontawesome/brands/github
-  logo: assets/logo.svg
   favicon: assets/favicon.png
   features:
     - content.tooltips
@@ -80,11 +78,11 @@ nav:
     - Getting Device Info: examples/get_info/get_info.md
     - Read and Write from Registers: examples/read_and_write_from_registers/read_and_write_from_registers.md
     - Reading Data into a DataFrame: examples/read_data_to_dataframe/read_data_to_dataframe.md
-    - Devices: '*include ./harp.devices/*/docs/examples.mkdocs.yml'
   - API:
-    - Devices: '*include ./harp.devices/*/mkdocs.yml'
     - Protocol: api/protocol.md
     - Serial: api/serial.md
+    - Device: api/device.md
+    - Data: api/data.md
 
 extra:
   social:
