@@ -1,5 +1,4 @@
 import argparse
-import json
 import platform
 import sys
 from dataclasses import dataclass
@@ -250,63 +249,6 @@ def build_report(results: list[RegisterResult], *, runs: int) -> str:
     return "\n".join(lines)
 
 
-# Bump when the JSON layout below changes incompatibly; ``compare`` checks it.
-BENCHMARK_SCHEMA_VERSION = 1
-
-# Measured operations, in report order — shared vocabulary with ``compare.py``.
-METRIC_LABELS: dict[str, str] = {
-    "bulk_preread": "parse_bulk (pre-read)",
-    "bulk_reread": "parse_bulk (re-read)",
-    "cols": "to_columns (decode)",
-    "df_preread": "parse_to_dataframe (pre-read)",
-    "df_reread": "parse_to_dataframe (re-read)",
-}
-
-
-def _stats_to_dict(s: TimingStats) -> dict:
-    return {
-        "min": s.min,
-        "mean": s.mean,
-        "max": s.max,
-        "stdev": s.stdev,
-        "mframes_per_s": s.mframes_per_s,
-        "mib_per_s": s.mib_per_s,
-    }
-
-
-def results_to_payload(results: list[RegisterResult], *, runs: int, entries: int) -> dict:
-    """Machine-readable results (see ``--json``), keyed by register + metric for diffing."""
-    return {
-        "schema_version": BENCHMARK_SCHEMA_VERSION,
-        "environment": {
-            "platform": platform.platform(),
-            "python": sys.version.split()[0],
-            "numpy": np.__version__,
-            "pandas": pd.__version__,
-            "runs": runs,
-            "entries": entries,
-        },
-        "registers": [
-            {
-                "name": r.name,
-                "address": r.address,
-                "frames": r.frames,
-                "stride": r.stride,
-                "payload_bytes": r.payload_bytes,
-                "file_bytes": r.file_bytes,
-                "metrics": {
-                    "bulk_preread": _stats_to_dict(r.bulk_preread),
-                    "bulk_reread": _stats_to_dict(r.bulk_reread),
-                    "cols": _stats_to_dict(r.cols),
-                    "df_preread": _stats_to_dict(r.df_preread),
-                    "df_reread": _stats_to_dict(r.df_reread),
-                },
-            }
-            for r in results
-        ],
-    }
-
-
 def _select(only):
     selected = BENCHMARK_REGISTERS
     if only:
@@ -366,12 +308,6 @@ def main() -> None:
     )
     parser.add_argument("--report", type=Path, default=REPORT_PATH)
     parser.add_argument(
-        "--json",
-        type=Path,
-        default=None,
-        help="also write machine-readable results (for base-vs-PR comparison) to this path",
-    )
-    parser.add_argument(
         "--head",
         action="store_true",
         help="print head(5) of each register's DataFrame to stdout (not saved to the report)",
@@ -405,12 +341,6 @@ def main() -> None:
     report = build_report(results, runs=args.runs)
     args.report.write_text(report, encoding="utf-8")
     print(f"\nReport written to {args.report}")
-
-    if args.json is not None:
-        args.json.parent.mkdir(parents=True, exist_ok=True)
-        payload = results_to_payload(results, runs=args.runs, entries=args.entries)
-        args.json.write_text(json.dumps(payload, indent=2), encoding="utf-8")
-        print(f"JSON written to {args.json}")
 
 
 if __name__ == "__main__":
