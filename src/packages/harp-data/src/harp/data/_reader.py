@@ -15,9 +15,9 @@ _MSG_NAMES = np.array(["_NONE", "Read", "Write", "Event"])
 def _read_bytes(source: Source) -> bytes:
     if isinstance(source, (bytes, bytearray, memoryview)):
         return bytes(source)
-    if hasattr(source, "read"):  # open binary file / stream
-        return source.read()
-    return Path(source).read_bytes()
+    if isinstance(source, (str, Path)):
+        return Path(source).read_bytes()
+    return source.read()  # open binary file / stream
 
 
 _DEFAULT_COLUMN_NAME = "value"

@@ -171,7 +171,7 @@ class StringConverter(Converter[str]):
         self.dtype = np.dtype((np.uint8, (length,)))
 
     def decode_scalar(self, view: np.generic) -> str:
-        return bytes(view).rstrip(b"\x00").decode(self._encoding)  # ty: ignore[invalid-argument-type]
+        return bytes(view).rstrip(b"\x00").decode(self._encoding)
 
     _VIEW_CASTABLE_ENCODINGS = frozenset({"ascii", "latin1", "latin-1", "iso-8859-1"})
 
@@ -181,7 +181,7 @@ class StringConverter(Converter[str]):
                 [bytes(row).rstrip(b"\x00").decode(self._encoding) for row in view],
                 dtype=object,
             )
-        return view.reshape(-1, self._length).view(f"S{self._length}").reshape(-1).astype(str)
+        return view.reshape(-1, self._length).view(f"S{self._length}").reshape(-1).astype(str)  # ty: ignore[no-matching-overload]
 
     def encode_into(self, view: NDArray[np.generic], value: str) -> None:
         encoded = value.encode(self._encoding)[: self._length]

@@ -348,6 +348,7 @@ class BitMask(Generic[F]):
 
     def _to_batch(self) -> "_BitMaskBatch[F]":
         """Returns the metadata for the corresponding batch type"""
+        assert self._mask is not None  # _bind_slot ensures every masked field has a mask
         return _BitMaskBatch(
             self._mask,
             self._enum,
@@ -359,6 +360,7 @@ class BitMask(Generic[F]):
         self, arr: "NDArray[Any]", name: "str | None", *, decode_enums: bool, demux_bit_masks: bool
     ) -> "list[Column]":
         """A single raw-integer column, or (``demux_bit_masks``) one bool column per flag member."""
+        assert self._mask is not None  # _bind_slot ensures every masked field has a mask
         raw = arr[self._slot] & self._mask
         if not demux_bit_masks:
             return [Column(name, raw)]
@@ -597,7 +599,7 @@ def _build_struct_dtype(
     else:
         itemsize = max(slot.byte_offset + slot.dtype.itemsize for slot in slots.values())
     _validate_no_overlap(cls, slots, itemsize)
-    return np.dtype(
+    return np.dtype(  # ty: ignore[no-matching-overload]
         {
             "names": list(slots),
             "formats": [slot.dtype for slot in slots.values()],
@@ -686,7 +688,7 @@ class PayloadBase(Generic[NpStructT]):
         self._arr = arr
 
     @classmethod
-    def _mro_descriptor(cls, name: str) -> object | None:
+    def _mro_descriptor(cls, name: str) -> "Field[Any] | GroupMask[Any] | BitMask[Any] | None":
         for klass in cls.__mro__:
             if name in klass.__dict__:
                 return klass.__dict__[name]
@@ -812,10 +814,9 @@ class PayloadBase(Generic[NpStructT]):
         cols: list[Column] = []
         for f in self._repr_fields:
             desc = scalar_cls._mro_descriptor(f)
+            assert desc is not None
             cols.extend(
-                desc._columns(  # ty: ignore[possibly-unbound-attribute]
-                    arr, f, decode_enums=decode_enums, demux_bit_masks=demux_bit_masks
-                )
+                desc._columns(arr, f, decode_enums=decode_enums, demux_bit_masks=demux_bit_masks)
             )
         return cols
 
@@ -950,7 +951,7 @@ class AnonymousPayload(PayloadBase[NpStructT]):
                     f"multi-field payloads."
                 )
             cls._root = True
-            super().__init_subclass__(**kwargs)
+            super().__init_subclass__(**kwargs)  # ty: ignore[invalid-argument-type]
             return
         # Raw scalar slot required, unless a Batch twin / array concrete supplies dtype.
         if scalar_dtype is None and "_batch_of" not in kwargs and "dtype" not in cls.__dict__:
@@ -962,7 +963,7 @@ class AnonymousPayload(PayloadBase[NpStructT]):
         if scalar_dtype is not None:
             cls.dtype = np.dtype(scalar_dtype)
             cls._repr_fields = ()
-        super().__init_subclass__(**kwargs)
+        super().__init_subclass__(**kwargs)  # ty: ignore[invalid-argument-type]
 
     def __init__(self, value: object = _MISSING_INIT, /, **kwargs: object) -> None:  # type: ignore[override]
         if type(self)._root:
@@ -979,7 +980,7 @@ class AnonymousPayload(PayloadBase[NpStructT]):
                 raise TypeError(f"{type(self).__name__}() requires a value")
         if kwargs:
             raise TypeError(f"{type(self).__name__}() got unexpected kwargs: {sorted(kwargs)}")
-        self._arr = np.asarray(value, dtype=self.dtype)  # ty: ignore[invalid-assignment]
+        self._arr = np.asarray(value, dtype=self.dtype)
 
     @classmethod
     def unwrap(cls, arr: "np.ndarray") -> Any:
@@ -1004,7 +1005,8 @@ class AnonymousPayload(PayloadBase[NpStructT]):
         if type(self)._root:
             arr = np.atleast_1d(self._arr)
             root = type(self)._scalar_cls._mro_descriptor(self._VALUE_FIELD)
-            return root._columns(  # ty: ignore[possibly-unbound-attribute]
+            assert root is not None
+            return root._columns(
                 arr, None, decode_enums=decode_enums, demux_bit_masks=demux_bit_masks
             )
         arr = np.atleast_1d(self._arr)
