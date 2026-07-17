@@ -313,16 +313,14 @@ class Device:
 
     def _dispatch(self, msg: HarpMessage) -> None:
         # Fast path: correlate replies to a pending synchronous request. This is
-        # O(1) and non-blocking, so it never stalls behind a slow subscriber.
-        # Events are unsolicited and never correlate.
+        # O(1) and non-blocking, so it should never stall behind a slow subscriber.
+        # Events are unsolicited and never correlate to requests
         if msg.message_type != MessageType.Event:
             with self._pending_lock:
                 q = self._pending.get(msg.address)
             if q is not None:
                 q.put(msg)
 
-        # In parallel: fan *every* message out to the observation stream, where
-        # subscribers filter by message type on the dedicated event thread.
         self._event_queue.put(msg)
 
     def _request(self, address: int, frame: bytes) -> HarpMessage:
