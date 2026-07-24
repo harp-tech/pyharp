@@ -1,0 +1,19 @@
+[project]
+name = "harp-device"
+dynamic = ["version"]
+description = "Transport-agnostic Harp device protocol layer"
+requires-python = ">=3.11"
+dependencies = [
+    "harp-protocol",
+]
+
+[build-system]
+requires = ["setuptools>=77", "setuptools-scm>=8"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools_scm]
+root = "../../.."
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["harp*"]

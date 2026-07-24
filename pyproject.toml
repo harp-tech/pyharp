@@ -1,23 +1,145 @@
-[tool.poetry]
-name = "pyharp"
-version = "0.1.0"
+[project]
+name = "harp"
+dynamic = ["version"]
 description = "Library for data acquisition and control of devices implementing the Harp protocol."
-authors = ["filcarv <filipe@open-ephys.org>"]
+authors = [{ name = "harp-tech", email = "contact@harp-tech.org" }]
 license = "MIT"
+license-files = ["LICENSE"]
 readme = 'README.md'
+keywords = [
+    "harp",
+    "harp-protocol",
+    "data-acquisition",
+    "serial",
+    "hardware",
+    "device-control",
+]
+requires-python = ">=3.11"
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Developers",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering",
+    "Topic :: System :: Hardware :: Hardware Drivers",
+]
+dependencies = [
+    "harp-protocol",
+    "harp-device",
+    "harp-serial",
+    "harp-data",
+]
 
-[tool.poetry.dependencies]
-python = "^3.4"
-pyserial = "^3.4"
-
-[tool.poetry.dev-dependencies]
-pytest = "^5.2"
-mypy = "^0.782"
-black = "^19.10b0"
+[project.urls]
+Homepage = "https://harp-tech.org/"
+Repository = "https://github.com/harp-tech/pyharp/"
+Documentation = "https://harp-tech.org/pyharp/"
+"Bug Tracker" = "https://github.com/harp-tech/pyharp/issues"
+Changelog = "https://github.com/harp-tech/pyharp/releases"
 
 [build-system]
-requires = ["poetry>=0.12"]
-build-backend = "poetry.masonry.api"
+requires = ["setuptools>=77", "setuptools-scm>=8"]
+build-backend = "setuptools.build_meta"
 
-[tool.poetry.scripts]
-pyharp = "pyharp.main:main"
+[tool.setuptools_scm]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["harp*"]
+
+[tool.uv.sources]
+harp-protocol = { workspace = true }
+harp-device = { workspace = true }
+harp-serial = { workspace = true }
+harp-data = { workspace = true }
+harp-benchmarks = { workspace = true }
+
+[tool.uv.workspace]
+members = [
+    "src/packages/*",
+]
+
+[dependency-groups]
+docs = [
+    "griffe-fieldz>=0.2.1",
+    "mkdocs>=1.6.1",
+    "mkdocs-codeinclude-plugin>=0.2.1",
+    "mkdocs-git-authors-plugin>=0.9.4",
+    "mkdocs-include-markdown-plugin>=7.1.6",
+    "mkdocs-material>=9.6.9",
+    "mkdocstrings-python>=1.16.6",
+]
+
+dev = [
+    "codespell>=2.3.0",
+    "pyright>=1.1.411",
+    "pytest>=8.3.5",
+    "pytest-cov>=6.1.1",
+    "ruff>=0.11.0",
+    "harp-protocol",
+    "harp-device",
+    "harp-serial",
+    "harp-data",
+    "harp-benchmarks",
+    "typing-extensions>=4.15.0",
+]
+
+[tool.codespell]
+skip = "*.lock,./.venv,./site,./.git,./.mypy_cache,./.ruff_cache,./.pytest_cache,*.pyc"
+check-filenames = true
+
+[tool.ruff.lint.pydocstyle]
+convention = "numpy"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+addopts = ["--import-mode=importlib", ]
+python_files = [
+    "tests.py",
+    "test_*.py"
+]
+
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.pyright]
+pythonVersion = "3.11"
+typeCheckingMode = "standard"
+include = [
+    "src/packages/harp-protocol/src",
+    "src/packages/harp-device/src",
+    "src/packages/harp-serial/src",
+    "src/packages/harp-data/src",
+]
+exclude = [
+    "**/node_modules",
+    "**/__pycache__",
+    "**/.*",
+    ".venv",
+    "tests",
+]
+venvPath = "."
+venv = ".venv"
+reportImportCycles = "error"
+reportUnusedImport = "error"
+reportUnusedClass = "error"
+reportUnusedFunction = "error"
+reportUnusedVariable = "error"
+reportDuplicateImport = "error"
+reportWildcardImportFromLibrary = "error"
+reportCallInDefaultInitializer = "error"
+reportUnnecessaryIsInstance = "error"
+reportUnnecessaryCast = "error"
+reportUnnecessaryContains = "error"
+reportAssertAlwaysTrue = "error"
+reportSelfClsParameterName = "error"
+reportUnusedExpression = "error"
+reportMatchNotExhaustive = "error"

@@ -1,71 +1,88 @@
+<p align="center">
+  <img src="docs/assets/logo.svg" alt="Harp logo" width="400">
+</p>
 
+# harp
 
-# pyharp
+This project includes four main packages:
 
-Harp implementation of the Harp protocol.
+ - **harp-protocol**: Provides the core protocol definitions and utilities for the Harp protocol.
+   See [Protocol API Documentation](https://harp-tech.org/pyharp/api/protocol) for details.
 
-## Edit the code
+ - **harp-serial**: Implements serial communication functionalities for generic Harp devices.
+   See [Serial API Documentation](https://harp-tech.org/pyharp/api/serial) for more information.
 
-Each Python user has is own very dear IDE for editing. Here, we are leaving instructions on how to edit this code using pyCharm, Anaconda and Poetry.
+ - **harp-device**: Implements the transport-agnostic `Device` interface, the common register map, and the shared registers and enums.
+   See [Device API Documentation](https://harp-tech.org/pyharp/api/device) for details.
 
-The instructions are for beginner. Most of the users can just skip them.
+ - **harp-data**: Parses register binary dumps into pandas DataFrames.
+   See [Data API Documentation](https://harp-tech.org/pyharp/api/data) for more information.
 
-This was tested on a Windows machine, but should be similar to other systems.
+## Installation
 
+All packages are published to PyPI. The `harp` package is a metadata package with no code of
+its own — it just depends on the four packages above, so it's the easiest way to get everything:
 
-### 1. Install PyCHarm
-**PyCharm** can be download from [here](https://www.jetbrains.com/pycharm/download/). The Community version is enough.
-Download and install it.
-
-### 2. Install Anaconda
-
-**Anaconda** can be found [here](https://www.anaconda.com/products/individual).
-Download the version according to your computer and install it.
-- Unselect **Add Anaconda to the system PATH environment variable**
-- Select ** Register Anaconda as the system Pyhton**
-
-It's suggested to reboot your computer at this point
-
-### 3. Install Poetry
-
-Open the **Command Prompt** and execute the next command:
-```
-curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py | python
+```sh
+pip install harp
 ```
 
-### 4. Install pyharp
-
-Open **Anaconda**, navigate to the repository folder and execute the next commands:
-```
-poetry install
-poetry env info
+```sh
+uv add harp
 ```
 
-The second comand will reply with a **Path:**.
-Select and copy this path.
+If you only need part of the stack (e.g. you're parsing offline data dumps and don't need serial
+I/O), install just the packages you need — each one only pulls in what it actually depends on:
 
-### 5. Using PyCharm to edit the code
+| Package | Provides | Depends on |
+| --- | --- | --- |
+| `harp-protocol` | Core protocol types: registers, messages, payload parsing | — |
+| `harp-device` | Transport-agnostic `Device` class, common register map | `harp-protocol` |
+| `harp-serial` | Serial (COM/tty) transport for `Device` | `harp-protocol`, `harp-device` |
+| `harp-data` | Parse register binary dumps into pandas DataFrames | `harp-protocol` |
 
-1. Open **PyCharm** :)
-2. Go to File -> Open, select the repository folder, and click **OK**
-3. Go to File -> Settings -> Project:pyharp -> Project Interpreter
-3.1 Click in the gear in front of the Project Interpreter: and select **Add...**
-3.2 On Virtualenv Environment, chose Existing environment
-3.3 Select **python.exe** on the folder Scripts under  the path copied from the _poetry env info_ command
-3.4 Click **OK** and **OK**
-
-You are ready to go!
-
-### 6. Test the code
-
-Under **PyCharm**, Open one of the examples from the folder _examples_ (the _get_info.py_ is generic, so it's a good option) and update the COMx to your COM number.
-Right-click on top of the file and chose option _Run 'get_info.py_. You should read something like this in the console:
+```sh
+pip install harp-protocol
+pip install harp-device
+pip install harp-serial
+pip install harp-data
 ```
-Device info:
-* Who am I: (2080) IblBehavior
-* HW version: 1.0
-* Assembly version: 0
-* HARP version: 1.6
-* Firmware version: 1.0
-* Device user name: IBL_rig_0
+
+`harp-benchmarks` (under `src/packages/`) is internal-only and is never published to PyPI.
+
+## Contributing
+
+harp is a [uv workspace](https://docs.astral.sh/uv/concepts/workspaces/): every package under
+`src/packages/` is its own distribution, plus the root `harp` metadata package. Contributions are
+welcome — please open an issue or PR.
+
+Clone the repo and install everything (all workspace packages, editable, plus test/lint tooling)
+with the `dev` dependency group:
+
+```sh
+uv sync --group dev
+```
+
+Before opening a PR, run the same checks CI runs:
+
+```sh
+uv run ruff format --check   # formatting
+uv run ruff check            # lint
+uv run ty check              # type checking
+uv run codespell             # spelling
+uv run pytest --cov harp     # tests
+```
+
+Adding a new package? Drop it under `src/packages/<name>/` with its own `pyproject.toml`, add it
+to `[tool.uv.sources]` in the root `pyproject.toml`, and (if it should ship as part of `harp`) add
+it to the root package's `dependencies` too.
+
+## Building the documentation
+
+Install the docs dependency group and run mkdocs through uv:
+
+```sh
+uv sync --group docs --group dev
+uv run mkdocs serve   # live-reloading local preview
+uv run mkdocs build   # static site in ./site
 ```

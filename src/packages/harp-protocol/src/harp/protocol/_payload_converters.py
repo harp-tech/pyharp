@@ -1,0 +1,219 @@
+import enum as _enum
+from abc import ABC, abstractmethod
+from typing import Any, Generic, TypeVar, cast
+from dataclasses import dataclass
+import numpy as np
+from numpy.typing import NDArray
+
+T = TypeVar("T")
+NpScalarT = TypeVar("NpScalarT", bound=np.generic)
+E = TypeVar("E", bound=_enum.IntEnum)
+
+# ---------------------------------------------------------------------------
+# Base class
+# ---------------------------------------------------------------------------
+
+
+class Converter(ABC, Generic[T]):
+    """Abstract base for payload field converters.
+
+    Subclasses must set ``dtype` as class attribute and implement the abstract methods.
+    """
+
+    dtype: np.dtype  # dtype of the raw numpy slot passed to decode/encode
+
+    @abstractmethod
+    def decode_scalar(self, view: np.generic) -> T:
+        """Decode a 0-D structured-array element into a Python value."""
+
+    @abstractmethod
+    def decode_batch(self, view: "NDArray[np.generic]") -> Any:
+        """Decode a 1-D structured-array column into an array-like."""
+
+    @abstractmethod
+    def encode_into(self, view: NDArray[np.generic], value: T) -> None:
+        """Write a Python value back into a structured-array element."""
+
+
+# ---------------------------------------------------------------------------
+# Built-in converters
+# ---------------------------------------------------------------------------
+
+
+class IdentityConverter(Converter[NpScalarT]):
+    """Pass-through converter — the raw numpy scalar is returned as-is."""
+
+    def __init__(self, dtype: "np.dtype[NpScalarT] | str | type[NpScalarT]") -> None:
+        self.dtype = np.dtype(dtype)
+
+    def decode_scalar(self, view: np.generic) -> NpScalarT:
+        return cast(
+            NpScalarT, view
+        )  # this should be safe since dtype is scalar and matches the type var
+
+    def decode_batch(self, view: NDArray[np.generic]) -> "NDArray[NpScalarT]":
+        return cast("NDArray[NpScalarT]", view)
+
+    def encode_into(self, view: NDArray[np.generic], value: NpScalarT) -> None:
+        view[...] = value
+
+
+class UInt8Converter(IdentityConverter[np.uint8]):
+    """A built-in UInt8 passthrough converter"""
+
+    def __init__(self) -> None:
+        super().__init__(np.uint8)
+
+
+class SInt8Converter(IdentityConverter[np.int8]):
+    """A built-in Int8 passthrough converter"""
+
+    def __init__(self) -> None:
+        super().__init__(np.int8)
+
+
+class UInt16Converter(IdentityConverter[np.uint16]):
+    """A built-in UInt16 passthrough converter"""
+
+    def __init__(self) -> None:
+        super().__init__(np.uint16)
+
+
+class Int16Converter(IdentityConverter[np.int16]):
+    """A built-in Int16 passthrough converter"""
+
+    def __init__(self) -> None:
+        super().__init__(np.int16)
+
+
+class UInt32Converter(IdentityConverter[np.uint32]):
+    """A built-in UInt32 passthrough converter"""
+
+    def __init__(self) -> None:
+        super().__init__(np.uint32)
+
+
+class Int32Converter(IdentityConverter[np.int32]):
+    """A built-in Int32 passthrough converter"""
+
+    def __init__(self) -> None:
+        super().__init__(np.int32)
+
+
+class UInt64Converter(IdentityConverter[np.uint64]):
+    """A built-in UInt64 passthrough converter"""
+
+    def __init__(self) -> None:
+        super().__init__(np.uint64)
+
+
+class Int64Converter(IdentityConverter[np.int64]):
+    """A built-in Int64 passthrough converter"""
+
+    def __init__(self) -> None:
+        super().__init__(np.int64)
+
+
+class FloatConverter(IdentityConverter[np.float32]):
+    """A built-in float passthrough converter"""
+
+    def __init__(self) -> None:
+        super().__init__(np.float32)
+
+
+class BoolConverter(Converter[bool]):
+    """Whole-element ``interfaceType: bool`` (or a single masked bit via ``Field(BoolConverter(), mask=...)``).
+
+    The element is non-zero → ``True``. Operates on a single base element.
+    """
+
+    def __init__(self, dtype: "np.dtype | str | type" = np.uint8) -> None:
+        self.dtype = np.dtype(dtype)
+
+    def decode_scalar(self, view: np.generic) -> bool:
+        return bool(view)
+
+    def decode_batch(self, view: NDArray[np.generic]) -> Any:
+        return np.asarray(view) != 0
+
+    def encode_into(self, view: NDArray[np.generic], value: bool) -> None:
+        view[...] = 1 if value else 0
+
+
+class EnumConverter(Converter[E]):
+    """Whole-element ``interfaceType: <maskType>`` enum (strict).
+
+    Maps a base element to an ``enum.IntEnum`` member; an unknown code raises
+    ``ValueError`` (matching Python ``IntEnum`` semantics). For masked enum
+    sub-fields use :class:`~harp.protocol.GroupMask` with ``enum=`` instead.
+    """
+
+    def __init__(self, enum_cls: "type[E]", dtype: "np.dtype | str | type" = np.uint8) -> None:
+        self._enum = enum_cls
+        self.dtype = np.dtype(dtype)
+
+    def decode_scalar(self, view: np.generic) -> E:
+        return self._enum(int(view))
+
+    def decode_batch(self, view: NDArray[np.generic]) -> Any:
+        return np.asarray(view)
+
+    def encode_into(self, view: NDArray[np.generic], value: E) -> None:
+        view[...] = int(value)
+
+
+class StringConverter(Converter[str]):
+    """Converts a fixed-length byte array to/from a Python ``str``."""
+
+    def __init__(self, length: int, encoding: str = "ascii") -> None:
+        self._length = length
+        self._encoding = encoding
+        self.dtype = np.dtype((np.uint8, (length,)))
+
+    def decode_scalar(self, view: np.generic) -> str:
+        return bytes(view).rstrip(b"\x00").decode(self._encoding)
+
+    _VIEW_CASTABLE_ENCODINGS = frozenset({"ascii", "latin1", "latin-1", "iso-8859-1"})
+
+    def decode_batch(self, view: NDArray[np.generic]) -> Any:
+        if self._encoding not in self._VIEW_CASTABLE_ENCODINGS:
+            return np.array(
+                [bytes(row).rstrip(b"\x00").decode(self._encoding) for row in view],
+                dtype=object,
+            )
+        return view.reshape(-1, self._length).view(f"S{self._length}").reshape(-1).astype(str)
+
+    def encode_into(self, view: NDArray[np.generic], value: str) -> None:
+        encoded = value.encode(self._encoding)[: self._length]
+        padded = encoded.ljust(self._length, b"\x00")
+        view[...] = np.frombuffer(padded, dtype=np.uint8)
+
+
+@dataclass(frozen=True)
+class HarpVersion:
+    """Represents a Harp version"""
+
+    major: int
+    minor: int
+    patch: int
+
+    def __str__(self) -> str:
+        return f"{self.major}.{self.minor}.{self.patch}"
+
+
+class HarpVersionConverter(Converter[HarpVersion]):
+    """A built-in converter for a HarpVersion object."""
+
+    def __init__(self, component: "np.dtype | str | type" = np.uint8) -> None:
+        self.dtype = np.dtype((component, (3,)))
+
+    def decode_scalar(self, view: np.generic) -> HarpVersion:
+        c = np.asarray(view).tolist()
+        return HarpVersion(int(c[0]), int(c[1]), int(c[2]))
+
+    def decode_batch(self, view: NDArray[np.generic]) -> Any:
+        v = np.atleast_2d(view)
+        return np.frompyfunc(HarpVersion, 3, 1)(v[:, 0], v[:, 1], v[:, 2])
+
+    def encode_into(self, view: NDArray[np.generic], value: HarpVersion) -> None:
+        view[...] = np.array([value.major, value.minor, value.patch], dtype=self.dtype.base)
