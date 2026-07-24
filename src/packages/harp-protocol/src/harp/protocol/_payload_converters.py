@@ -181,7 +181,7 @@ class StringConverter(Converter[str]):
                 [bytes(row).rstrip(b"\x00").decode(self._encoding) for row in view],
                 dtype=object,
             )
-        return view.reshape(-1, self._length).view(f"S{self._length}").reshape(-1).astype(str)  # ty: ignore[no-matching-overload]
+        return view.reshape(-1, self._length).view(f"S{self._length}").reshape(-1).astype(str)
 
     def encode_into(self, view: NDArray[np.generic], value: str) -> None:
         encoded = value.encode(self._encoding)[: self._length]

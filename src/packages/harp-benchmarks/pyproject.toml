@@ -1,6 +1,6 @@
 [project]
 name = "harp-benchmarks"
-version = "0.1.0"
+dynamic = ["version"]
 description = "Internal parsing-speed benchmarks for the Harp register/payload API."
 requires-python = ">=3.11"
 # INTERNAL ONLY — never published to PyPI. The "Private :: Do Not Upload" trove
@@ -19,9 +19,12 @@ harp-benchmark = "harp.benchmarks.benchmark:main"
 harp-benchmark-generate = "harp.benchmarks.generate:main"
 
 [build-system]
-requires = ["uv_build>=0.9.5"]
-build-backend = "uv_build"
+requires = ["setuptools>=77", "setuptools-scm>=8"]
+build-backend = "setuptools.build_meta"
 
-[tool.uv.build-backend]
-module-name = "harp.benchmarks"
-module-root = "src"
+[tool.setuptools_scm]
+root = "../../.."
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["harp*"]

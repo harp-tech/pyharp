@@ -146,7 +146,7 @@ class Field(Generic[T]):
         if self._mask is not None:
             raw = (obj._arr[self._slot] & self._mask) >> self._shift
             return self._converter.decode_scalar(self._converter.dtype.type(raw))
-        return self._converter.decode_scalar(obj._arr[self._slot])  # ty: ignore[invalid-argument-type]
+        return self._converter.decode_scalar(obj._arr[self._slot])  # pyright: ignore[reportArgumentType]
 
     def _to_batch(self) -> "_FieldBatch[T]":
         """Returns the metadata for the corresponding Batch type"""
@@ -599,7 +599,7 @@ def _build_struct_dtype(
     else:
         itemsize = max(slot.byte_offset + slot.dtype.itemsize for slot in slots.values())
     _validate_no_overlap(cls, slots, itemsize)
-    return np.dtype(  # ty: ignore[no-matching-overload]
+    return np.dtype(
         {
             "names": list(slots),
             "formats": [slot.dtype for slot in slots.values()],
@@ -671,7 +671,7 @@ class PayloadBase(Generic[NpStructT]):
         for attr_name, value in kwargs.items():
             desc = cls._mro_descriptor(attr_name)
             if isinstance(desc, Field) and desc._mask is None:  # whole-element Field
-                desc._converter.encode_into(arr[desc._slot], value)  # ty: ignore[invalid-argument-type]
+                desc._converter.encode_into(arr[desc._slot], value)
             elif isinstance(desc, (GroupMask, BitMask, Field)):
                 # masked sub-field -> encode, shift, merge into the shared slot
                 mask = desc._mask
@@ -951,7 +951,7 @@ class AnonymousPayload(PayloadBase[NpStructT]):
                     f"multi-field payloads."
                 )
             cls._root = True
-            super().__init_subclass__(**kwargs)  # ty: ignore[invalid-argument-type]
+            super().__init_subclass__(**kwargs)  # pyright: ignore[reportArgumentType]
             return
         # Raw scalar slot required, unless a Batch twin / array concrete supplies dtype.
         if scalar_dtype is None and "_batch_of" not in kwargs and "dtype" not in cls.__dict__:
@@ -963,7 +963,7 @@ class AnonymousPayload(PayloadBase[NpStructT]):
         if scalar_dtype is not None:
             cls.dtype = np.dtype(scalar_dtype)
             cls._repr_fields = ()
-        super().__init_subclass__(**kwargs)  # ty: ignore[invalid-argument-type]
+        super().__init_subclass__(**kwargs)  # pyright: ignore[reportArgumentType]
 
     def __init__(self, value: object = _MISSING_INIT, /, **kwargs: object) -> None:  # type: ignore[override]
         if type(self)._root:

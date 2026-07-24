@@ -1,4 +1,4 @@
-name: pyharp test suite
+name: harp
 
 on:
     pull_request:
@@ -38,8 +38,8 @@ jobs:
             - name: Run ruff check
               run: uv run ruff check
 
-            - name: Run ty
-              run: uv run ty check
+            - name: Run pyright
+              run: uv run pyright
 
             - name: Run pytest
               run: uv run pytest --cov harp
@@ -47,49 +47,33 @@ jobs:
             - name: Build
               run: uv build --all-packages
 
-    prepare-release:
+    # ---- Release build ----
+    build-release:
         runs-on: ubuntu-latest
-        name: Set version from release tag
+        name: Build release distributions
         needs: tests
         if: github.event_name == 'release' && github.event.action == 'published'
-        outputs:
-            version: ${{ steps.get_version.outputs.version }}
 
         steps:
             - uses: actions/checkout@v7
-              with:
-                  fetch-depth: 0
-                  ref: master
 
             - uses: astral-sh/setup-uv@v8.3.2
               with:
                   enable-cache: true
 
-            - name: Extract version from tag
-              id: get_version
-              shell: bash
-              run: |
-                  version=$(echo "${{ github.event.release.tag_name }}" | sed 's/^v//')
-                  echo "version=$version" >> $GITHUB_OUTPUT
-                  echo "Setting version to: $version"
-
-            - name: Validate version format
-              run: uv version ${{ steps.get_version.outputs.version }} --dry-run
-
-            - name: Set version across all workspace packages
-              shell: bash
-              run: |
-                  version="${{ steps.get_version.outputs.version }}"
-                  # Discover every workspace member (root + src/packages/*) by its declared
-                  # package name so all versions move in lock-step with the release tag.
-                  mapfile -t pkgs < <(grep -h '^name = ' pyproject.toml src/packages/*/pyproject.toml | sed -E 's/^name = "(.*)"/\1/')
-                  for pkg in "${pkgs[@]}"; do
-                    echo "Setting $pkg -> $version"
-                    uv version --package "$pkg" "$version"
-                  done
-
             - name: Build
+              env:
+                  SETUPTOOLS_SCM_PRETEND_VERSION: ${{ github.event.release.tag_name }}
               run: uv build --all-packages
+
+            - name: Verify setuptools-scm applied the release tag
+              shell: bash
+              run: |
+                  ls -1 dist/
+                  if ls dist/*-0.0.0.tar.gz >/dev/null 2>&1; then
+                      echo "::error::Built version 0.0.0, so setuptools-scm did not apply the tag. Check that every pyproject.toml still declares a tool.setuptools_scm table."
+                      exit 1
+                  fi
 
             - name: Remove internal-only packages from dist
               shell: bash
@@ -101,27 +85,17 @@ jobs:
                   name: dist
                   path: dist/
 
-            # This step seems a bit complicated, but it allows for idempotent commits,
-            # so that if the release tag is moved to a new commit,
-            # the version will be updated and committed again.
-            - name: Commit version changes
-              shell: bash
-              run: |
-                  git config --global user.name "github-actions[bot]"
-                  git config --global user.email "github-actions[bot]@users.noreply.github.com"
-                  git add .
-                  git diff --cached --quiet && echo "No changes to commit" && exit 0
-                  git commit -m "Set version ${{ steps.get_version.outputs.version }} [skip ci]"
-                  git push origin master
-                  # Move the release tag to point to this new commit.
-                  git tag -fa "${{ github.event.release.tag_name }}" -m "${{ github.event.release.tag_name }}"
-                  git push origin "${{ github.event.release.tag_name }}" --force
-
     # ---- Publish to PyPI ----
     publish-to-pypi:
         runs-on: ubuntu-latest
         name: Publish to PyPI
-        needs: prepare-release
+        needs: build-release
+        environment: pypi
+        permissions:
+            # uv publish exchanges this token with PyPI trusted publishing.
+            id-token: write
+            # action-gh-release attaches the distributions to the release.
+            contents: write
         steps:
             - name: Download wheels artifact
               uses: actions/download-artifact@v8
@@ -134,7 +108,7 @@ jobs:
                   enable-cache: true
 
             - name: Publish to PyPI
-              run: uv publish --token ${{ secrets.PYPI_TOKEN }}
+              run: uv publish
 
             - name: Upload wheels to GitHub release
               uses: softprops/action-gh-release@v3
@@ -145,13 +119,13 @@ jobs:
     build-docs:
         name: Build and deploy documentation to GitHub Pages
         runs-on: ubuntu-latest
-        needs: prepare-release
+        needs: build-release
         if: github.event_name == 'release' && !github.event.release.prerelease
         steps:
             - name: Checkout
               uses: actions/checkout@v7
               with:
-                  ref: master
+                  fetch-depth: 0
 
             - name: Install uv
               uses: astral-sh/setup-uv@v8.3.2
