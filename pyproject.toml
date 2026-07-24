@@ -1,6 +1,6 @@
 [project]
 name = "harp"
-version = "0.0.0"
+dynamic = ["version"]
 description = "Library for data acquisition and control of devices implementing the Harp protocol."
 authors = [{ name = "harp-tech", email = "contact@harp-tech.org" }]
 license = "MIT"
@@ -44,13 +44,14 @@ Documentation = "https://harp-tech.org/pyharp/"
 Changelog = "https://github.com/harp-tech/pyharp/releases"
 
 [build-system]
-requires = ["uv_build>=0.9.5"]
-build-backend = "uv_build"
+requires = ["setuptools>=77", "setuptools-scm>=8"]
+build-backend = "setuptools.build_meta"
 
-[tool.uv.build-backend]
-module-name = "harp"
-module-root = "src"
-namespace = true
+[tool.setuptools_scm]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["harp*"]
 
 [tool.uv.sources]
 harp-protocol = { workspace = true }
@@ -77,10 +78,10 @@ docs = [
 
 dev = [
     "codespell>=2.3.0",
+    "pyright>=1.1.411",
     "pytest>=8.3.5",
     "pytest-cov>=6.1.1",
     "ruff>=0.11.0",
-    "ty>=0.0.0",
     "harp-protocol",
     "harp-device",
     "harp-serial",
@@ -109,11 +110,9 @@ python_files = [
 line-length = 100
 target-version = "py311"
 
-[tool.ty.environment]
-python-version = "3.11"
-extra-paths = ["tests"]
-
-[tool.ty.src]
+[tool.pyright]
+pythonVersion = "3.11"
+typeCheckingMode = "standard"
 include = [
     "src/packages/harp-protocol/src",
     "src/packages/harp-device/src",
@@ -121,5 +120,26 @@ include = [
     "src/packages/harp-data/src",
 ]
 exclude = [
+    "**/node_modules",
+    "**/__pycache__",
+    "**/.*",
+    ".venv",
     "tests",
 ]
+venvPath = "."
+venv = ".venv"
+reportImportCycles = "error"
+reportUnusedImport = "error"
+reportUnusedClass = "error"
+reportUnusedFunction = "error"
+reportUnusedVariable = "error"
+reportDuplicateImport = "error"
+reportWildcardImportFromLibrary = "error"
+reportCallInDefaultInitializer = "error"
+reportUnnecessaryIsInstance = "error"
+reportUnnecessaryCast = "error"
+reportUnnecessaryContains = "error"
+reportAssertAlwaysTrue = "error"
+reportSelfClsParameterName = "error"
+reportUnusedExpression = "error"
+reportMatchNotExhaustive = "error"
