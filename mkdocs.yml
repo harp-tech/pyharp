@@ -73,6 +73,7 @@ nav:
   - Home: index.md
   - Examples:
     - examples/index.md
+    - Defining a Device Statically: examples/static_device/static_device.md
     - Generating a Device from a Schema: examples/create_device/create_device.md
     - Getting Device Info: examples/get_info/get_info.md
     - Read and Write from Registers: examples/read_and_write_from_registers/read_and_write_from_registers.md

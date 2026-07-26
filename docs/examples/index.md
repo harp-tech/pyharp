@@ -2,8 +2,9 @@
 
 This section contains some examples to help you get started with `harp`.
 
-Working from a device schema:
+Defining a device:
 
+- [Defining a Device Statically](./static_device/static_device.md) - write a device as plain, typed Python classes (the shape code generators emit).
 - [Generating a Device from a Schema](./create_device/create_device.md) - compile a `device.yml` into a typed device at runtime with `create_device`.
 
 Talking to a device:

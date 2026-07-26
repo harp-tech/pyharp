@@ -274,4 +274,4 @@ class Tests(Device):
             StartPulseTrain: type[StartPulseTrain]
             EncoderMode: type[EncoderMode]
 
-        registers: ClassVar[_Registers]
+        registers: ClassVar[_Registers]  # pyright: ignore[reportIncompatibleVariableOverride]

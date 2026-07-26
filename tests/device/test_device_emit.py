@@ -1,3 +1,5 @@
+from typing import ClassVar
+
 import pytest
 from harp.device import Device, create_device
 
@@ -66,6 +68,26 @@ def test_registers_iterates_register_classes(test_device):
     regs = test_device.registers
     assert set(regs) == set(regs.by_address.values())
     assert len(regs) == len(regs.by_address)
+
+
+def test_static_device_subclass_derives_registers():
+    # A hand-written (or generated) static device: declare __REGISTERS__ and the
+    # base merges in the common registers and builds `registers`. No REGISTER_MAP.
+    from harp.device import WhoAmI
+    from harp.protocol import RegisterU16
+
+    class Counter(RegisterU16):
+        address: ClassVar[int] = 40
+
+    class MyDevice(Device):
+        __whoami__ = 42
+        __REGISTERS__ = (Counter,)
+
+    assert MyDevice.__whoami__ == 42
+    assert MyDevice.registers.Counter is Counter  # device register, by name
+    assert MyDevice.registers.WhoAmI is WhoAmI  # common register, merged in
+    assert Counter in MyDevice.registers  # membership by register class
+    assert MyDevice.registers.by_address[40] is Counter
 
 
 def test_device_register_overrides_core_on_clash():
