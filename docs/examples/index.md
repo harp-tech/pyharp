@@ -14,4 +14,5 @@ Talking to a device:
 
 Reading recorded data:
 
-- [Reading Data into a DataFrame](./read_data_to_dataframe/read_data_to_dataframe.md) - load a register's binary data file into a pandas DataFrame with `harp.data`.
+- [Reading a Whole Dataset Folder](./read_dataset/read_dataset.md) - load an entire recorded session folder into pandas DataFrames with `DatasetReader`.
+- [Reading Data into a DataFrame](./read_data_to_dataframe/read_data_to_dataframe.md) - decode a single register's binary file into a pandas DataFrame.

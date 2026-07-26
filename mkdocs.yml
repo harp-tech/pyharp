@@ -77,6 +77,7 @@ nav:
     - Getting Device Info: examples/get_info/get_info.md
     - Read and Write from Registers: examples/read_and_write_from_registers/read_and_write_from_registers.md
     - Subscribing to Events: examples/subscribing_to_events/subscribing_to_events.md
+    - Reading a Whole Dataset Folder: examples/read_dataset/read_dataset.md
     - Reading Data into a DataFrame: examples/read_data_to_dataframe/read_data_to_dataframe.md
   - API:
     - Protocol: api/protocol.md

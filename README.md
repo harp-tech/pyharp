@@ -52,42 +52,48 @@ pip install harp-data
 
 ## Quickstart
 
-Have only a device's `device.yml`? `create_device` compiles it into a typed
-`Device` at runtime — no code-generation step — giving you the device's registers
-(keyed by address) and its identity:
+There are two ways you'll typically use `harp`: talking to a **live device** over a
+serial connection, or reading **data recorded to disk**.
+
+**Talk to a live device.** Open a connection and read/write registers by class:
+
+```python
+from harp.device import Device, WhoAmI, OperationControl, OperationControlPayload, OperationMode
+from harp.serial import open_serial_device
+
+# Use "COMx" on Windows, "/dev/ttyUSBx" on Linux.
+with open_serial_device(Device, port="/dev/ttyUSB0") as device:
+    print("WhoAmI:", device.read(WhoAmI).parsed)
+    device.write(OperationControl, OperationControlPayload(operation_mode=OperationMode.ACTIVE))
+```
+
+**Read a recorded session.** Point a `DatasetReader` at a dataset folder and read
+registers into pandas DataFrames — no hardware required:
+
+```python
+from harp.data import create_dataset_reader
+
+# Finds device.yml in the folder, builds the device, returns a ready-to-use reader.
+reader = create_dataset_reader("session.harp")
+df = reader.read(44)              # one register, by address (or pass its class)
+everything = reader.read_all()    # {register_name: DataFrame}
+```
+
+Both paths are driven by a device schema. If you have only a `device.yml` and no
+pre-generated package, `create_device` compiles it into a typed `Device` at runtime —
+no code-generation step — which is exactly what `create_dataset_reader` does under
+the hood:
 
 ```python
 from pathlib import Path
 from harp.device import create_device
 
 Behavior = create_device(Path("device.yml").read_text())
-Behavior.__whoami__            # device identity from the schema
 AnalogData = Behavior.REGISTER_MAP[44]   # registers are reached by address
 ```
 
-The generated device works like any other. **Talk to hardware** over a serial
-transport — `read`/`write` take a register class:
-
-```python
-from harp.serial import open_serial_device
-
-# Use "COMx" on Windows, "/dev/ttyUSBx" on Linux.
-with open_serial_device(Behavior, port="/dev/ttyUSB0") as device:
-    print(device.read(AnalogData).parsed)
-```
-
-...or use the same register classes to **decode recorded data** into a pandas
-DataFrame:
-
-```python
-from harp.data import parse_to_dataframe
-
-df = parse_to_dataframe(AnalogData, "Behavior_44.bin")
-```
-
-See the [Examples](https://harp-tech.org/pyharp/examples/) for full walkthroughs,
-including reading device info, subscribing to events, and working with custom
-interface-type converters.
+See the [Examples](https://harp-tech.org/pyharp/examples/) for the full walkthroughs,
+including subscribing to device events and working with custom interface-type converters.
 
 ## Contributing
 
