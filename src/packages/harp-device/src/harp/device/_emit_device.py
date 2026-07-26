@@ -17,10 +17,10 @@ def create_device(
 ) -> type[Device]:
     """Emit a :class:`Device` subclass from a device schema.
 
-    The returned class exposes its registers through ``REGISTER_MAP`` (address ->
-    register class) and carries ``__whoami__`` from the schema (``0x0`` when
-    absent). The device's registers are spread on top of the core common map; on
-    an address clash the device's register wins. ``exclude_private=True`` drops
+    The returned class exposes its registers through the ``REGISTER_MAP`` class
+    attribute (address -> register class) and carries ``__whoami__`` from the schema
+    (``0x0`` when absent). The device's registers are spread on top of the core common
+    map; on an address clash the device's register wins. ``exclude_private=True`` drops
     registers whose DSL ``visibility`` is ``private``. A header-less register
     fragment yields a device with no ``device`` name (falls back to ``"Device"``).
     """

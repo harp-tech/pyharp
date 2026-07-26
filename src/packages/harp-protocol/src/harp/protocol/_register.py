@@ -2,7 +2,7 @@ from abc import ABC, ABCMeta
 from typing import Any, ClassVar, Generic, TypeVar, cast, final, overload
 
 import numpy as np
-from numpy.typing import NDArray
+from numpy.typing import ArrayLike, NDArray
 from typing_extensions import Sentinel
 
 from ._builder import build_message_frame
@@ -43,7 +43,7 @@ from ._payload_type import PayloadType, encode_payload_type
 _MISSING = Sentinel("_MISSING")
 
 
-def _encode_message_types(message_type: Any, nrows: int) -> NDArray[np.uint8]:
+def _encode_message_types(message_type: MessageType | ArrayLike, nrows: int) -> NDArray[np.uint8]:
     """Resolve a scalar/array ``message_type`` argument to N message-type bytes.
 
     A single :class:`MessageType` (error-bit aware) fills all frames; a scalar int
@@ -201,10 +201,10 @@ class RegisterBase(ABC, Generic[U]):
     @classmethod
     def format_bulk(
         cls,
-        values: Any,
+        values: PayloadBase | ArrayLike,
         *,
-        timestamps: Any = None,
-        message_type: Any = MessageType.Event,
+        timestamps: ArrayLike | None = None,
+        message_type: MessageType | ArrayLike = MessageType.Event,
         port: int = _DEFAULT_PORT,
     ) -> NDArray[np.uint8]:
         """Build a flat buffer of N frames of this register type — the inverse of

@@ -5,19 +5,19 @@ and a file sink. Useful for round-tripping data and generating typed test corpor
 """
 
 from os import PathLike
-from typing import Any, Union
+from typing import Any
 
 import numpy as np
-from harp.protocol import MessageType, RegisterBase
-from numpy.typing import NDArray
+from harp.protocol import MessageType, PayloadBase, RegisterBase
+from numpy.typing import ArrayLike, NDArray
 
 
 def to_buffer(
     register: type[RegisterBase[Any]],
-    values: Any,
+    values: PayloadBase | ArrayLike,
     *,
-    timestamps: Any = None,
-    message_type: Any = MessageType.Event,
+    timestamps: ArrayLike | None = None,
+    message_type: MessageType | ArrayLike = MessageType.Event,
     port: int = 255,
 ) -> NDArray[np.uint8]:
     """Encode ``values`` as a flat buffer of ``register`` frames.
@@ -32,11 +32,11 @@ def to_buffer(
 
 def to_file(
     register: type[RegisterBase[Any]],
-    values: Any,
-    file: Union[str, PathLike],
+    values: PayloadBase | ArrayLike,
+    file: str | PathLike,
     *,
-    timestamps: Any = None,
-    message_type: Any = MessageType.Event,
+    timestamps: ArrayLike | None = None,
+    message_type: MessageType | ArrayLike = MessageType.Event,
     port: int = 255,
 ) -> None:
     """Write ``values`` as ``register`` frames to ``file`` (see :func:`to_buffer`)."""

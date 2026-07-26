@@ -81,6 +81,9 @@ class Device:
     #: Expected ``WhoAmI`` of the device this class models; ``0x0`` skips the check.
     __whoami__: ClassVar[int] = 0x0
 
+    #: Address -> register class; empty on the base, overridden by generated devices.
+    REGISTER_MAP: ClassVar[dict[int, type[RegisterBase[Any]]]] = {}
+
     def __init__(self, transport: ITransport, *, raise_on_error: bool = True) -> None:
         self._transport = transport
         self.raise_on_error = raise_on_error
