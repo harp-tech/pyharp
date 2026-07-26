@@ -35,16 +35,16 @@ def test_registers_are_reachable_by_name(test_device):
 
 
 def test_registers_are_reachable_by_address(test_device):
-    regs = test_device.registers
-    assert regs[33].__name__ == "AnalogData"
-    assert regs[103].__name__ == "EncoderMode"
+    by_address = test_device.registers.by_address
+    assert by_address[33].__name__ == "AnalogData"
+    assert by_address[103].__name__ == "EncoderMode"
 
 
 def test_registers_include_core(test_device):
     regs = test_device.registers
     assert regs.WhoAmI.address == 0  # core register, always merged in
     assert regs.AnalogData.address == 33  # device-specific
-    assert regs[0].__name__ == "WhoAmI"
+    assert regs.by_address[0].__name__ == "WhoAmI"
 
 
 def test_unknown_register_name_raises(test_device):
@@ -52,12 +52,28 @@ def test_unknown_register_name_raises(test_device):
         _ = test_device.registers.Nonexistent
 
 
+def test_registers_membership_is_by_register_class(test_device):
+    from harp.device import WhoAmI
+
+    regs = test_device.registers
+    assert WhoAmI in regs  # register-class membership (core, merged in)
+    assert regs.AnalogData in regs  # device-specific
+    assert "WhoAmI" not in regs  # not by name
+    assert 0 not in regs  # not by address
+
+
+def test_registers_iterates_register_classes(test_device):
+    regs = test_device.registers
+    assert set(regs) == set(regs.by_address.values())
+    assert len(regs) == len(regs.by_address)
+
+
 def test_device_register_overrides_core_on_clash():
     # A device register at a core address wins over the merged-in common one.
     Dev = create_device(
         "device: Clash\nregisters:\n  Shadow: {address: 0, type: U32, access: Read}\n"
     )
-    assert Dev.registers[0].__name__ == "Shadow"
+    assert Dev.registers.by_address[0].__name__ == "Shadow"
     assert Dev.registers.Shadow.address == 0
 
 

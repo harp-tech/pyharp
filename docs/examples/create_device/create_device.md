@@ -6,7 +6,7 @@ code-generation step. This is the quickest way to get started when you have only
 device's schema and no pre-generated package for it.
 
 The compiled device exposes its registers by name through `device.registers`
-(e.g. `Behavior.registers.AnalogData`, or by address with `Behavior.registers[44]`)
+(e.g. `Behavior.registers.AnalogData`, or the `Behavior.registers.by_address` map)
 and carries the device's `__whoami__` identity. From there it works exactly like a
 pre-generated device class — drive it over a transport to talk to hardware, or use
 its register classes to decode recorded data.

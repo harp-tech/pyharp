@@ -84,7 +84,7 @@ class DatasetReader:
     @property
     def registers(self) -> RegisterNamespace:
         """The device's registers, reachable by name (``reader.registers.WhoAmI``)
-        or address (``reader.registers[44]`` / ``reader.registers.by_address``)."""
+        or through the ``reader.registers.by_address`` map."""
         return self._device.registers
 
     @property

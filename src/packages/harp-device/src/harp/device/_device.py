@@ -1,7 +1,7 @@
 """Transport-agnostic Harp device base class."""
 
 from collections.abc import Callable, Iterable
-from typing import Any, ClassVar, Self, TypeVar, final
+from typing import Any, ClassVar, Self, TypeVar
 
 import logging
 import queue
@@ -78,8 +78,7 @@ class Device:
     by name through :attr:`registers` (``device.registers.WhoAmI``).
 
     Only :attr:`__REGISTERS__` and :attr:`__whoami__` are meant to be set by a
-    subclass. The protocol methods and register-namespace derivation are ``@final`` —
-    the base owns them and they must not be overridden.
+    subclass; the base owns the protocol methods and the register-namespace derivation.
     """
 
     REPLY_TIMEOUT: ClassVar[float] = 5.0  # seconds
@@ -91,13 +90,12 @@ class Device:
     #: classes; the common Harp registers are merged in automatically.
     __REGISTERS__: ClassVar[tuple[type[RegisterBase[Any]], ...]] = ()
 
-    #: Name/address-indexed view of all this device's registers (core + ``__REGISTERS__``).
-    #: Reach a register by name (``device.registers.WhoAmI``) or address
-    #: (``device.registers[0]``); see :class:`~harp.device.RegisterNamespace`. Derived
-    #: by :meth:`__init_subclass__`; do not set it directly.
+    #: Name-indexed view of all this device's registers (core + ``__REGISTERS__``).
+    #: Reach a register by name (``device.registers.WhoAmI``), or use
+    #: ``device.registers.by_address``; see :class:`~harp.device.RegisterNamespace`.
+    #: Derived by :meth:`__init_subclass__`; do not set it directly.
     registers: ClassVar[CoreRegisters] = CoreRegisters(CORE_REGISTERS)
 
-    @final
     def __init_subclass__(cls, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)
         # Merge inherited registers (core + any parent's) with this class's own
@@ -128,7 +126,6 @@ class Device:
     # Lifecycle
     # ------------------------------------------------------------------
 
-    @final
     def open(self) -> Self:
         """Open the transport, start the reader thread and validate identity."""
         self._transport.open()
@@ -160,7 +157,6 @@ class Device:
                 f"but device reported 0x{actual:04x}."
             )
 
-    @final
     def close(self) -> None:
         self._running = False
         if self._thread is not None:
@@ -176,13 +172,11 @@ class Device:
             self._registers.clear()
             self._catch_all.clear()
 
-    @final
     def __enter__(self) -> Self:
         if not self._running:
             self.open()
         return self
 
-    @final
     def __exit__(self, *args: object) -> None:
         self.close()
 
@@ -190,7 +184,6 @@ class Device:
     # Register access
     # ------------------------------------------------------------------
 
-    @final
     def read(
         self,
         register: type[RegisterBase[P]],
@@ -204,7 +197,6 @@ class Device:
         msg = self._request(register.address, frame)
         return ParsedHarpMessage.from_message(msg, register.parse(msg))
 
-    @final
     def write(
         self,
         register: type[RegisterBase[P]],
@@ -223,7 +215,6 @@ class Device:
     # Events
     # ------------------------------------------------------------------
 
-    @final
     def subscribe(
         self,
         register: type[RegisterBase[P]],
@@ -256,7 +247,6 @@ class Device:
             self._registers[register.address] = register
         return sub
 
-    @final
     def subscribe_all(
         self,
         handler: Callable[[HarpMessage], None],

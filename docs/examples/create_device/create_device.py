@@ -15,8 +15,8 @@ Behavior = create_device(Path("device.yml").read_text())
 print("WhoAmI:", Behavior.__whoami__)  # device identity, taken from the schema
 
 # Registers are reached by name through `.registers` — the common Harp registers
-# (like WhoAmI) plus the device's own. Address lookup still works via
-# `Behavior.registers[44]` or `Behavior.registers.by_address`.
+# (like WhoAmI) plus the device's own. Address lookup goes through
+# `Behavior.registers.by_address`.
 AnalogData = Behavior.registers.AnalogData
 
 # The generated device behaves like any other `Device` class. Talk to hardware over

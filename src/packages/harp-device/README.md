@@ -22,7 +22,7 @@ device.write(OperationControl, payload)   # write a register
 Downstream (often generated) packages declare their registers in a `__REGISTERS__`
 tuple; the common Harp registers are merged in automatically. They may set
 `__whoami__` for identity validation on connect. Only these two attributes are meant
-to be set — the base owns the protocol methods and register derivation (`@final`):
+to be set — the base owns the protocol methods and register derivation:
 
 ```python
 from harp.device import Device
@@ -33,10 +33,10 @@ class MyDevice(Device):
 ```
 
 Registers are then reached by name through `device.registers`
-(`MyDevice.registers.DigitalInputState`) or by address
-(`MyDevice.registers[32]` / `MyDevice.registers.by_address`). For static type
-hints on `device.registers.<Name>`, subclass `CoreRegisters` and declare the
-device's registers — see the [device examples](https://harp-tech.org/pyharp/examples/).
+(`MyDevice.registers.DigitalInputState`) or through the
+`MyDevice.registers.by_address` map. For static type hints on
+`device.registers.<Name>`, subclass `CoreRegisters` and declare the device's
+registers — see the [device examples](https://harp-tech.org/pyharp/examples/).
 
 A new transport is just an object implementing the `ITransport` protocol
 (`open`/`write`/`read`/`close`).
@@ -52,7 +52,7 @@ from pathlib import Path
 from harp.device import create_device
 
 Behavior = create_device(Path("device.yml").read_text())
-reg = Behavior.registers.AnalogData     # by name (or Behavior.registers[44])
+reg = Behavior.registers.AnalogData     # by name (or Behavior.registers.by_address[44])
 ```
 
 For a custom `interfaceType`, pass its converter via `converters=` (keyed by
