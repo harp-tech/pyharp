@@ -1,5 +1,8 @@
+import zlib
+
 import numpy as np
 import pytest
+from harp.data import parse_to_dataframe
 from harp.protocol import HarpMessage
 
 from harp.device._schema import UnknownConverterError, create_registers
@@ -180,3 +183,40 @@ def test_exclude_private_drops_private_registers():
     )
     assert set(create_registers(yml)) == {"Pub", "Priv"}  # kept by default
     assert set(create_registers(yml, exclude_private=True)) == {"Pub"}
+
+
+# ---------------------------------------------------------------------------
+# Golden bulk round-trip — the emitted register and the generator oracle are
+# wire- and dataframe-compatible for the same payload bytes (cross read/write).
+# ---------------------------------------------------------------------------
+
+
+def _random_records(dtype, n, seed):
+    """``n`` deterministic records of ``dtype`` with random ASCII-range bytes.
+
+    Bytes are held to 0..127 so every field varies while staying valid for any
+    ``StringConverter`` member and free of float NaN/inf (which would defeat the
+    value comparison); padding bytes are filled too but never read back.
+    """
+    rng = np.random.default_rng(seed)
+    raw = rng.integers(0, 128, size=n * dtype.itemsize, dtype=np.uint8)
+    return raw.view(dtype).copy()
+
+
+@pytest.mark.parametrize("name", sorted(_device_registers()))
+def test_emitted_register_bulk_matches_oracle(name, device_registers):
+    emitted = device_registers[name]
+    oracle = _device_registers()[name]
+    records = _random_records(emitted.payload_class.dtype, 5, seed=zlib.crc32(name.encode()))
+
+    # Cross-write: same address / payload_type / byte layout -> identical wire bytes.
+    buf = bytes(emitted.format_bulk(records))
+    assert buf == bytes(oracle.format_bulk(records))
+
+    # Cross-read via harp.data: the shared bytes decode to equal frames through
+    # either class. Enum labels and field names diverge (verbatim yml vs generator
+    # snake_case), so compare raw codes by column position, not by name.
+    df_emitted = parse_to_dataframe(emitted, buf, timestamp=False, decode_enums=False)
+    df_oracle = parse_to_dataframe(oracle, buf, timestamp=False, decode_enums=False)
+    df_oracle.columns = df_emitted.columns
+    assert df_emitted.equals(df_oracle)
