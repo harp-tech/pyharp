@@ -1,15 +1,31 @@
 """Load Harp register data into pandas DataFrames."""
 
+from datetime import datetime
 from pathlib import Path
 from typing import Any, BinaryIO, Union
 
 import numpy as np
 import pandas as pd
 from harp.protocol import RegisterBase
+from numpy.typing import NDArray
 
 Source = Union[str, Path, bytes, bytearray, memoryview, BinaryIO]
 
 _MSG_NAMES = np.array(["_NONE", "Read", "Write", "Event"])
+
+#: Harp reference epoch — time zero of the Harp clock (UTC).
+REFERENCE_EPOCH = datetime(1904, 1, 1)
+
+_TIME_INDEX_NAME = "Time"
+
+
+def _time_index(seconds: NDArray[np.float64], epoch: datetime | None) -> pd.Index:
+    """The Harp time axis: float seconds, or absolute datetime when ``epoch`` is set."""
+    if epoch is None:
+        return pd.Index(seconds, name=_TIME_INDEX_NAME)
+    return pd.DatetimeIndex(
+        pd.Timestamp(epoch) + pd.to_timedelta(seconds, unit="s"), name=_TIME_INDEX_NAME
+    )
 
 
 def _read_bytes(source: Source) -> bytes:
@@ -53,17 +69,21 @@ def parse_to_dataframe(
     source: Source,
     *,
     timestamp: bool = True,
+    epoch: Union[datetime, None] = None,
     message_type: bool = False,
     decode_enums: bool = True,
     demux_bit_masks: bool = False,
 ) -> pd.DataFrame:
     """Parse all frames of ``register`` from ``source`` into a DataFrame.
 
-    ``source`` may be a file path, raw bytes, or an open binary file object.
-    ``timestamp`` and ``message_type`` insert leading columns; ``decode_enums``
-    controls whether enum fields become ``pd.Categorical`` (True) or raw codes;
-    ``demux_bit_masks`` expands each flag (``BitMask``) field into one boolean
-    column per flag member (True) or keeps it as a single raw-integer column.
+    ``source`` may be a file path, raw bytes, or an open binary file object. When
+    ``timestamp`` is set, the Harp time becomes the DataFrame index (named
+    ``"Time"``): float seconds by default, or an absolute ``DatetimeIndex`` when
+    ``epoch`` is given (e.g. :data:`REFERENCE_EPOCH`). ``message_type`` inserts a
+    leading column; ``decode_enums`` controls whether enum fields become
+    ``pd.Categorical`` (True) or raw codes; ``demux_bit_masks`` expands each flag
+    (``BitMask``) field into one boolean column per flag member (True) or keeps it
+    as a single raw-integer column.
     """
     raw = _read_bytes(source)
     _data, timestamps, msg_view, payload = register.parse_bulk(raw, parse_timestamp=timestamp)
@@ -80,9 +100,10 @@ def parse_to_dataframe(
             if len(df) > 0:
                 raise ValueError(
                     "Buffer contains no timestamp data; pass timestamp=False to suppress "
-                    "the timestamp column."
+                    "the time index."
                 )
-            # Empty buffer: no frames to timestamp — return the empty frame as-is.
+            seconds = np.empty(0, dtype=np.float64)  # empty buffer: empty Time index
         else:
-            df.insert(0, "timestamp", timestamps)
+            seconds = np.asarray(timestamps, dtype=np.float64)
+        df.index = _time_index(seconds, epoch)
     return df

@@ -400,6 +400,7 @@ requires-dist = [
 name = "harp-data"
 source = { editable = "src/packages/harp-data" }
 dependencies = [
+    { name = "harp-device" },
     { name = "harp-protocol" },
     { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
     { name = "numpy", version = "2.5.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
@@ -408,6 +409,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
+    { name = "harp-device", editable = "src/packages/harp-device" },
     { name = "harp-protocol", editable = "src/packages/harp-protocol" },
     { name = "numpy", specifier = ">=1.24" },
     { name = "pandas", specifier = ">=2.0" },
