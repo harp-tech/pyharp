@@ -1,8 +1,9 @@
 import re
 
 import numpy as np
+import pandas as pd
 import pytest
-from harp.data import DatasetReader, parse_to_dataframe
+from harp.data import REFERENCE_EPOCH, DatasetReader, parse_to_dataframe
 from harp.device import create_device
 
 
@@ -52,7 +53,29 @@ def test_timestamp_is_auto_detected(dataset):
     reader = DatasetReader(dev, root)
     for address, (_cls, timestamped, _buf) in specs.items():
         df = reader.read(address)
-        assert ("timestamp" in df.columns) is timestamped
+        # Timestamped frames get a "Time" index; untimestamped keep a plain RangeIndex.
+        assert (df.index.name == "Time") is timestamped
+
+
+def test_time_index_is_float_seconds_without_epoch(dataset):
+    dev, _name, root, specs = dataset
+    reader = DatasetReader(dev, root)
+    address = next(a for a, (_c, ts, _b) in specs.items() if ts)  # the timestamped register
+    df = reader.read(address)
+    assert df.index.name == "Time"
+    assert list(df.index) == [0.0, 1.0, 2.0, 3.0, 4.0]  # arange(5) seconds from the fixture
+
+
+def test_epoch_gives_absolute_datetime_index(dataset):
+    dev, _name, root, specs = dataset
+    reader = DatasetReader(dev, root)
+    address = next(a for a, (_c, ts, _b) in specs.items() if ts)
+    df = reader.read(address, epoch=REFERENCE_EPOCH)
+    assert isinstance(df.index, pd.DatetimeIndex)
+    assert df.index.name == "Time"
+    # Harp seconds are measured from the reference epoch (timestamps were arange(5)).
+    assert df.index[0] == pd.Timestamp(REFERENCE_EPOCH)
+    assert df.index[2] == pd.Timestamp(REFERENCE_EPOCH) + pd.Timedelta(seconds=2)
 
 
 def test_read_all_keyed_by_register_name(dataset):
