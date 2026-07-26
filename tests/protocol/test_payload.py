@@ -1,7 +1,9 @@
+import enum
+
 import numpy as np
 import pytest
 from harp.data import payload_to_dataframe
-from harp.protocol import Column
+from harp.protocol import AnonymousPayload, Column, GroupMask
 from harp.protocol._payload import PayloadBase, Field, _IdentityConverter
 
 
@@ -69,3 +71,30 @@ def test_from_buffer_zero_copy():
 def test_payload_property():
     p = SimplePayload.from_buffer(_make_simple_bytes(2))
     assert p.raw_payload.dtype == SimplePayload.dtype
+
+
+class _SparseMode(enum.IntEnum):
+    Low = 0
+    High = 2  # gap at code 1; largest member is 2
+
+
+class _SparseModePayload(AnonymousPayload[np.uint8]):
+    # Whole-byte GroupMask over a sparse enum: raw can be 0..255, well past the
+    # largest member, so decode must not IndexError on undefined codes.
+    __value__ = GroupMask(enum=_SparseMode, mask=0xFF)
+
+
+def test_groupmask_undefined_code_preserves_raw():
+    # Codes: defined (0->Low, 2->High), an in-range gap (1), and out-of-range (90, 255).
+    # Every undefined code is preserved as its raw int (like C#'s unchecked cast) —
+    batch = _SparseModePayload.from_buffer(np.array([0, 2, 1, 90, 255], dtype=np.uint8).tobytes())
+    assert list(payload_to_dataframe(batch)["value"]) == ["Low", "High", 1, 90, 255]
+
+
+def test_groupmask_scalar_matches_batch_for_undefined():
+    # Scalar decode is permissive the same way
+    defined = _SparseModePayload.from_buffer(np.array([2], dtype=np.uint8).tobytes())
+    assert defined.__value__ is _SparseMode.High
+    undefined = _SparseModePayload.from_buffer(np.array([90], dtype=np.uint8).tobytes())
+    assert undefined.__value__ == 90
+    assert not isinstance(undefined.__value__, _SparseMode)
