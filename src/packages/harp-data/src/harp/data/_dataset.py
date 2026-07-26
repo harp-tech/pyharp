@@ -1,0 +1,175 @@
+import re
+from collections.abc import Callable, Mapping
+from os import PathLike
+from pathlib import Path
+from typing import Any, Union
+
+import pandas as pd
+from harp.device import Device
+from harp.protocol import RegisterBase
+from harp.protocol._constants import _TIMESTAMP_FLAG
+
+from ._reader import parse_to_dataframe
+
+RegisterKey = Union[type[RegisterBase[Any]], int]
+
+FileNameResolver = Callable[[Path, str], Mapping[int, list[Path]]]
+
+
+def default_file_resolver(root: Path, name: str) -> dict[int, list[Path]]:
+    """Harp file format resolver: map address -> sorted ``<name>_<address>...`` files."""
+    pattern = re.compile(rf"^{re.escape(name)}_(\d+)(?:_.*)?$")
+    files: dict[int, list[Path]] = {}
+    for path in sorted(root.glob("*.bin")):
+        match = pattern.match(path.stem)
+        if match is not None:
+            files.setdefault(int(match.group(1)), []).append(path)
+    return files
+
+
+class DatasetReader:
+    """Reader over a de-multiplexed Harp dataset folder.
+
+    Construct from a generated device and a dataset folder, then read a register's
+    frames into a DataFrame by register class or by address::
+
+        reader = DatasetReader(Behavior, "session.harp")
+        df = reader.read(AnalogData)   # by register class
+        df = reader.read(44)           # by address
+        everything = reader.read_all() # {register_name: DataFrame}
+
+    ``device`` is a generated :class:`~harp.device.Device` subclass; its
+    ``REGISTER_MAP`` and class name are read on demand. ``name`` overrides the
+    ``<DeviceName>`` file prefix, which defaults to the device class name.
+
+    File resolution defaults to the Harp file format: ``<name>_<address>.bin`` and,
+    when a register was logged as several ``<name>_<address>_<suffix>.bin`` chunks,
+    they are concatenated in filename order. Pass ``resolver`` (a :data:`FileResolver`)
+    to support an alternative on-disk layout.
+    """
+
+    def __init__(
+        self,
+        device: type[Device],
+        root: str | PathLike[str],
+        *,
+        name: str | None = None,
+        resolver: FileNameResolver = default_file_resolver,
+    ) -> None:
+        self._device = device
+        self._root = Path(root)
+        self._name_override = name
+        self._resolver = resolver
+        self._files = dict(self._resolver(self._root, self.name))
+
+    @property
+    def root(self) -> Path:
+        """The dataset folder being read."""
+        return self._root
+
+    @property
+    def device(self) -> type[Device]:
+        """The generated device this reader parses against."""
+        return self._device
+
+    @property
+    def name(self) -> str:
+        """The ``<DeviceName>`` prefix used to match binary files."""
+        return self._name_override or self._device.__name__
+
+    @property
+    def registers(self) -> Mapping[int, type[RegisterBase[Any]]]:
+        """The device's address -> register-class map."""
+        return self._device.REGISTER_MAP
+
+    @property
+    def files(self) -> Mapping[int, list[Path]]:
+        """The discovered address -> binary file(s) present under :attr:`root`."""
+        return self._files
+
+    def read(
+        self,
+        register: RegisterKey,
+        *,
+        suffix: Union[str, None] = None,
+        timestamp: Union[bool, None] = None,
+        message_type: bool = False,
+        decode_enums: bool = True,
+        demux_bit_masks: bool = False,
+    ) -> pd.DataFrame:
+        """Read one register's data into a DataFrame.
+
+        ``register`` is a register class or an address. ``suffix`` selects a single
+        ``<name>_<address>_<suffix>.bin`` chunk (default: concatenate every chunk
+        for the address). ``timestamp`` defaults to ``None`` — auto-detect from the
+        frame's payload-type bit; pass ``True``/``False`` to force. The remaining
+        options match :func:`~harp.data.parse_to_dataframe`.
+        """
+        cls, address = self._resolve(register)
+        paths = self._resolve_files(address, suffix)
+        raw = b"".join(p.read_bytes() for p in paths)
+        ts = self._first_frame_timestamped(raw) if timestamp is None else timestamp
+        return parse_to_dataframe(
+            cls,
+            raw,
+            timestamp=ts,
+            message_type=message_type,
+            decode_enums=decode_enums,
+            demux_bit_masks=demux_bit_masks,
+        )
+
+    def read_all(
+        self,
+        *,
+        timestamp: Union[bool, None] = None,
+        message_type: bool = False,
+        decode_enums: bool = True,
+        demux_bit_masks: bool = False,
+    ) -> dict[str, pd.DataFrame]:
+        """Read every register that has a file present, keyed by register name.
+
+        Files whose address is not in the device's registers are skipped.
+        Options are forwarded to :meth:`read`.
+        """
+        registers = self.registers
+        out: dict[str, pd.DataFrame] = {}
+        for address in sorted(self._files):
+            cls = registers.get(address)
+            if cls is None:
+                continue
+            out[cls.__name__] = self.read(
+                address,
+                timestamp=timestamp,
+                message_type=message_type,
+                decode_enums=decode_enums,
+                demux_bit_masks=demux_bit_masks,
+            )
+        return out
+
+    def _resolve(self, register: RegisterKey) -> tuple[type[RegisterBase[Any]], int]:
+        if isinstance(register, type):
+            return register, register.address
+        cls = self.registers.get(register)
+        if cls is None:
+            raise KeyError(f"No register at address {register} in this device's map.")
+        return cls, register
+
+    def _resolve_files(self, address: int, suffix: Union[str, None]) -> list[Path]:
+        paths = self._files.get(address)
+        if not paths:
+            raise FileNotFoundError(
+                f"No data file for register address {address} under {self._root} "
+                f"(expected '{self.name}_{address}[_<suffix>].bin')."
+            )
+        if suffix is not None:
+            paths = [p for p in paths if p.stem.endswith(f"_{suffix}")]
+            if not paths:
+                raise FileNotFoundError(
+                    f"No '_{suffix}' chunk for register address {address} under {self._root}."
+                )
+        return paths
+
+    @staticmethod
+    def _first_frame_timestamped(raw: bytes) -> bool:
+        """Whether the first frame carries a timestamp (payload-type bit ``0x10``)."""
+        return len(raw) > 4 and bool(raw[4] & _TIMESTAMP_FLAG)
