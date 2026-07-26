@@ -8,6 +8,7 @@ programmatic lookup. Statically generated devices narrow the type to a
 """
 
 from collections.abc import Iterable, Iterator, Mapping
+from types import MappingProxyType
 from typing import Any
 
 from harp.protocol import RegisterBase
@@ -35,8 +36,14 @@ class RegisterNamespace:
 
     def __init__(self, registers: Iterable[_Register]) -> None:
         self._registers = tuple(registers)
-        self._by_name = {register.__name__: register for register in self._registers}
-        self._by_address = {register.address: register for register in self._registers}
+        # We use MappingProxyType here to make the maps read-only, so they can't be
+        # accidentally mutated at runtime.
+        self._by_name: Mapping[str, _Register] = MappingProxyType(
+            {register.__name__: register for register in self._registers}
+        )
+        self._by_address: Mapping[int, _Register] = MappingProxyType(
+            {register.address: register for register in self._registers}
+        )
 
     def __getattr__(self, name: str) -> _Register:
         # Only consulted when normal attribute lookup fails, so real methods and
