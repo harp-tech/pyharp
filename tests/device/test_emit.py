@@ -19,9 +19,10 @@ def device_registers(device_yml):
 
 
 def _device_registers():
-    # expected_device.REGISTER_MAP spreads the core map; the device-specific
-    # registers (the ones the emitter builds from device.yml) are address >= 32.
-    return {cls.__name__: cls for addr, cls in expected_device.REGISTER_MAP.items() if addr >= 32}
+    # expected_device.Tests.__REGISTERS__ holds only the device-specific registers
+    # (the ones the emitter builds from device.yml); the core ones are merged in
+    # by Device automatically.
+    return {cls.__name__: cls for cls in expected_device.Tests.__REGISTERS__}
 
 
 def _layout(dt):
@@ -75,7 +76,7 @@ def test_enum_members_are_verbatim(device_registers):
 
 
 def _core_expected():
-    return {cls.__name__: cls for cls in expected_core.REGISTER_MAP.values()}
+    return {cls.__name__: cls for cls in expected_core.REGISTERS}
 
 
 @pytest.mark.parametrize("name", sorted(_core_expected()))

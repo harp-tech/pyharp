@@ -5,7 +5,8 @@ This example demonstrates how to turn a Harp `device.yml` into a typed
 code-generation step. This is the quickest way to get started when you have only a
 device's schema and no pre-generated package for it.
 
-The compiled device exposes its registers through `REGISTER_MAP` (keyed by address)
+The compiled device exposes its registers by name through `device.registers`
+(e.g. `Behavior.registers.AnalogData`, or by address with `Behavior.registers[44]`)
 and carries the device's `__whoami__` identity. From there it works exactly like a
 pre-generated device class — drive it over a transport to talk to hardware, or use
 its register classes to decode recorded data.
@@ -27,9 +28,12 @@ convenience. It's worth understanding what that buys you and what it costs.
 
 **You give up:**
 
-- **Named, typed access.** Registers are reached by address (`REGISTER_MAP[44]`),
-  not as importable, autocompleting classes (`from harp_behavior import AnalogData`).
-  You lose editor discovery and static type checking of register names.
+- **Static register types.** A runtime device still exposes its registers by name
+  (`device.registers.AnalogData`), but because the class is built at runtime the
+  editor can't autocomplete those names or check them — you get a generic
+  `type[RegisterBase]`, not the specific register type. A statically generated device
+  declares its registers, so `device.registers.AnalogData` autocompletes and
+  `read`/`write` infer the payload type.
 - **Generator naming conventions.** Identifiers are kept verbatim from the yml
   (`AnalogInput0`, `DIO0`) rather than the C# generator's snake_case fields and
   `UPPER_SNAKE` enum members, so code written against a generated package won't line

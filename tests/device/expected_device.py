@@ -2,7 +2,7 @@
 # To make changes, edit the device metadata and regenerate the interface.
 
 import enum
-from typing import Any, ClassVar
+from typing import TYPE_CHECKING, ClassVar
 
 import numpy as np
 from numpy.typing import NDArray
@@ -23,7 +23,7 @@ from harp.protocol import (
     StringConverter,
     StructPayload,
 )
-from harp.device import REGISTER_MAP as _CORE_REGISTER_MAP
+from harp.device import CoreRegisters, Device
 
 from .converters import (
     DataConverter,
@@ -232,21 +232,46 @@ class EncoderMode(RegisterBase[EncoderModeMask]):
     payload_class = EncoderModePayload
 
 
-REGISTER_MAP: dict[int, type[RegisterBase[Any]]] = {
-    **_CORE_REGISTER_MAP,
-    32: DigitalInputs,
-    33: AnalogData,
-    34: ComplexConfiguration,
-    35: Version,
-    36: CustomPayload,
-    37: CustomRawPayload,
-    38: CustomMemberConverter,
-    39: BitmaskSplitter,
-    40: Counter0,
-    41: PortDIOSet,
-    42: PulseDOPort0,
-    43: PulseDO0,
-    100: StartPulse,
-    101: StartPulseTrain,
-    103: EncoderMode,
-}
+class Tests(Device):
+    """A device driven by its own registers; the common Harp registers are merged
+    in automatically. Registers are reached by name — ``Tests.registers.AnalogData``."""
+
+    __REGISTERS__ = (
+        DigitalInputs,
+        AnalogData,
+        ComplexConfiguration,
+        Version,
+        CustomPayload,
+        CustomRawPayload,
+        CustomMemberConverter,
+        BitmaskSplitter,
+        Counter0,
+        PortDIOSet,
+        PulseDOPort0,
+        PulseDO0,
+        StartPulse,
+        StartPulseTrain,
+        EncoderMode,
+    )
+
+    if TYPE_CHECKING:
+        # Type-only facade so editors autocomplete `device.registers.<Name>` and
+        # `read`/`write` infer the register's payload type. No runtime values.
+        class _Registers(CoreRegisters):
+            DigitalInputs: type[DigitalInputs]
+            AnalogData: type[AnalogData]
+            ComplexConfiguration: type[ComplexConfiguration]
+            Version: type[Version]
+            CustomPayload: type[CustomPayload]
+            CustomRawPayload: type[CustomRawPayload]
+            CustomMemberConverter: type[CustomMemberConverter]
+            BitmaskSplitter: type[BitmaskSplitter]
+            Counter0: type[Counter0]
+            PortDIOSet: type[PortDIOSet]
+            PulseDOPort0: type[PulseDOPort0]
+            PulseDO0: type[PulseDO0]
+            StartPulse: type[StartPulse]
+            StartPulseTrain: type[StartPulseTrain]
+            EncoderMode: type[EncoderMode]
+
+        registers: ClassVar[_Registers]

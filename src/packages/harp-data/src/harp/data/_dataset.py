@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any
 
 import pandas as pd
-from harp.device import Device, create_device
+from harp.device import Device, RegisterNamespace, create_device
 from harp.protocol import RegisterBase
 from harp.protocol._constants import _TIMESTAMP_FLAG
 
@@ -43,7 +43,7 @@ class DatasetReader:
         everything = reader.read_all() # {register_name: DataFrame}
 
     ``device`` is a generated :class:`~harp.device.Device` subclass; its
-    ``REGISTER_MAP`` and class name are read on demand. ``name`` overrides the
+    ``registers`` and class name are read on demand. ``name`` overrides the
     ``<DeviceName>`` file prefix, which defaults to the device class name.
 
     File resolution defaults to the Harp file format: ``<name>_<address>.bin`` and,
@@ -82,9 +82,10 @@ class DatasetReader:
         return self._name_override or self._device.__name__
 
     @property
-    def registers(self) -> Mapping[int, type[RegisterBase[Any]]]:
-        """The device's address -> register-class map."""
-        return self._device.REGISTER_MAP
+    def registers(self) -> RegisterNamespace:
+        """The device's registers, reachable by name (``reader.registers.WhoAmI``)
+        or address (``reader.registers[44]`` / ``reader.registers.by_address``)."""
+        return self._device.registers
 
     @property
     def files(self) -> Mapping[int, list[Path]]:
@@ -139,10 +140,10 @@ class DatasetReader:
         Files whose address is not in the device's registers are skipped.
         Options are forwarded to :meth:`read`.
         """
-        registers = self.registers
+        by_address = self.registers.by_address
         out: dict[str, pd.DataFrame] = {}
         for address in sorted(self._files):
-            cls = registers.get(address)
+            cls = by_address.get(address)
             if cls is None:
                 continue
             out[cls.__name__] = self.read(
@@ -158,7 +159,7 @@ class DatasetReader:
     def _resolve(self, register: RegisterKey) -> tuple[type[RegisterBase[Any]], int]:
         if isinstance(register, type):
             return register, register.address
-        cls = self.registers.get(register)
+        cls = self.registers.by_address.get(register)
         if cls is None:
             raise KeyError(f"No register at address {register} in this device's map.")
         return cls, register

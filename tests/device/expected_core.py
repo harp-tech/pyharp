@@ -210,20 +210,20 @@ class ClockConfiguration(RegisterBase[ClockConfigurationFlags]):
     payload_class = ClockConfigurationPayload
 
 
-REGISTER_MAP: dict[int, type[RegisterBase[Any]]] = {
-    0: WhoAmI,
-    1: HardwareVersionHigh,
-    2: HardwareVersionLow,
-    3: AssemblyVersion,
-    4: CoreVersionHigh,
-    5: CoreVersionLow,
-    6: FirmwareVersionHigh,
-    7: FirmwareVersionLow,
-    8: TimestampSeconds,
-    9: TimestampMicroseconds,
-    10: OperationControl,
-    11: ResetDevice,
-    12: DeviceName,
-    13: SerialNumber,
-    14: ClockConfiguration,
-}
+REGISTERS: tuple[type[RegisterBase[Any]], ...] = (
+    WhoAmI,
+    HardwareVersionHigh,
+    HardwareVersionLow,
+    AssemblyVersion,
+    CoreVersionHigh,
+    CoreVersionLow,
+    FirmwareVersionHigh,
+    FirmwareVersionLow,
+    TimestampSeconds,
+    TimestampMicroseconds,
+    OperationControl,
+    ResetDevice,
+    DeviceName,
+    SerialNumber,
+    ClockConfiguration,
+)

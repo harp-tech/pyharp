@@ -1,5 +1,4 @@
 from harp.device import (
-    REGISTER_MAP,
     Device,
     OperationControl,
     OperationControlPayload,
@@ -17,7 +16,7 @@ def print_timestamp(msg: ParsedHarpMessage[float]) -> None:
 
 
 def print_any_event(msg: HarpMessage) -> None:
-    register = REGISTER_MAP.get(msg.address, None)
+    register = Device.registers.by_address.get(msg.address)
     value = register.parse(msg) if register is not None else msg.payload.hex()
     print(f"[{msg.address}] {msg.timestamp:.6f}  {msg.message_type.name:<5s}  {value}")
 

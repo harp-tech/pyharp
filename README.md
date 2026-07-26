@@ -89,7 +89,7 @@ from pathlib import Path
 from harp.device import create_device
 
 Behavior = create_device(Path("device.yml").read_text())
-AnalogData = Behavior.REGISTER_MAP[44]   # registers are reached by address
+AnalogData = Behavior.registers.AnalogData   # registers are reached by name
 ```
 
 See the [Examples](https://harp-tech.org/pyharp/examples/) for the full walkthroughs,

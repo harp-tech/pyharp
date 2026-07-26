@@ -13,7 +13,11 @@ SERIAL_PORT = "/dev/ttyUSB0"  # or "COMx" in Windows ("x" is the number of the s
 Behavior = create_device(Path("device.yml").read_text())
 
 print("WhoAmI:", Behavior.__whoami__)  # device identity, taken from the schema
-AnalogData = Behavior.REGISTER_MAP[44]  # registers are reached by address
+
+# Registers are reached by name through `.registers` — the common Harp registers
+# (like WhoAmI) plus the device's own. Address lookup still works via
+# `Behavior.registers[44]` or `Behavior.registers.by_address`.
+AnalogData = Behavior.registers.AnalogData
 
 # The generated device behaves like any other `Device` class. Talk to hardware over
 # a transport — `read`/`write` take a register class:

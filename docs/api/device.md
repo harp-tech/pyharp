@@ -6,10 +6,11 @@
 ::: harp.device.create_device
 ::: harp.device.parse_device_schema
 ::: harp.device.ConverterContext
+::: harp.device.RegisterNamespace
+::: harp.device.CoreRegisters
 ::: harp.device.HarpFramer
 ::: harp.device.ITransport
 ::: harp.device.TransportError
-::: harp.device.REGISTER_MAP
 ::: harp.device.OperationControl
 ::: harp.device.OperationMode
 ::: harp.device.ResetDevice

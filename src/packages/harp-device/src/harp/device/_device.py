@@ -1,7 +1,7 @@
 """Transport-agnostic Harp device base class."""
 
 from collections.abc import Callable, Iterable
-from typing import Any, ClassVar, Self, TypeVar
+from typing import Any, ClassVar, Self, TypeVar, final
 
 import logging
 import queue
@@ -11,6 +11,7 @@ from harp.protocol import HarpMessage, MessageType
 from harp.protocol._message import ParsedHarpMessage
 from harp.protocol._register import RegisterBase
 
+from ._core_registers import CORE_REGISTERS, CoreRegisters
 from ._framer import HarpFramer
 from ._transport import ITransport, TransportError
 from ._registers import (
@@ -71,9 +72,14 @@ class Device:
     """Harp device protocol logic (framing, request/reply, register access)
     over an :class:`~harp.device.ITransport`.
 
-    Must be opened before use, via ``with`` or :meth:`open`. Subclasses add
-    register class attributes and set :attr:`__whoami__` to validate device
-    identity on open (``0x0`` skips the check).
+    Must be opened before use, via ``with`` or :meth:`open`. A subclass declares its
+    device-specific registers in :attr:`__REGISTERS__` and sets :attr:`__whoami__` to
+    validate device identity on open (``0x0`` skips the check). Registers are reached
+    by name through :attr:`registers` (``device.registers.WhoAmI``).
+
+    Only :attr:`__REGISTERS__` and :attr:`__whoami__` are meant to be set by a
+    subclass. The protocol methods and register-namespace derivation are ``@final`` —
+    the base owns them and they must not be overridden.
     """
 
     REPLY_TIMEOUT: ClassVar[float] = 5.0  # seconds
@@ -81,8 +87,25 @@ class Device:
     #: Expected ``WhoAmI`` of the device this class models; ``0x0`` skips the check.
     __whoami__: ClassVar[int] = 0x0
 
-    #: Address -> register class; empty on the base, overridden by generated devices.
-    REGISTER_MAP: ClassVar[dict[int, type[RegisterBase[Any]]]] = {}
+    #: The device's own registers. A subclass sets this to a tuple of register
+    #: classes; the common Harp registers are merged in automatically.
+    __REGISTERS__: ClassVar[tuple[type[RegisterBase[Any]], ...]] = ()
+
+    #: Name/address-indexed view of all this device's registers (core + ``__REGISTERS__``).
+    #: Reach a register by name (``device.registers.WhoAmI``) or address
+    #: (``device.registers[0]``); see :class:`~harp.device.RegisterNamespace`. Derived
+    #: by :meth:`__init_subclass__`; do not set it directly.
+    registers: ClassVar[CoreRegisters] = CoreRegisters(CORE_REGISTERS)
+
+    @final
+    def __init_subclass__(cls, **kwargs: Any) -> None:
+        super().__init_subclass__(**kwargs)
+        # Merge inherited registers (core + any parent's) with this class's own
+        # __REGISTERS__; on an address clash the device's register wins.
+        merged: dict[int, type[RegisterBase[Any]]] = dict(cls.registers.by_address)
+        for register in cls.__dict__.get("__REGISTERS__", ()):
+            merged[register.address] = register
+        cls.registers = CoreRegisters(merged.values())
 
     def __init__(self, transport: ITransport, *, raise_on_error: bool = True) -> None:
         self._transport = transport
@@ -105,6 +128,7 @@ class Device:
     # Lifecycle
     # ------------------------------------------------------------------
 
+    @final
     def open(self) -> Self:
         """Open the transport, start the reader thread and validate identity."""
         self._transport.open()
@@ -136,6 +160,7 @@ class Device:
                 f"but device reported 0x{actual:04x}."
             )
 
+    @final
     def close(self) -> None:
         self._running = False
         if self._thread is not None:
@@ -151,11 +176,13 @@ class Device:
             self._registers.clear()
             self._catch_all.clear()
 
+    @final
     def __enter__(self) -> Self:
         if not self._running:
             self.open()
         return self
 
+    @final
     def __exit__(self, *args: object) -> None:
         self.close()
 
@@ -163,6 +190,7 @@ class Device:
     # Register access
     # ------------------------------------------------------------------
 
+    @final
     def read(
         self,
         register: type[RegisterBase[P]],
@@ -176,6 +204,7 @@ class Device:
         msg = self._request(register.address, frame)
         return ParsedHarpMessage.from_message(msg, register.parse(msg))
 
+    @final
     def write(
         self,
         register: type[RegisterBase[P]],
@@ -194,6 +223,7 @@ class Device:
     # Events
     # ------------------------------------------------------------------
 
+    @final
     def subscribe(
         self,
         register: type[RegisterBase[P]],
@@ -226,6 +256,7 @@ class Device:
             self._registers[register.address] = register
         return sub
 
+    @final
     def subscribe_all(
         self,
         handler: Callable[[HarpMessage], None],
