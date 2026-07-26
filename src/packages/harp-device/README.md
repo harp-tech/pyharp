@@ -33,3 +33,28 @@ REGISTER_MAP = {**_CORE_REGISTER_MAP, 32: DigitalInputState, ...}
 
 A new transport is just an object implementing the `ITransport` protocol
 (`open`/`write`/`read`/`close`).
+
+## Generating a device from a `device.yml`
+
+If you don't have a pre-generated device package, `create_device` builds a
+`Device` from Harp `device.yml` text. Registers are reached by address through
+`REGISTER_MAP`; field and enum names come from the yml verbatim.
+
+```python
+from pathlib import Path
+from harp.device import create_device
+
+Behavior = create_device(Path("device.yml").read_text())
+reg = Behavior.REGISTER_MAP[44]
+```
+
+For a custom `interfaceType`, pass its converter via `converters=` (keyed by
+`{InterfaceType}Converter` / `{MemberName}Converter`); an unresolved custom type
+raises `UnknownConverterError`, or pass `strict=False` to decode it natively:
+
+```python
+create_device(yml_text, converters={"DataConverter": DataConverter()})
+```
+
+`parse_device_schema(yml_text)` is also public if you just want the parsed
+schema model (registers, masks, and optional device identity) without a `Device`.
