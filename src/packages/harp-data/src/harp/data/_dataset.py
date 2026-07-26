@@ -1,8 +1,9 @@
 import re
 from collections.abc import Callable, Mapping
+from datetime import datetime
 from os import PathLike
 from pathlib import Path
-from typing import Any, Union
+from typing import Any
 
 import pandas as pd
 from harp.device import Device
@@ -11,7 +12,7 @@ from harp.protocol._constants import _TIMESTAMP_FLAG
 
 from ._reader import parse_to_dataframe
 
-RegisterKey = Union[type[RegisterBase[Any]], int]
+RegisterKey = type[RegisterBase[Any]] | int
 
 FileNameResolver = Callable[[Path, str], Mapping[int, list[Path]]]
 
@@ -91,8 +92,9 @@ class DatasetReader:
         self,
         register: RegisterKey,
         *,
-        suffix: Union[str, None] = None,
-        timestamp: Union[bool, None] = None,
+        suffix: str | None = None,
+        timestamp: bool | None = None,
+        epoch: datetime | None = None,
         message_type: bool = False,
         decode_enums: bool = True,
         demux_bit_masks: bool = False,
@@ -102,8 +104,9 @@ class DatasetReader:
         ``register`` is a register class or an address. ``suffix`` selects a single
         ``<name>_<address>_<suffix>.bin`` chunk (default: concatenate every chunk
         for the address). ``timestamp`` defaults to ``None`` — auto-detect from the
-        frame's payload-type bit; pass ``True``/``False`` to force. The remaining
-        options match :func:`~harp.data.parse_to_dataframe`.
+        frame's payload-type bit; pass ``True``/``False`` to force. ``epoch`` makes
+        the ``"Time"`` index absolute (e.g. :data:`~harp.data.REFERENCE_EPOCH`). The
+        remaining options match :func:`~harp.data.parse_to_dataframe`.
         """
         cls, address = self._resolve(register)
         paths = self._resolve_files(address, suffix)
@@ -113,6 +116,7 @@ class DatasetReader:
             cls,
             raw,
             timestamp=ts,
+            epoch=epoch,
             message_type=message_type,
             decode_enums=decode_enums,
             demux_bit_masks=demux_bit_masks,
@@ -121,7 +125,8 @@ class DatasetReader:
     def read_all(
         self,
         *,
-        timestamp: Union[bool, None] = None,
+        timestamp: bool | None = None,
+        epoch: datetime | None = None,
         message_type: bool = False,
         decode_enums: bool = True,
         demux_bit_masks: bool = False,
@@ -140,6 +145,7 @@ class DatasetReader:
             out[cls.__name__] = self.read(
                 address,
                 timestamp=timestamp,
+                epoch=epoch,
                 message_type=message_type,
                 decode_enums=decode_enums,
                 demux_bit_masks=demux_bit_masks,
@@ -154,7 +160,7 @@ class DatasetReader:
             raise KeyError(f"No register at address {register} in this device's map.")
         return cls, register
 
-    def _resolve_files(self, address: int, suffix: Union[str, None]) -> list[Path]:
+    def _resolve_files(self, address: int, suffix: str | None) -> list[Path]:
         paths = self._files.get(address)
         if not paths:
             raise FileNotFoundError(
