@@ -3,7 +3,12 @@ import re
 import numpy as np
 import pandas as pd
 import pytest
-from harp.data import REFERENCE_EPOCH, DatasetReader, parse_to_dataframe
+from harp.data import (
+    REFERENCE_EPOCH,
+    DatasetReader,
+    create_dataset_reader,
+    parse_to_dataframe,
+)
 from harp.device import create_device
 
 
@@ -198,3 +203,30 @@ def test_reader_derives_name_and_registers_from_device(dataset):
     assert reader.device is dev
     assert reader.name == name
     assert reader.registers == dev.REGISTER_MAP
+
+
+def test_create_dataset_reader_builds_device_from_device_yml(dataset, device_yml):
+    dev, _name, root, specs = dataset
+    (root / "device.yml").write_text(device_yml)
+    # strict=False mirrors the emitted_device fixture (custom DataConverter not injected).
+    reader = create_dataset_reader(root, strict=False)
+    assert isinstance(reader, DatasetReader)
+    # Reads match a reader built from an explicitly-generated device.
+    reference = DatasetReader(dev, root)
+    for address, (cls, _timestamped, _buf) in specs.items():
+        assert reader.read(address).equals(reference.read(cls))
+
+
+def test_create_dataset_reader_accepts_explicit_schema_path(dataset, device_yml, tmp_path):
+    _dev, _name, root, specs = dataset
+    schema_path = tmp_path / "elsewhere.yml"  # not inside the dataset folder
+    schema_path.write_text(device_yml)
+    reader = create_dataset_reader(root, schema=schema_path, strict=False)
+    address = next(iter(specs))
+    assert not reader.read(address).empty
+
+
+def test_create_dataset_reader_missing_schema_raises(dataset):
+    _dev, _name, root, _specs = dataset  # no device.yml written into the folder
+    with pytest.raises(FileNotFoundError, match="device.yml"):
+        create_dataset_reader(root)
