@@ -1,7 +1,7 @@
 import pytest
 from harp.device import Device, create_device
 
-from .data.converters import DataConverter
+from .converters import DataConverter
 
 CONVERTERS = {"DataConverter": DataConverter()}
 

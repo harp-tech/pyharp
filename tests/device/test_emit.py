@@ -4,8 +4,8 @@ from harp.protocol import HarpMessage
 
 from harp.device._schema import UnknownConverterError, create_registers
 
-from .data import expected_core, expected_device
-from .data.converters import DataConverter
+from . import expected_core, expected_device
+from .converters import DataConverter
 
 CONVERTERS = {"DataConverter": DataConverter()}
 
