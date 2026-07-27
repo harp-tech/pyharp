@@ -43,10 +43,10 @@ class _RegisterAccessor:
     It defines ``__get__`` but no ``__set__``, which is deliberate:
 
     * ``device.registers`` is **read-only** — assigning to it is a type error;
-    * a subclass may **narrow** the attribute by re-declaring it, because a
+    * a subclass may **narrow** the attribute by redeclaring it, because a
       read-only member is checked *covariantly* (a mutable one would be invariant).
 
-    So a statically generated device can re-declare
+    So a statically generated device can redeclare
     ``registers: ClassVar[<CoreRegistersNamespace subclass>]`` to type
     ``device.registers.<Name>`` precisely, with **no**
     ``reportIncompatibleVariableOverride`` suppression. The real namespace is
@@ -114,7 +114,7 @@ class Device:
     #: ``__REGISTERS__``). Reach a register by name (``device.registers.WhoAmI`` —
     #: the common registers autocomplete on any device), or use
     #: ``device.registers.by_address``; see :class:`~harp.device.RegisterNamespace`.
-    #: A statically generated device may *narrow* this by re-declaring
+    #: A statically generated device may *narrow* this by redeclaring
     #: ``registers: ClassVar[<CoreRegistersNamespace subclass>]`` for typed, autocompleting
     registers = _RegisterAccessor()
 
