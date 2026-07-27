@@ -13,8 +13,8 @@ A `Device` is driven over a transport; `read`/`write` take a register class:
 from harp.device import Device, WhoAmI, OperationControl
 
 # `device` is a Device opened over some transport (see harp-serial)
-who = device.read(WhoAmI).parsed          # -> np.uint16
-device.write(OperationControl, payload)   # write a register
+who = device.read(WhoAmI).parsed  # -> np.uint16
+device.write(OperationControl, payload)  # write a register
 ```
 
 ## Extending for a specific device
@@ -26,6 +26,7 @@ to be set — the base owns the protocol methods and register derivation:
 
 ```python
 from harp.device import Device
+
 
 class MyDevice(Device):
     __whoami__ = 1216
@@ -52,7 +53,7 @@ from pathlib import Path
 from harp.device import create_device
 
 Behavior = create_device(Path("device.yml").read_text())
-reg = Behavior.registers.AnalogData     # by name (or Behavior.registers.by_address[44])
+reg = Behavior.registers.AnalogData  # by name (or Behavior.registers.by_address[44])
 ```
 
 For a custom `interfaceType`, pass its converter via `converters=` (keyed by

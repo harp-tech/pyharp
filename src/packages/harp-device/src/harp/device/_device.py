@@ -110,7 +110,6 @@ class Device:
     #: classes; the common Harp registers are merged in automatically.
     __REGISTERS__: ClassVar[tuple[type[RegisterBase[Any]], ...]] = ()
 
-
     #: Name-indexed, **read-only** view of all this device's registers (core +
     #: ``__REGISTERS__``). Reach a register by name (``device.registers.WhoAmI`` —
     #: the common registers autocomplete on any device), or use

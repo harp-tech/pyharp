@@ -32,9 +32,9 @@ builds the device, and returns a ready-to-use reader:
 from harp.data import create_dataset_reader
 
 reader = create_dataset_reader("session.harp")
-df  = reader.read(AnalogData)     # by register class
-df  = reader.read(44)             # by address
-everything = reader.read_all()    # {register_name: DataFrame}
+df = reader.read(AnalogData)  # by register class
+df = reader.read(44)  # by address
+everything = reader.read_all()  # {register_name: DataFrame}
 ```
 
 Already have a device class (e.g. a pre-generated package, or one built with

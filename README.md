@@ -75,8 +75,8 @@ from harp.data import create_dataset_reader
 
 # Finds device.yml in the folder, builds the device, returns a ready-to-use reader.
 reader = create_dataset_reader("session.harp")
-df = reader.read(44)              # one register, by address (or pass its class)
-everything = reader.read_all()    # {register_name: DataFrame}
+df = reader.read(44)  # one register, by address (or pass its class)
+everything = reader.read_all()  # {register_name: DataFrame}
 ```
 
 Both paths are driven by a device schema. If you have only a `device.yml` and no
@@ -89,7 +89,7 @@ from pathlib import Path
 from harp.device import create_device
 
 Behavior = create_device(Path("device.yml").read_text())
-AnalogData = Behavior.registers.AnalogData   # registers are reached by name
+AnalogData = Behavior.registers.AnalogData  # registers are reached by name
 ```
 
 See the [Examples](https://harp-tech.org/pyharp/examples/) for the full walkthroughs,
