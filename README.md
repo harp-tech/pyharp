@@ -50,6 +50,51 @@ pip install harp-data
 
 `harp-benchmarks` (under `src/packages/`) is internal-only and is never published to PyPI.
 
+## Quickstart
+
+There are two ways you'll typically use `harp`: talking to a **live device** over a
+serial connection, or reading **data recorded to disk**.
+
+**Talk to a live device.** Open a connection and read/write registers by class:
+
+```python
+from harp.device import Device, WhoAmI, OperationControl, OperationControlPayload, OperationMode
+from harp.serial import open_serial_device
+
+# Use "COMx" on Windows, "/dev/ttyUSBx" on Linux.
+with open_serial_device(Device, port="/dev/ttyUSB0") as device:
+    print("WhoAmI:", device.read(WhoAmI).parsed)
+    device.write(OperationControl, OperationControlPayload(operation_mode=OperationMode.ACTIVE))
+```
+
+**Read a recorded session.** Point a `DatasetReader` at a dataset folder and read
+registers into pandas DataFrames — no hardware required:
+
+```python
+from harp.data import create_dataset_reader
+
+# Finds device.yml in the folder, builds the device, returns a ready-to-use reader.
+reader = create_dataset_reader("session.harp")
+df = reader.read(44)  # one register, by address (or pass its class)
+everything = reader.read_all()  # {register_name: DataFrame}
+```
+
+Both paths are driven by a device schema. If you have only a `device.yml` and no
+pre-generated package, `create_device` compiles it into a typed `Device` at runtime —
+no code-generation step — which is exactly what `create_dataset_reader` does under
+the hood:
+
+```python
+from pathlib import Path
+from harp.device import create_device
+
+Behavior = create_device(Path("device.yml").read_text())
+AnalogData = Behavior.registers.AnalogData  # registers are reached by name
+```
+
+See the [Examples](https://harp-tech.org/pyharp/examples/) for the full walkthroughs,
+including subscribing to device events and working with custom interface-type converters.
+
 ## Contributing
 
 harp is a [uv workspace](https://docs.astral.sh/uv/concepts/workspaces/): every package under

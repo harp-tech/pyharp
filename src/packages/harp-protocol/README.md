@@ -12,11 +12,13 @@ For more detail please check Harp Tech's official documentation [here](https://h
 import numpy as np
 from harp.protocol import HarpMessage, RegisterU16
 
+
 class WhoAmI(RegisterU16):
     address = 0
 
-frame = WhoAmI.format(np.uint16(1216))           # build a Write frame
-value = WhoAmI.parse(HarpMessage.parse(frame))   # -> np.uint16(1216)
+
+frame = WhoAmI.format(np.uint16(1216))  # build a Write frame
+value = WhoAmI.parse(HarpMessage.parse(frame))  # -> np.uint16(1216)
 ```
 
 It carries no transport or device logic — see [`harp-device`](../harp-device) for the device layer.

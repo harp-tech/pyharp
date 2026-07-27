@@ -2,9 +2,11 @@ import argparse
 import sys
 from pathlib import Path
 
+import numpy as np
+
 from harp.benchmarks._registers import BENCHMARK_REGISTERS, DATA_DIR, BenchmarkedRegister
 
-_TIMESTAMP = 42
+_SEED = 42
 
 
 def corpus_path(reg: BenchmarkedRegister, data_dir: Path = DATA_DIR):
@@ -12,19 +14,30 @@ def corpus_path(reg: BenchmarkedRegister, data_dir: Path = DATA_DIR):
     return data_dir / reg.filename
 
 
-def _frame_timestamp(reg: BenchmarkedRegister) -> int | None:
-    return _TIMESTAMP if reg.timestamped else None
+def _frames(reg: BenchmarkedRegister, entries: int) -> np.ndarray:
+    """Build ``entries`` frames of ``reg`` with a random per-frame payload.
+
+    Bytes are held to the ASCII range (0..127) so every field varies while staying
+    valid for any ``StringConverter`` member and free of float NaN/inf — the corpus is
+    decoded (``to_columns`` / ``parse_to_dataframe``) during the benchmark. Timestamps,
+    when present, are a monotonic ramp. Returns the flat uint8 wire buffer.
+    """
+    dtype = reg.register.payload_class.dtype
+    rng = np.random.default_rng(_SEED + reg.address)
+    records = rng.integers(0, 128, size=entries * dtype.itemsize, dtype=np.uint8).view(dtype)
+    timestamps = np.arange(entries, dtype=np.float64) if reg.timestamped else None
+    return reg.register.format_bulk(records, timestamps=timestamps)
 
 
 def generate_one(
     reg: BenchmarkedRegister, entries: int, data_dir: Path = DATA_DIR
 ) -> tuple[str, int, int]:
     """Write ``entries`` frames for ``reg``. Returns (path, frame_size, file_size)."""
-    frame = reg.register.format(reg.value, timestamp=_frame_timestamp(reg))
+    buf = _frames(reg, entries)
     path = corpus_path(reg, data_dir)
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_bytes(frame * entries)
-    return str(path), len(frame), path.stat().st_size
+    path.write_bytes(buf.tobytes())
+    return str(path), len(buf) // entries, path.stat().st_size
 
 
 def ensure_corpus(
@@ -33,13 +46,13 @@ def ensure_corpus(
     """Generate ``reg``'s corpus unless a matching cached file already exists.
 
     The cache is honored only when the existing file's size matches ``entries``
-    exactly (frame_size * entries); a stale file (different entry count) is rebuilt.
+    exactly (stride * entries); a stale file (different entry count) is rebuilt.
     Returns (path, generated).
     """
     path = corpus_path(reg, data_dir)
     if path.exists() and not force:
-        frame_size = len(reg.register.format(reg.value, timestamp=_frame_timestamp(reg)))
-        if path.stat().st_size == frame_size * entries:
+        stride = len(_frames(reg, 1))
+        if path.stat().st_size == stride * entries:
             return path, False
     generate_one(reg, entries, data_dir)
     return path, True

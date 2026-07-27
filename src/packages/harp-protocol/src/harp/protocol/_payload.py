@@ -180,7 +180,8 @@ class Field(Generic[T]):
 
 
 def _build_enum_lookup(enum_cls: type[enum.IntEnum]) -> "tuple[list[str], np.ndarray]":
-    """Helper for GroupMask to build the category list and code lookup table for a given enum.IntEnum class."""
+    """Category list + a code table mapping each raw enum value (``0..max member``) to its
+    category index; a raw value with no member maps to -1."""
     members = list(enum_cls)
     categories = [m.name for m in members]
     max_val = max(int(m) for m in members)
@@ -234,10 +235,16 @@ class GroupMask(Generic[E]):
         self._slot: str = ""
         self._dtype: np.dtype = _DEFAULT_ELEMENT
         self._categories, self._code_lookup = _build_enum_lookup(enum)
+        self._lookup_safe = (mask >> self._shift) < len(self._code_lookup)
 
     def _decode_raw(self, raw: Any) -> Any:
-        """Map an extracted (already masked + shifted) integer to its enum member."""
-        return self._enum(int(raw))
+        """Map an extracted (masked + shifted) integer to its enum member, preserving an
+        undefined code as its raw int (permissive, like C#'s unchecked enum cast)."""
+        value = int(raw)
+        try:
+            return self._enum(value)
+        except ValueError:
+            return value
 
     def _encode_value(self, value: Any) -> int:
         """Map a user value back to the integer to be masked + shifted into the slot."""
@@ -272,9 +279,24 @@ class GroupMask(Generic[E]):
     ) -> "list[Column]":
         """One enum column: category codes + labels (``decode_enums``) or raw codes."""
         raw = (arr[self._slot] & self._mask) >> self._shift
-        if decode_enums:
-            return [Column(name, self._code_lookup[raw], self._categories)]
-        return [Column(name, raw)]
+        if not decode_enums:
+            return [Column(name, raw)]
+        lookup = self._code_lookup
+        # ``_lookup_safe`` (the field's raw range fits the table) skips the bounds guard;
+        # an in-range gap still maps to -1, so the undefined branch below runs regardless.
+        if self._lookup_safe:
+            codes = lookup[raw]
+        else:
+            codes = np.where(raw < len(lookup), lookup.take(raw, mode="clip"), -1)
+        undefined = codes < 0
+        if not undefined.any():
+            return [Column(name, codes, self._categories)]
+        # An undefined code (an in-range gap, or a value past the enum's range) is kept
+        # as its raw integer — an extra category — matching the scalar decode and C#'s
+        codes = codes.astype(np.intp)
+        extras = np.unique(raw[undefined])
+        codes[undefined] = len(self._categories) + np.searchsorted(extras, raw[undefined])
+        return [Column(name, codes, list(self._categories) + extras.tolist())]
 
 
 class BitMask(Generic[F]):
