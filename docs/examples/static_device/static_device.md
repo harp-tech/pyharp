@@ -23,9 +23,10 @@ A static device is four kinds of declaration:
 - **The `Device` subclass** — sets **only** `__whoami__` (the expected identity) and
   `__REGISTERS__` (a tuple of the device's **own** registers). The common Harp
   registers are merged in and `device.registers` is derived automatically.
-- **A typed facade** (optional but recommended) — under `TYPE_CHECKING`, a
-  `CoreRegisters` subclass declaring `Name: type[Name]` for each register, so
-  `device.registers.<Name>` autocompletes and types precisely.
+- **A typed facade** (optional but recommended) — a `CoreRegistersNamespace`
+  subclass declaring `Name: type[Name]` for each register, plus
+  `registers: ClassVar[<Facade>]`, so `device.registers.<Name>` autocompletes and
+  types precisely.
 
 ## What the base gives you
 
@@ -38,15 +39,7 @@ You never hand-build an address map. The base `Device`:
 
 Do **not** declare a `REGISTER_MAP`, spread the common registers into `__REGISTERS__`,
 or override the base's protocol methods (`read`, `write`, `subscribe`, lifecycle) —
-they are the base's job.
-
-!!! note "The typed facade"
-    The facade under `TYPE_CHECKING` narrows the base's `registers` attribute, which
-    the type checker would otherwise flag as an incompatible override — hence the one
-    `# pyright: ignore[reportIncompatibleVariableOverride]`. It carries no runtime
-    values; the actual namespace is always built from `__REGISTERS__` by the base.
-    Skip the facade and `device.registers.<Name>` still works, typed as the generic
-    `type[RegisterBase]` (no per-register autocomplete).
+they are the base's job. We may add a `@final` decorator to `Device` in the future to enforce this.
 
 ## For code generators
 
@@ -55,8 +48,10 @@ This is the contract a generator targets. Per device, emit:
 1. Each register as a `RegisterBase` subclass (with its enums and payload classes).
 2. A `Device` subclass setting only `__whoami__` and `__REGISTERS__` (the device's own
    registers — **not** the common ones).
-3. A `TYPE_CHECKING` facade subclassing `CoreRegisters`, one `Name: type[Name]` per
-   device register, plus `registers: ClassVar[<Facade>]`.
+3. A facade subclassing `CoreRegistersNamespace`, one `Name: type[Name]` per device
+   register, plus `registers: ClassVar[<Facade>]`. Narrowing `registers` needs no
+   pyright suppression because the base declares it read-only; the facade is never
+   instantiated.
 
 Generators must **not** emit a `REGISTER_MAP`, spread the common registers into
 `__REGISTERS__`, or override any base `Device` method.

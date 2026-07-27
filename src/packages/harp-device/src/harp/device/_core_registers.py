@@ -2,7 +2,7 @@
 
 Every :class:`~harp.device.Device` merges :data:`CORE_REGISTERS` with its own
 ``REGISTERS`` to build ``device.registers``. Statically generated devices subclass
-:class:`CoreRegisters` to declare their device-specific registers with real types,
+:class:`CoreRegistersNamespace` to declare their device-specific registers with real types,
 so ``device.registers.<Name>`` autocompletes and type-checks.
 """
 
@@ -49,14 +49,14 @@ CORE_REGISTERS: tuple[type[RegisterBase[Any]], ...] = (
 )
 
 
-class CoreRegisters(RegisterNamespace):
+class CoreRegistersNamespace(RegisterNamespace):
     """Typed register namespace declaring the common Harp registers.
 
     Every :class:`~harp.device.Device` exposes at least these as ``device.registers``.
     A statically generated device subclasses this to add its own registers with real
     types::
 
-        class BehaviorRegisters(CoreRegisters):
+        class BehaviorRegisters(CoreRegistersNamespace):
             DigitalInputState: type[DigitalInputState]
             AnalogData: type[AnalogData]
 

@@ -1,8 +1,8 @@
 import enum
-from typing import TYPE_CHECKING, ClassVar
+from typing import ClassVar
 
 import numpy as np
-from harp.device import CoreRegisters, Device
+from harp.device import CoreRegistersNamespace, Device
 from harp.protocol import (
     BoolConverter,
     Field,
@@ -65,15 +65,13 @@ class ExampleDevice(Device):
     __whoami__ = 1234
     __REGISTERS__ = (Encoder, Control)
 
-    if TYPE_CHECKING:
-        # Optional but recommended: makes `device.registers.<Name>` autocomplete and
-        # type precisely. It deliberately narrows the base `registers` attribute, so
-        # the override warning is silenced. Carries no runtime values.
-        class _Registers(CoreRegisters):
-            Encoder: type[Encoder]
-            Control: type[Control]
+    # Optional but recommended: makes `device.registers.<Name>` autocomplete and
+    # type-aware. Never instantiated — the base builds the namespace from `__REGISTERS__`.
+    class _ExampleRegisters(CoreRegistersNamespace):
+        Encoder: type[Encoder]
+        Control: type[Control]
 
-        registers: ClassVar[_Registers]  # pyright: ignore[reportIncompatibleVariableOverride]
+    registers: ClassVar[_ExampleRegisters]
 
 
 # Registers are reached by name, on the class or an instance:

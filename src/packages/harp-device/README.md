@@ -35,7 +35,7 @@ class MyDevice(Device):
 Registers are then reached by name through `device.registers`
 (`MyDevice.registers.DigitalInputState`) or through the
 `MyDevice.registers.by_address` map. For static type hints on
-`device.registers.<Name>`, subclass `CoreRegisters` and declare the device's
+`device.registers.<Name>`, subclass `CoreRegistersNamespace` and declare the device's
 registers — see the [device examples](https://harp-tech.org/pyharp/examples/).
 
 A new transport is just an object implementing the `ITransport` protocol

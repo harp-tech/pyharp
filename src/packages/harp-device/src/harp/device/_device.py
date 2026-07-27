@@ -1,22 +1,21 @@
 """Transport-agnostic Harp device base class."""
 
-from collections.abc import Callable, Iterable
-from typing import Any, ClassVar, Self, TypeVar
-
 import logging
 import queue
 import threading
+from collections.abc import Callable, Iterable
+from typing import Any, ClassVar, Self, TypeVar
 
 from harp.protocol import HarpMessage, MessageType
 from harp.protocol._message import ParsedHarpMessage
 from harp.protocol._register import RegisterBase
 
-from ._core_registers import CORE_REGISTERS, CoreRegisters
+from ._core_registers import CORE_REGISTERS, CoreRegistersNamespace
 from ._framer import HarpFramer
-from ._transport import ITransport, TransportError
 from ._registers import (
     WhoAmI,
 )
+from ._transport import ITransport, TransportError
 
 P = TypeVar("P")
 
@@ -36,6 +35,27 @@ def _normalize_message_types(message_types: MessageTypeFilter) -> frozenset[Mess
     if isinstance(message_types, MessageType):
         return frozenset({message_types})
     return frozenset(message_types)
+
+
+class _RegisterAccessor:
+    """Read-only descriptor backing :attr:`Device.registers`.
+
+    It defines ``__get__`` but no ``__set__``, which is deliberate:
+
+    * ``device.registers`` is **read-only** — assigning to it is a type error;
+    * a subclass may **narrow** the attribute by re-declaring it, because a
+      read-only member is checked *covariantly* (a mutable one would be invariant).
+
+    So a statically generated device can re-declare
+    ``registers: ClassVar[<CoreRegistersNamespace subclass>]`` to type
+    ``device.registers.<Name>`` precisely, with **no**
+    ``reportIncompatibleVariableOverride`` suppression. The real namespace is
+    assigned per subclass in :meth:`Device.__init_subclass__` (which shadows this
+    descriptor); this default only backs the bare :class:`Device` base.
+    """
+
+    def __get__(self, obj: object, owner: type | None = None) -> CoreRegistersNamespace:
+        return CoreRegistersNamespace(CORE_REGISTERS)
 
 
 class Subscription:
@@ -81,7 +101,7 @@ class Device:
     subclass; the base owns the protocol methods and the register-namespace derivation.
     """
 
-    REPLY_TIMEOUT: ClassVar[float] = 5.0  # seconds
+    # === The following are class variables meant to be set by a subclass ===
 
     #: Expected ``WhoAmI`` of the device this class models; ``0x0`` skips the check.
     __whoami__: ClassVar[int] = 0x0
@@ -90,11 +110,16 @@ class Device:
     #: classes; the common Harp registers are merged in automatically.
     __REGISTERS__: ClassVar[tuple[type[RegisterBase[Any]], ...]] = ()
 
-    #: Name-indexed view of all this device's registers (core + ``__REGISTERS__``).
-    #: Reach a register by name (``device.registers.WhoAmI``), or use
+
+    #: Name-indexed, **read-only** view of all this device's registers (core +
+    #: ``__REGISTERS__``). Reach a register by name (``device.registers.WhoAmI`` —
+    #: the common registers autocomplete on any device), or use
     #: ``device.registers.by_address``; see :class:`~harp.device.RegisterNamespace`.
-    #: Derived by :meth:`__init_subclass__`; do not set it directly.
-    registers: ClassVar[CoreRegisters] = CoreRegisters(CORE_REGISTERS)
+    #: A statically generated device may *narrow* this by re-declaring
+    #: ``registers: ClassVar[<CoreRegistersNamespace subclass>]`` for typed, autocompleting
+    registers = _RegisterAccessor()
+
+    REPLY_TIMEOUT: ClassVar[float] = 5.0  # seconds
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)
@@ -103,7 +128,9 @@ class Device:
         merged: dict[int, type[RegisterBase[Any]]] = dict(cls.registers.by_address)
         for register in cls.__dict__.get("__REGISTERS__", ()):
             merged[register.address] = register
-        cls.registers = CoreRegisters(merged.values())
+        # ``type.__setattr__`` (not ``cls.registers = ...``) keeps pyright treating
+        # ``registers`` as read-only; it shadows the base descriptor on the subclass.
+        type.__setattr__(cls, "registers", CoreRegistersNamespace(merged.values()))
 
     def __init__(self, transport: ITransport, *, raise_on_error: bool = True) -> None:
         self._transport = transport

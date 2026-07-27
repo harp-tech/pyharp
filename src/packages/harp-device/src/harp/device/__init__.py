@@ -26,7 +26,7 @@ from ._registers import (
     TimestampSeconds,
     WhoAmI,
 )
-from ._core_registers import CORE_REGISTERS, CoreRegisters
+from ._core_registers import CORE_REGISTERS, CoreRegistersNamespace
 from ._register_namespace import RegisterNamespace
 from ._schema import ConverterContext, parse_device_schema
 from ._transport import ITransport, TransportError
@@ -42,7 +42,7 @@ __all__ = [
     "ITransport",
     "TransportError",
     "RegisterNamespace",
-    "CoreRegisters",
+    "CoreRegistersNamespace",
     "CORE_REGISTERS",
     "WhoAmI",
     "HardwareVersionHigh",

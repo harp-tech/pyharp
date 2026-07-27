@@ -3,8 +3,8 @@
 `Device.registers` is a :class:`RegisterNamespace`, so registers are reached by
 name — ``device.registers.WhoAmI`` — with the ``by_name`` / ``by_address`` maps for
 programmatic lookup. Statically generated devices narrow the type to a
-:class:`CoreRegisters` subclass so editors autocomplete the register names; see
-:class:`CoreRegisters`.
+:class:`CoreRegistersNamespace` subclass so editors autocomplete the register names; see
+:class:`CoreRegistersNamespace`.
 """
 
 from collections.abc import Iterable, Iterator, Mapping
@@ -30,7 +30,7 @@ class RegisterNamespace:
     Iteration yields the register classes, and ``in`` tests register-class
     membership (``WhoAmI in ns``). Attribute access falls back to
     :meth:`__getattr__`, typed as ``type[RegisterBase[Any]]`` so any register name
-    type-checks; a :class:`CoreRegisters` subclass declares specific names for
+    type-checks; a :class:`CoreRegistersNamespace` subclass declares specific names for
     precise types.
     """
 

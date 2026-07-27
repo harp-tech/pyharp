@@ -2,10 +2,10 @@
 # To make changes, edit the device metadata and regenerate the interface.
 
 import enum
-from typing import TYPE_CHECKING, ClassVar
+from typing import ClassVar
 
 import numpy as np
-from numpy.typing import NDArray
+from harp.device import CoreRegistersNamespace, Device
 from harp.protocol import (
     AnonymousPayload,
     BitMask,
@@ -18,12 +18,12 @@ from harp.protocol import (
     PayloadType,
     RegisterBase,
     RegisterS32,
-    RegisterU16,
     RegisterU8,
+    RegisterU16,
     StringConverter,
     StructPayload,
 )
-from harp.device import CoreRegisters, Device
+from numpy.typing import NDArray
 
 from .converters import (
     DataConverter,
@@ -254,24 +254,24 @@ class Tests(Device):
         EncoderMode,
     )
 
-    if TYPE_CHECKING:
-        # Type-only facade so editors autocomplete `device.registers.<Name>` and
-        # `read`/`write` infer the register's payload type. No runtime values.
-        class _Registers(CoreRegisters):
-            DigitalInputs: type[DigitalInputs]
-            AnalogData: type[AnalogData]
-            ComplexConfiguration: type[ComplexConfiguration]
-            Version: type[Version]
-            CustomPayload: type[CustomPayload]
-            CustomRawPayload: type[CustomRawPayload]
-            CustomMemberConverter: type[CustomMemberConverter]
-            BitmaskSplitter: type[BitmaskSplitter]
-            Counter0: type[Counter0]
-            PortDIOSet: type[PortDIOSet]
-            PulseDOPort0: type[PulseDOPort0]
-            PulseDO0: type[PulseDO0]
-            StartPulse: type[StartPulse]
-            StartPulseTrain: type[StartPulseTrain]
-            EncoderMode: type[EncoderMode]
+    # Facade declaring the device's registers with real types so editors autocomplete
+    # `device.registers.<Name>` and `read`/`write` infer the payload type. Never
+    # instantiated — the namespace is built from `__REGISTERS__` by the base.
+    class _Registers(CoreRegistersNamespace):
+        DigitalInputs: type[DigitalInputs]
+        AnalogData: type[AnalogData]
+        ComplexConfiguration: type[ComplexConfiguration]
+        Version: type[Version]
+        CustomPayload: type[CustomPayload]
+        CustomRawPayload: type[CustomRawPayload]
+        CustomMemberConverter: type[CustomMemberConverter]
+        BitmaskSplitter: type[BitmaskSplitter]
+        Counter0: type[Counter0]
+        PortDIOSet: type[PortDIOSet]
+        PulseDOPort0: type[PulseDOPort0]
+        PulseDO0: type[PulseDO0]
+        StartPulse: type[StartPulse]
+        StartPulseTrain: type[StartPulseTrain]
+        EncoderMode: type[EncoderMode]
 
-        registers: ClassVar[_Registers]  # pyright: ignore[reportIncompatibleVariableOverride]
+    registers: ClassVar[_Registers]
