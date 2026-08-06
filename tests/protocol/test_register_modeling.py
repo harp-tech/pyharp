@@ -4,7 +4,6 @@
 """
 
 import numpy as np
-import pytest
 from harp.data import payload_to_dataframe
 from harp.protocol import HarpMessage, HarpVersion
 from harp.benchmarks.register_models import (
@@ -188,16 +187,17 @@ def test_custom_payload_single_member_unwrap():
 
 
 # ---------------------------------------------------------------------------
-# Strict enums: an out-of-range masked code raises
+# Undefined masked enum codes are preserved as their raw int (permissive, like C#)
 # ---------------------------------------------------------------------------
 
 
-def test_strict_enum_raises_on_unknown_code():
+def test_unknown_enum_code_preserves_raw():
     # StartPulse.DigitalOutput is a 2-bit field; code 0b11 has no PwmPort member.
     raw = np.array(0b11 << 10, dtype=np.uint16).tobytes()
     payload = StartPulsePayload.from_buffer(raw)
-    with pytest.raises(ValueError):
-        _ = payload.DigitalOutput
+    value = payload.DigitalOutput  # permissive: the raw code is kept, not raised
+    assert value == 0b11
+    assert not isinstance(value, PwmPort)
 
 
 # ---------------------------------------------------------------------------

@@ -50,6 +50,45 @@ pip install harp-data
 
 `harp-benchmarks` (under `src/packages/`) is internal-only and is never published to PyPI.
 
+## Quickstart
+
+Have only a device's `device.yml`? `create_device` compiles it into a typed
+`Device` at runtime — no code-generation step — giving you the device's registers
+(keyed by address) and its identity:
+
+```python
+from pathlib import Path
+from harp.device import create_device
+
+Behavior = create_device(Path("device.yml").read_text())
+Behavior.__whoami__            # device identity from the schema
+AnalogData = Behavior.REGISTER_MAP[44]   # registers are reached by address
+```
+
+The generated device works like any other. **Talk to hardware** over a serial
+transport — `read`/`write` take a register class:
+
+```python
+from harp.serial import open_serial_device
+
+# Use "COMx" on Windows, "/dev/ttyUSBx" on Linux.
+with open_serial_device(Behavior, port="/dev/ttyUSB0") as device:
+    print(device.read(AnalogData).parsed)
+```
+
+...or use the same register classes to **decode recorded data** into a pandas
+DataFrame:
+
+```python
+from harp.data import parse_to_dataframe
+
+df = parse_to_dataframe(AnalogData, "Behavior_44.bin")
+```
+
+See the [Examples](https://harp-tech.org/pyharp/examples/) for full walkthroughs,
+including reading device info, subscribing to events, and working with custom
+interface-type converters.
+
 ## Contributing
 
 harp is a [uv workspace](https://docs.astral.sh/uv/concepts/workspaces/): every package under

@@ -77,9 +77,12 @@ def parse_to_dataframe(
         )
     if timestamp:
         if timestamps is None:
-            raise ValueError(
-                "Buffer contains no timestamp data; pass timestamp=False to suppress "
-                "the timestamp column."
-            )
-        df.insert(0, "timestamp", timestamps)
+            if len(df) > 0:
+                raise ValueError(
+                    "Buffer contains no timestamp data; pass timestamp=False to suppress "
+                    "the timestamp column."
+                )
+            # Empty buffer: no frames to timestamp — return the empty frame as-is.
+        else:
+            df.insert(0, "timestamp", timestamps)
     return df
