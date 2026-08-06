@@ -422,6 +422,7 @@ dependencies = [
     { name = "harp-protocol" },
     { name = "pydantic" },
     { name = "pydantic-yaml" },
+    { name = "typing-extensions" },
 ]
 
 [package.metadata]
@@ -429,6 +430,7 @@ requires-dist = [
     { name = "harp-protocol", editable = "src/packages/harp-protocol" },
     { name = "pydantic", specifier = ">=2" },
     { name = "pydantic-yaml", specifier = ">=1" },
+    { name = "typing-extensions", specifier = ">=4.15.0" },
 ]
 
 [[package]]

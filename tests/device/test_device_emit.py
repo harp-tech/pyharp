@@ -17,9 +17,9 @@ class _StaticRegisters(CoreRegisters):
     Counter = Counter
 
 
-class StaticDevice(Device):
+class StaticDevice(Device[_StaticRegisters]):
     __whoami__ = 42
-    registers: ClassVar[_StaticRegisters] = _StaticRegisters()  # pyright: ignore[reportIncompatibleVariableOverride]
+    registers = _StaticRegisters()
 
 
 @pytest.fixture

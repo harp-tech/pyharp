@@ -3,10 +3,10 @@ from collections.abc import Callable, Mapping
 from datetime import datetime
 from os import PathLike
 from pathlib import Path
-from typing import Any
+from typing import Any, Generic
 
 import pandas as pd
-from harp.device import Device, RegisterMap, create_device
+from harp.device import Device, TRegisterMap, create_device
 from harp.protocol import RegisterBase
 from harp.protocol._constants import _TIMESTAMP_FLAG
 
@@ -31,7 +31,7 @@ def default_file_resolver(root: Path, name: str) -> dict[int, list[Path]]:
     return files
 
 
-class DatasetReader:
+class DatasetReader(Generic[TRegisterMap]):
     """Reader over a de-multiplexed Harp dataset folder.
 
     Construct from a generated device and a dataset folder, then read a register's
@@ -54,13 +54,13 @@ class DatasetReader:
 
     def __init__(
         self,
-        device: type[Device],
+        device: type[Device[TRegisterMap]],
         root: str | PathLike[str],
         *,
         name: str | None = None,
         resolver: FileNameResolver = default_file_resolver,
     ) -> None:
-        self._device = device
+        self._device: type[Device[TRegisterMap]] = device
         self._root = Path(root)
         self._name_override = name
         self._resolver = resolver
@@ -72,7 +72,7 @@ class DatasetReader:
         return self._root
 
     @property
-    def device(self) -> type[Device]:
+    def device(self) -> type[Device[TRegisterMap]]:
         """The generated device this reader parses against."""
         return self._device
 
@@ -82,10 +82,10 @@ class DatasetReader:
         return self._name_override or self._device.__name__
 
     @property
-    def registers(self) -> RegisterMap:
+    def registers(self) -> TRegisterMap:
         """The device's registers, reachable by name (``reader.registers.WhoAmI``)
         or through the ``reader.registers.by_address`` map."""
-        return self._device.registers
+        return getattr(self._device, "registers")
 
     @property
     def files(self) -> Mapping[int, list[Path]]:

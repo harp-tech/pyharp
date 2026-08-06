@@ -1,12 +1,8 @@
 """Serial transport and factory for Harp devices."""
 
-from typing import TypeVar
-
 import serial
 
-from harp.device import Device, TransportError
-
-D = TypeVar("D", bound=Device)
+from harp.device import Device, TRegisterMap, TransportError
 
 DEFAULT_BAUDRATE: int = 1_000_000
 
@@ -52,12 +48,12 @@ class SerialTransport:
 
 
 def open_serial_device(
-    device: type[D],
+    device: type[Device[TRegisterMap]],
     *,
     port: str,
     baudrate: int = DEFAULT_BAUDRATE,
     raise_on_error: bool = True,
-) -> D:
+) -> Device[TRegisterMap]:
     """Build ``device`` over a serial transport and open it.
 
     Like the builtin :func:`open`, the returned device is already connected;

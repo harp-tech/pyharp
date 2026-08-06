@@ -59,7 +59,7 @@ class ExampleRegisters(CoreRegisters):
 
 
 # --- Device ------------------------------------------------------------------
-class ExampleDevice(Device):
+class ExampleDevice(Device[ExampleRegisters]):
     """A statically defined Harp device.
 
     A subclass sets only `__whoami__` and `registers` — do not override the base's
@@ -67,10 +67,7 @@ class ExampleDevice(Device):
     """
 
     __whoami__ = 1234
-    # A mutable ClassVar is invariant, so pyright rejects narrowing it even though
-    # `ExampleRegisters` is a `CoreRegisters`. The suppression is the cost of the
-    # precise type on `device.registers.<Name>`.
-    registers: ClassVar[ExampleRegisters] = ExampleRegisters()  # pyright: ignore[reportIncompatibleVariableOverride]
+    registers = ExampleRegisters()
 
 
 # Registers are reached by name, on the class or an instance:

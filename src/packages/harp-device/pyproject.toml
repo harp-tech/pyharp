@@ -7,6 +7,7 @@ dependencies = [
     "harp-protocol",
     "pydantic>=2",
     "pydantic-yaml>=1",
+    "typing-extensions>=4.15.0",     # For PEP 696 TypeVar defaults. Remove this once the floor moves to 3.13.
 ]
 
 [build-system]

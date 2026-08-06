@@ -4,7 +4,9 @@ import logging
 import queue
 import threading
 from collections.abc import Callable, Iterable
-from typing import Any, ClassVar, Self, TypeVar
+from typing import Any, ClassVar, Generic, Self, cast
+
+from typing_extensions import TypeVar
 
 from harp.protocol import HarpMessage, MessageType
 from harp.protocol._message import ParsedHarpMessage
@@ -12,12 +14,14 @@ from harp.protocol._register import RegisterBase
 
 from ._core_registers import CoreRegisters
 from ._framer import HarpFramer
+from ._register_namespace import RegisterMap
 from ._registers import (
     WhoAmI,
 )
 from ._transport import ITransport, TransportError
 
 P = TypeVar("P")
+TRegisterMap = TypeVar("TRegisterMap", bound=RegisterMap, default=CoreRegisters)
 
 _logger = logging.getLogger(__name__)
 
@@ -43,7 +47,7 @@ class Subscription:
 
     def __init__(
         self,
-        device: "Device",
+        device: "Device[Any]",
         address: int | None,
         handler: Callable[[Any], None],
         message_types: frozenset[MessageType],
@@ -67,43 +71,46 @@ class Subscription:
         self.unsubscribe()
 
 
-class Device:
+class Device(Generic[TRegisterMap]):
     """Harp device protocol logic (framing, request/reply, register access)
     over an :class:`~harp.device.ITransport`.
 
     Must be opened before use, via ``with`` or :meth:`open`. A subclass declares its
-    registers by assigning :attr:`registers` an instance of its own
-    :class:`~harp.device.CoreRegisters` subclass, and sets :attr:`__whoami__` to
-    validate device identity on open (``0x0`` skips the check)::
+    registers **once**, as a :class:`~harp.device.CoreRegisters` subclass, then names
+    that class as the type parameter and assigns an instance of it. It sets
+    :attr:`__whoami__` to validate device identity on open (``0x0`` skips the check)::
 
         class ExampleRegisters(CoreRegisters):
             Encoder = Encoder
             Control = Control
 
-        class ExampleDevice(Device):
+        class ExampleDevice(Device[ExampleRegisters]):
             __whoami__ = 1234
             registers = ExampleRegisters()
 
-    That one declaration is both the runtime register set and the static type, so
+    The namespace class is both the runtime register set and the static type, so
     ``device.registers.Encoder`` autocompletes and ``read``/``write`` infer the
-    payload type. Subclassing :class:`~harp.device.CoreRegisters` (rather than
+    payload type. Passing it as the type parameter rather than re-annotating
+    ``registers`` is deliberate: a specialized parameter is not an override, so this
+    needs no ``reportIncompatibleVariableOverride`` suppression, and a type checker
+    verifies the assigned instance matches the parameter.
+
+    Subclassing :class:`~harp.device.CoreRegisters` (rather than
     :class:`~harp.device.RegisterMap`) is what merges in the common Harp registers;
     a device needing a different common set may subclass :class:`RegisterMap`
     directly. On an address clash the most-derived register wins.
+
+    For a device built at runtime from a schema, see
+    :func:`~harp.device.create_device`.
 
     Only :attr:`registers` and :attr:`__whoami__` are meant to be set by a subclass;
     the base owns the protocol methods.
     """
 
-    # === The following are class variables meant to be set by a subclass ===
-
     #: Expected ``WhoAmI`` of the device this class models; ``0x0`` skips the check.
     __whoami__: ClassVar[int] = 0x0
 
-    #: Name-indexed view of this device's registers. The bare :class:`Device` exposes
-    #: only the common Harp registers; a subclass replaces this with an instance of
-    #: its own :class:`~harp.device.CoreRegisters` subclass.
-    registers: ClassVar[CoreRegisters] = CoreRegisters()
+    registers: TRegisterMap = cast(Any, CoreRegisters())
 
     REPLY_TIMEOUT: ClassVar[float] = 5.0  # seconds
 

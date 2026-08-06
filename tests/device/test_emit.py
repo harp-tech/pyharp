@@ -19,13 +19,13 @@ def device_registers(device_yml):
 
 
 def _device_registers():
-    # expected_device.Tests._Registers declares only the device-specific registers
+    # expected_device.TestsRegisters declares only the device-specific registers
     # (the ones the emitter builds from device.yml); the core ones are inherited from
     # its CoreRegisters base, so read this class's own __dict__ rather than the
     # resolved namespace.
     return {
         value.__name__: value
-        for name, value in vars(expected_device.Tests._Registers).items()
+        for name, value in vars(expected_device.TestsRegisters).items()
         if not name.startswith("_") and isinstance(value, type) and issubclass(value, RegisterBase)
     }
 

@@ -1,4 +1,4 @@
-from ._device import Device, EventHandler, Subscription
+from ._device import Device, EventHandler, Subscription, TRegisterMap
 from ._emit_device import create_device
 from ._framer import HarpFramer
 from ._registers import (
@@ -67,4 +67,5 @@ __all__ = [
     "ClockConfigurationFlags",
     "ClockConfigurationPayload",
     "SerialNumber",
+    "TRegisterMap",
 ]

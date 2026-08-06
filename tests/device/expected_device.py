@@ -232,27 +232,35 @@ class EncoderMode(RegisterBase[EncoderModeMask]):
     payload_class = EncoderModePayload
 
 
-class Tests(Device):
+class TestsRegisters(CoreRegisters):
+    """The device's registers, declared once — as assignments, so the class carries
+    real values for the namespace to introspect while each member still types as
+    ``type[<Register>]``. Subclassing ``CoreRegisters`` merges in the common Harp
+    registers."""
+
+    DigitalInputs = DigitalInputs
+    AnalogData = AnalogData
+    ComplexConfiguration = ComplexConfiguration
+    Version = Version
+    CustomPayload = CustomPayload
+    CustomRawPayload = CustomRawPayload
+    CustomMemberConverter = CustomMemberConverter
+    BitmaskSplitter = BitmaskSplitter
+    Counter0 = Counter0
+    PortDIOSet = PortDIOSet
+    PulseDOPort0 = PulseDOPort0
+    PulseDO0 = PulseDO0
+    StartPulse = StartPulse
+    StartPulseTrain = StartPulseTrain
+    EncoderMode = EncoderMode
+
+
+class Tests(Device[TestsRegisters]):
     """A device driven by its own registers; the common Harp registers are merged
-    in automatically. Registers are reached by name — ``Tests.registers.AnalogData``."""
+    in automatically. Registers are reached by name — ``Tests.registers.AnalogData``.
 
-    class _Registers(CoreRegisters):
-        DigitalInputs = DigitalInputs
-        AnalogData = AnalogData
-        ComplexConfiguration = ComplexConfiguration
-        Version = Version
-        CustomPayload = CustomPayload
-        CustomRawPayload = CustomRawPayload
-        CustomMemberConverter = CustomMemberConverter
-        BitmaskSplitter = BitmaskSplitter
-        Counter0 = Counter0
-        PortDIOSet = PortDIOSet
-        PulseDOPort0 = PulseDOPort0
-        PulseDO0 = PulseDO0
-        StartPulse = StartPulse
-        StartPulseTrain = StartPulseTrain
-        EncoderMode = EncoderMode
+    Naming the namespace as the type parameter (rather than re-annotating
+    ``registers``) is what keeps this suppression-free: specializing is not an
+    override, and the checker verifies the assigned instance matches the parameter."""
 
-    # A mutable ClassVar is invariant, so narrowing the base's `registers` needs a
-    # suppression; it buys the precise type on `device.registers.<Name>`.
-    registers: ClassVar[_Registers] = _Registers()  # pyright: ignore[reportIncompatibleVariableOverride]
+    registers = TestsRegisters()

@@ -20,13 +20,12 @@ device.write(OperationControl, payload)  # write a register
 ## Extending for a specific device
 
 Downstream (often generated) packages declare their registers as attributes on a
-`CoreRegisters` subclass, and assign an instance of it to `registers`. They may set
-`__whoami__` for identity validation on connect. Only these two attributes are meant
-to be set — the base owns the protocol methods:
+`CoreRegisters` subclass, name that class as `Device`'s type parameter, and assign an
+instance of it to `registers`. They may set `__whoami__` for identity validation on
+connect. Only these two attributes are meant to be set — the base owns the protocol
+methods:
 
 ```python
-from typing import ClassVar
-
 from harp.device import CoreRegisters, Device
 
 
@@ -35,10 +34,9 @@ class MyRegisters(CoreRegisters):
     ...
 
 
-class MyDevice(Device):
+class MyDevice(Device[MyRegisters]):
     __whoami__ = 1216
-    # A mutable ClassVar is invariant, so narrowing needs a suppression.
-    registers: ClassVar[MyRegisters] = MyRegisters()  # pyright: ignore[reportIncompatibleVariableOverride]
+    registers = MyRegisters()
 ```
 
 That single declaration is both the runtime register set — `RegisterMap`
