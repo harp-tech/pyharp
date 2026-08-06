@@ -36,7 +36,12 @@ from ._payload import (
     AnonymousPayload,
     Column,
 )
-from ._payload_type import PayloadType
+from ._payload_type import (
+    PayloadType,
+    PayloadTypeInfo,
+    decode_payload_type,
+    encode_payload_type,
+)
 from ._register import (
     RegisterBase,
     RegisterU8,
@@ -64,6 +69,9 @@ __all__ = [
     "MessageType",
     # Payload type
     "PayloadType",
+    "PayloadTypeInfo",
+    "decode_payload_type",
+    "encode_payload_type",
     # Message
     "HarpMessage",
     "ParsedHarpMessage",
