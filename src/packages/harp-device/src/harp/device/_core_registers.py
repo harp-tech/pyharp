@@ -2,7 +2,7 @@
 
 Every :class:`~harp.device.Device` merges :data:`CORE_REGISTERS` with its own
 ``REGISTERS`` to build ``device.registers``. Statically generated devices subclass
-:class:`CoreRegistersNamespace` to declare their device-specific registers with real types,
+:class:`CoreRegisters` to declare their device-specific registers with real types,
 so ``device.registers.<Name>`` autocompletes and type-checks.
 """
 
@@ -10,7 +10,7 @@ from typing import Any
 
 from harp.protocol import RegisterBase
 
-from ._register_namespace import RegisterNamespace
+from ._register_namespace import RegisterMap
 from ._registers import (
     AssemblyVersion,
     ClockConfiguration,
@@ -49,34 +49,35 @@ CORE_REGISTERS: tuple[type[RegisterBase[Any]], ...] = (
 )
 
 
-class CoreRegistersNamespace(RegisterNamespace):
+class CoreRegisters(RegisterMap):
     """Typed register namespace declaring the common Harp registers.
 
     Every :class:`~harp.device.Device` exposes at least these as ``device.registers``.
-    A statically generated device subclasses this to add its own registers with real
-    types::
+    A statically generated device subclasses this to add its own registers::
 
-        class BehaviorRegisters(CoreRegistersNamespace):
-            DigitalInputState: type[DigitalInputState]
-            AnalogData: type[AnalogData]
+        class BehaviorRegisters(CoreRegisters):
+            DigitalInputState = DigitalInputState
+            AnalogData = AnalogData
 
-    so ``device.registers.AnalogData`` autocompletes and type-checks. At runtime the
-    namespace is populated from the device's registers; these annotations carry no
-    runtime values.
+    so ``device.registers.AnalogData`` autocompletes and type-checks (each member is
+    inferred as ``type[<Register>]``, exactly as a ``: type[...]`` annotation would
+    be). These are **assignments**, not annotations, because
+    :class:`~harp.device.RegisterMap` introspects the class for real attribute values
+    to build its name and address maps — a bare annotation carries none.
     """
 
-    WhoAmI: type[WhoAmI]
-    HardwareVersionHigh: type[HardwareVersionHigh]
-    HardwareVersionLow: type[HardwareVersionLow]
-    AssemblyVersion: type[AssemblyVersion]
-    CoreVersionHigh: type[CoreVersionHigh]
-    CoreVersionLow: type[CoreVersionLow]
-    FirmwareVersionHigh: type[FirmwareVersionHigh]
-    FirmwareVersionLow: type[FirmwareVersionLow]
-    TimestampSeconds: type[TimestampSeconds]
-    TimestampMicroseconds: type[TimestampMicroseconds]
-    OperationControl: type[OperationControl]
-    ResetDevice: type[ResetDevice]
-    DeviceName: type[DeviceName]
-    SerialNumber: type[SerialNumber]
-    ClockConfiguration: type[ClockConfiguration]
+    WhoAmI = WhoAmI
+    HardwareVersionHigh = HardwareVersionHigh
+    HardwareVersionLow = HardwareVersionLow
+    AssemblyVersion = AssemblyVersion
+    CoreVersionHigh = CoreVersionHigh
+    CoreVersionLow = CoreVersionLow
+    FirmwareVersionHigh = FirmwareVersionHigh
+    FirmwareVersionLow = FirmwareVersionLow
+    TimestampSeconds = TimestampSeconds
+    TimestampMicroseconds = TimestampMicroseconds
+    OperationControl = OperationControl
+    ResetDevice = ResetDevice
+    DeviceName = DeviceName
+    SerialNumber = SerialNumber
+    ClockConfiguration = ClockConfiguration

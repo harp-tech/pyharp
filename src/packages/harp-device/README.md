@@ -19,25 +19,35 @@ device.write(OperationControl, payload)  # write a register
 
 ## Extending for a specific device
 
-Downstream (often generated) packages declare their registers in a `__REGISTERS__`
-tuple; the common Harp registers are merged in automatically. They may set
+Downstream (often generated) packages declare their registers as attributes on a
+`CoreRegisters` subclass, and assign an instance of it to `registers`. They may set
 `__whoami__` for identity validation on connect. Only these two attributes are meant
-to be set — the base owns the protocol methods and register derivation:
+to be set — the base owns the protocol methods:
 
 ```python
-from harp.device import Device
+from typing import ClassVar
+
+from harp.device import CoreRegisters, Device
+
+
+class MyRegisters(CoreRegisters):
+    DigitalInputState = DigitalInputState
+    ...
 
 
 class MyDevice(Device):
     __whoami__ = 1216
-    __REGISTERS__ = (DigitalInputState, ...)
+    # A mutable ClassVar is invariant, so narrowing needs a suppression.
+    registers: ClassVar[MyRegisters] = MyRegisters()  # pyright: ignore[reportIncompatibleVariableOverride]
 ```
 
-Registers are then reached by name through `device.registers`
-(`MyDevice.registers.DigitalInputState`) or through the
-`MyDevice.registers.by_address` map. For static type hints on
-`device.registers.<Name>`, subclass `CoreRegistersNamespace` and declare the device's
-registers — see the [device examples](https://harp-tech.org/pyharp/examples/).
+That single declaration is both the runtime register set — `RegisterMap`
+introspects the class to build its name and address maps — and the static type, so
+`MyDevice.registers.DigitalInputState` autocompletes and `read`/`write` infer the
+payload type. Registers are also reachable through the `MyDevice.registers.by_name`
+and `.by_address` maps. Subclassing `CoreRegisters` is what merges in the common Harp
+registers; a device needing a different common set may subclass `RegisterMap`
+directly. See the [device examples](https://harp-tech.org/pyharp/examples/).
 
 A new transport is just an object implementing the `ITransport` protocol
 (`open`/`write`/`read`/`close`).

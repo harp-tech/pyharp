@@ -26,8 +26,8 @@ from ._registers import (
     TimestampSeconds,
     WhoAmI,
 )
-from ._core_registers import CORE_REGISTERS, CoreRegistersNamespace
-from ._register_namespace import RegisterNamespace
+from ._core_registers import CORE_REGISTERS, CoreRegisters
+from ._register_namespace import RegisterMap
 from ._schema import ConverterContext, parse_device_schema
 from ._transport import ITransport, TransportError
 
@@ -41,8 +41,8 @@ __all__ = [
     "HarpFramer",
     "ITransport",
     "TransportError",
-    "RegisterNamespace",
-    "CoreRegistersNamespace",
+    "RegisterMap",
+    "CoreRegisters",
     "CORE_REGISTERS",
     "WhoAmI",
     "HardwareVersionHigh",

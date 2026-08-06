@@ -3,7 +3,7 @@ import zlib
 import numpy as np
 import pytest
 from harp.data import parse_to_dataframe
-from harp.protocol import HarpMessage
+from harp.protocol import HarpMessage, RegisterBase
 
 from harp.device._schema import UnknownConverterError, create_registers
 
@@ -19,10 +19,15 @@ def device_registers(device_yml):
 
 
 def _device_registers():
-    # expected_device.Tests.__REGISTERS__ holds only the device-specific registers
-    # (the ones the emitter builds from device.yml); the core ones are merged in
-    # by Device automatically.
-    return {cls.__name__: cls for cls in expected_device.Tests.__REGISTERS__}
+    # expected_device.Tests._Registers declares only the device-specific registers
+    # (the ones the emitter builds from device.yml); the core ones are inherited from
+    # its CoreRegisters base, so read this class's own __dict__ rather than the
+    # resolved namespace.
+    return {
+        value.__name__: value
+        for name, value in vars(expected_device.Tests._Registers).items()
+        if not name.startswith("_") and isinstance(value, type) and issubclass(value, RegisterBase)
+    }
 
 
 def _layout(dt):

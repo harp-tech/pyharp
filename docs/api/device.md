@@ -6,8 +6,8 @@
 ::: harp.device.create_device
 ::: harp.device.parse_device_schema
 ::: harp.device.ConverterContext
-::: harp.device.RegisterNamespace
-::: harp.device.CoreRegistersNamespace
+::: harp.device.RegisterMap
+::: harp.device.CoreRegisters
 ::: harp.device.HarpFramer
 ::: harp.device.ITransport
 ::: harp.device.TransportError

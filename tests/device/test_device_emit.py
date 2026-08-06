@@ -1,11 +1,25 @@
 from typing import ClassVar
 
 import pytest
-from harp.device import Device, create_device
+from harp.device import CoreRegisters, Device, create_device
+from harp.protocol import RegisterU16
 
 from .converters import DataConverter
 
 CONVERTERS = {"DataConverter": DataConverter()}
+
+
+class Counter(RegisterU16):
+    address: ClassVar[int] = 40
+
+
+class _StaticRegisters(CoreRegisters):
+    Counter = Counter
+
+
+class StaticDevice(Device):
+    __whoami__ = 42
+    registers: ClassVar[_StaticRegisters] = _StaticRegisters()  # pyright: ignore[reportIncompatibleVariableOverride]
 
 
 @pytest.fixture
@@ -71,23 +85,13 @@ def test_registers_iterates_register_classes(test_device):
 
 
 def test_static_device_subclass_derives_registers():
-    # A hand-written (or generated) static device: declare __REGISTERS__ and the
-    # base merges in the common registers and builds `registers`. No REGISTER_MAP.
     from harp.device import WhoAmI
-    from harp.protocol import RegisterU16
 
-    class Counter(RegisterU16):
-        address: ClassVar[int] = 40
-
-    class MyDevice(Device):
-        __whoami__ = 42
-        __REGISTERS__ = (Counter,)
-
-    assert MyDevice.__whoami__ == 42
-    assert MyDevice.registers.Counter is Counter  # device register, by name
-    assert MyDevice.registers.WhoAmI is WhoAmI  # common register, merged in
-    assert Counter in MyDevice.registers  # membership by register class
-    assert MyDevice.registers.by_address[40] is Counter
+    assert StaticDevice.__whoami__ == 42
+    assert StaticDevice.registers.Counter is Counter  # device register, by name
+    assert StaticDevice.registers.WhoAmI is WhoAmI  # common register, inherited
+    assert Counter in StaticDevice.registers  # membership by register class
+    assert StaticDevice.registers.by_address[40] is Counter
 
 
 def test_device_register_overrides_core_on_clash():

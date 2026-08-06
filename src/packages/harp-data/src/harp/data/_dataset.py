@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any
 
 import pandas as pd
-from harp.device import Device, RegisterNamespace, create_device
+from harp.device import Device, RegisterMap, create_device
 from harp.protocol import RegisterBase
 from harp.protocol._constants import _TIMESTAMP_FLAG
 
@@ -82,7 +82,7 @@ class DatasetReader:
         return self._name_override or self._device.__name__
 
     @property
-    def registers(self) -> RegisterNamespace:
+    def registers(self) -> RegisterMap:
         """The device's registers, reachable by name (``reader.registers.WhoAmI``)
         or through the ``reader.registers.by_address`` map."""
         return self._device.registers

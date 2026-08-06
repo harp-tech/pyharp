@@ -20,41 +20,44 @@ A static device is four kinds of declaration:
   registers set `payload_type` and point at a payload class.
 - **Enums and payload classes** — `IntEnum` / `IntFlag` for enum and mask fields, and
   `StructPayload` / `AnonymousPayload` subclasses describing multi-field payloads.
+- **The register namespace** — a `CoreRegisters` subclass **assigning** each of the
+  device's own registers (`Encoder = Encoder`). Subclassing `CoreRegisters` merges in
+  the common Harp registers.
 - **The `Device` subclass** — sets **only** `__whoami__` (the expected identity) and
-  `__REGISTERS__` (a tuple of the device's **own** registers). The common Harp
-  registers are merged in and `device.registers` is derived automatically.
-- **A typed facade** (optional but recommended) — a `CoreRegistersNamespace`
-  subclass declaring `Name: type[Name]` for each register, plus
-  `registers: ClassVar[<Facade>]`, so `device.registers.<Name>` autocompletes and
-  types precisely.
+  `registers` (an instance of the namespace class).
 
 ## What the base gives you
 
 You never hand-build an address map. The base `Device`:
 
-- merges the common Harp registers with `__REGISTERS__` (device wins on an address clash);
-- derives `device.registers` — reach a register by name (`device.registers.Encoder`),
-  or use `device.registers.by_name` / `.by_address`;
+- resolves the namespace class into `device.registers` — reach a register by name
+  (`device.registers.Encoder`), or use `device.registers.by_name` / `.by_address`;
 - validates the device's `WhoAmI` against `__whoami__` on connect (`0x0` skips the check).
 
-Do **not** declare a `REGISTER_MAP`, spread the common registers into `__REGISTERS__`,
-or override the base's protocol methods (`read`, `write`, `subscribe`, lifecycle) —
-they are the base's job. We may add a `@final` decorator to `Device` in the future to enforce this.
+`CoreRegisters` contributes the common Harp registers through normal inheritance, so
+on an address clash the most-derived register wins. A device that needs a different
+common set may subclass `RegisterMap` directly instead.
+
+Do **not** spread the common registers into your namespace, or override the base's
+protocol methods (`read`, `write`, `subscribe`, lifecycle) — they are the base's job.
+We may add a `@final` decorator to `Device` in the future to enforce this.
 
 ## For code generators
 
 This is the contract a generator targets. Per device, emit:
 
-1. Each register as a `RegisterBase` subclass (with its enums and payload classes).
-2. A `Device` subclass setting only `__whoami__` and `__REGISTERS__` (the device's own
-   registers — **not** the common ones).
-3. A facade subclassing `CoreRegistersNamespace`, one `Name: type[Name]` per device
-   register, plus `registers: ClassVar[<Facade>]`. Narrowing `registers` needs no
-   pyright suppression because the base declares it read-only; the facade is never
-   instantiated.
+1. Each register as a `RegisterBase` subclass (with its enums and payload classes), at
+   module scope.
+2. A namespace subclassing `CoreRegisters`, one `Name = Name` assignment per device
+   register — **not** the common ones, which come from the base.
+3. A `Device` subclass setting only `__whoami__` and
+   `registers: ClassVar[<Namespace>] = <Namespace>()`. Narrowing `registers` needs a
+   trailing `# pyright: ignore[reportIncompatibleVariableOverride]` — a mutable
+   `ClassVar` is invariant, so a type checker rejects the narrowing even though the
+   namespace *is* a `CoreRegisters`.
 
-Generators must **not** emit a `REGISTER_MAP`, spread the common registers into
-`__REGISTERS__`, or override any base `Device` method.
+Generators must **not** spread the common registers into the namespace, or override
+any base `Device` method.
 
 <!--codeinclude-->
 ```python

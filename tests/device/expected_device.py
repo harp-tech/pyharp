@@ -5,7 +5,7 @@ import enum
 from typing import ClassVar
 
 import numpy as np
-from harp.device import CoreRegistersNamespace, Device
+from harp.device import CoreRegisters, Device
 from harp.protocol import (
     AnonymousPayload,
     BitMask,
@@ -236,42 +236,23 @@ class Tests(Device):
     """A device driven by its own registers; the common Harp registers are merged
     in automatically. Registers are reached by name — ``Tests.registers.AnalogData``."""
 
-    __REGISTERS__ = (
-        DigitalInputs,
-        AnalogData,
-        ComplexConfiguration,
-        Version,
-        CustomPayload,
-        CustomRawPayload,
-        CustomMemberConverter,
-        BitmaskSplitter,
-        Counter0,
-        PortDIOSet,
-        PulseDOPort0,
-        PulseDO0,
-        StartPulse,
-        StartPulseTrain,
-        EncoderMode,
-    )
+    class _Registers(CoreRegisters):
+        DigitalInputs = DigitalInputs
+        AnalogData = AnalogData
+        ComplexConfiguration = ComplexConfiguration
+        Version = Version
+        CustomPayload = CustomPayload
+        CustomRawPayload = CustomRawPayload
+        CustomMemberConverter = CustomMemberConverter
+        BitmaskSplitter = BitmaskSplitter
+        Counter0 = Counter0
+        PortDIOSet = PortDIOSet
+        PulseDOPort0 = PulseDOPort0
+        PulseDO0 = PulseDO0
+        StartPulse = StartPulse
+        StartPulseTrain = StartPulseTrain
+        EncoderMode = EncoderMode
 
-    # Facade declaring the device's registers with real types so editors autocomplete
-    # `device.registers.<Name>` and `read`/`write` infer the payload type. Never
-    # instantiated — the namespace is built from `__REGISTERS__` by the base.
-    class _Registers(CoreRegistersNamespace):
-        DigitalInputs: type[DigitalInputs]
-        AnalogData: type[AnalogData]
-        ComplexConfiguration: type[ComplexConfiguration]
-        Version: type[Version]
-        CustomPayload: type[CustomPayload]
-        CustomRawPayload: type[CustomRawPayload]
-        CustomMemberConverter: type[CustomMemberConverter]
-        BitmaskSplitter: type[BitmaskSplitter]
-        Counter0: type[Counter0]
-        PortDIOSet: type[PortDIOSet]
-        PulseDOPort0: type[PulseDOPort0]
-        PulseDO0: type[PulseDO0]
-        StartPulse: type[StartPulse]
-        StartPulseTrain: type[StartPulseTrain]
-        EncoderMode: type[EncoderMode]
-
-    registers: ClassVar[_Registers]
+    # A mutable ClassVar is invariant, so narrowing the base's `registers` needs a
+    # suppression; it buys the precise type on `device.registers.<Name>`.
+    registers: ClassVar[_Registers] = _Registers()  # pyright: ignore[reportIncompatibleVariableOverride]

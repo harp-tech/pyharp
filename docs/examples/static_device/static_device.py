@@ -2,7 +2,7 @@ import enum
 from typing import ClassVar
 
 import numpy as np
-from harp.device import CoreRegistersNamespace, Device
+from harp.device import CoreRegisters, Device
 from harp.protocol import (
     BoolConverter,
     Field,
@@ -53,25 +53,24 @@ class Control(RegisterBase[ControlPayload]):
     payload_class = ControlPayload
 
 
+class ExampleRegisters(CoreRegisters):
+    Encoder = Encoder
+    Control = Control
+
+
 # --- Device ------------------------------------------------------------------
 class ExampleDevice(Device):
     """A statically defined Harp device.
 
-    A subclass sets only `__whoami__` and `__REGISTERS__`. The common Harp
-    registers are merged in and `device.registers` is derived automatically — do
-    not declare a `REGISTER_MAP` or override the base's protocol methods.
+    A subclass sets only `__whoami__` and `registers` — do not override the base's
+    protocol methods.
     """
 
     __whoami__ = 1234
-    __REGISTERS__ = (Encoder, Control)
-
-    # Optional but recommended: makes `device.registers.<Name>` autocomplete and
-    # type-aware. Never instantiated — the base builds the namespace from `__REGISTERS__`.
-    class _ExampleRegisters(CoreRegistersNamespace):
-        Encoder: type[Encoder]
-        Control: type[Control]
-
-    registers: ClassVar[_ExampleRegisters]
+    # A mutable ClassVar is invariant, so pyright rejects narrowing it even though
+    # `ExampleRegisters` is a `CoreRegisters`. The suppression is the cost of the
+    # precise type on `device.registers.<Name>`.
+    registers: ClassVar[ExampleRegisters] = ExampleRegisters()  # pyright: ignore[reportIncompatibleVariableOverride]
 
 
 # Registers are reached by name, on the class or an instance:

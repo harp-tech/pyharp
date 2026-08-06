@@ -1,49 +1,84 @@
 """A name-indexed view over a device's register classes.
 
-`Device.registers` is a :class:`RegisterNamespace`, so registers are reached by
+`Device.registers` is a :class:`RegisterMap`, so registers are reached by
 name — ``device.registers.WhoAmI`` — with the ``by_name`` / ``by_address`` maps for
 programmatic lookup. Statically generated devices narrow the type to a
-:class:`CoreRegistersNamespace` subclass so editors autocomplete the register names; see
-:class:`CoreRegistersNamespace`.
+:class:`~harp.device.CoreRegisters` subclass so editors autocomplete the register
+names; see :class:`~harp.device.CoreRegisters` (which itself is a
+:class:`RegisterMap`).
 """
 
 from collections.abc import Iterable, Iterator, Mapping
 from types import MappingProxyType
-from typing import Any
+from typing import Any, Self
 
 from harp.protocol import RegisterBase
 
 _Register = type[RegisterBase[Any]]
 
 
-class RegisterNamespace:
+class RegisterMap:
     """Attribute-addressable collection of register classes.
 
-    Built from an iterable of register classes; each is indexed by its
-    ``__name__`` and its ``address``. Registers are reached by name::
+    A subclass **declares** its registers as class attributes; instantiating it
+    introspects the class and indexes each one by its ``__name__`` and its
+    ``address``::
 
-        ns = RegisterNamespace([WhoAmI, OperationControl])
-        ns.WhoAmI          # -> type[WhoAmI]  (attribute access)
+        class MyRegisters(RegisterMap):
+            WhoAmI = WhoAmI
+            OperationControl = OperationControl
+
+        ns = MyRegisters()
+        ns.WhoAmI          # -> type[WhoAmI]  (autocompletes and type-checks)
         ns.by_name         # {"WhoAmI": WhoAmI, "OperationControl": OperationControl}
         ns.by_address      # {0: WhoAmI, 10: OperationControl}
 
+    Declaring them as assignments rather than ``WhoAmI: type[WhoAmI]`` annotations
+    is what makes this work: a bare annotation carries no runtime value, so there
+    would be nothing to introspect. Static typing is unaffected — each member is
+    still inferred as ``type[<Register>]``.
+
+    :meth:`from_registers` builds the same map from an iterable instead, for
+    dynamically generated devices whose register set isn't known at author time.
+
     Iteration yields the register classes, and ``in`` tests register-class
     membership (``WhoAmI in ns``). Attribute access falls back to
-    :meth:`__getattr__`, typed as ``type[RegisterBase[Any]]`` so any register name
-    type-checks; a :class:`CoreRegistersNamespace` subclass declares specific names for
-    precise types.
+    :meth:`__getattr__`, typed as ``type[RegisterBase[Any]]``, so a register that
+    only exists at runtime still type-checks.
     """
 
-    def __init__(self, registers: Iterable[_Register]) -> None:
-        self._registers = tuple(registers)
-        # We use MappingProxyType here to make the maps read-only, so they can't be
-        # accidentally mutated at runtime.
-        self._by_name: Mapping[str, _Register] = MappingProxyType(
-            {register.__name__: register for register in self._registers}
-        )
-        self._by_address: Mapping[int, _Register] = MappingProxyType(
-            {register.address: register for register in self._registers}
-        )
+    _by_name: Mapping[str, _Register]
+    _by_address: Mapping[int, _Register]
+
+    def __init__(self) -> None:
+        self._registers = tuple(self._resolve_register_map())
+        self._resolve_mappings()
+
+    @classmethod
+    def from_registers(cls, registers: Iterable[_Register]) -> Self:
+        """Construct a :class:`RegisterMap` from an iterable of register classes.
+        Useful for dynamically generated devices that don't have a static register list."""
+        instance = cls.__new__(cls)
+        instance._registers = tuple(registers)
+        instance._resolve_mappings()
+        return instance
+
+    def _resolve_mappings(self) -> None:
+        """Resolve the name and address mappings from the register list."""
+        # MappingProxyType makes the maps read-only, so they can't be accidentally
+        # mutated at runtime.
+        self._by_name = MappingProxyType({reg.__name__: reg for reg in self._registers})
+        self._by_address = MappingProxyType({reg.address: reg for reg in self._registers})
+
+    @classmethod
+    def _resolve_register_map(cls) -> Iterator[_Register]:
+        """Yield every register class declared as an attribute on ``cls`` or its bases."""
+        for attr_name in dir(cls):
+            if attr_name.startswith("_"):
+                continue
+            attr = getattr(cls, attr_name)
+            if isinstance(attr, type) and issubclass(attr, RegisterBase):
+                yield attr
 
     def __getattr__(self, name: str) -> _Register:
         # Only consulted when normal attribute lookup fails, so real methods and
