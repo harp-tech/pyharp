@@ -104,9 +104,10 @@ def test_device_register_overrides_core_on_clash():
 
 
 def test_headerless_fragment_builds_default_device():
-    # A register-only fragment is a valid (nameless) device; name falls back to "Device".
+    # A register-only fragment is a valid (nameless) device; the name falls back to
+    # "UnknownDevice".
     Dev = create_device("registers:\n  Foo: {address: 40, type: U16, access: Read}\n")
-    assert Dev.__name__ == "Device"
+    assert Dev.__name__ == "UnknownDevice"
     assert Dev.__whoami__ == 0
     assert Dev.registers.Foo.address == 40
 
