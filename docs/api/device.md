@@ -3,7 +3,7 @@
 ---
 
 ::: harp.device.Device
-::: harp.device.create_device
+::: harp.device.create_module
 ::: harp.device.parse_device_schema
 ::: harp.device.ConverterContext
 ::: harp.device.HarpFramer

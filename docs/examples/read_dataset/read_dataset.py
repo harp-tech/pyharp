@@ -12,8 +12,8 @@ from harp.device import OperationControl
 #    ┗ 📜 device.yml
 #
 # `create_dataset_reader` does the right thing: it finds `device.yml` inside the
-# folder, builds the device that knows how to decode each register, and hands back
-# a reader ready to go.
+# folder, builds the module of register classes that knows how to decode each
+# register, and hands back a reader ready to go.
 reader = create_dataset_reader("session.harp")
 
 # Read one register into a DataFrame — by register class (any register in the
@@ -34,13 +34,13 @@ print(list(everything))
 absolute = reader.read(44, epoch=REFERENCE_EPOCH)
 print(absolute.index[:3])
 
-# --- Already have a device class? -------------------------------------------
-# A pre-generated device package, or one you built yourself with `create_device`,
-# can drive the reader directly — construct `DatasetReader(Device, folder)`:
+# --- Already have a device module? -------------------------------------------
+# A pre-generated device package, or one you built yourself with `create_module`,
+# can drive the reader directly — construct `DatasetReader(module, folder)`:
 #
 #   from harp.data import DatasetReader
-#   from harp.device import create_device
+#   from harp.device import create_module
 #   from pathlib import Path
 #
-#   Behavior = create_device((Path("session.harp") / "device.yml").read_text())
-#   reader = DatasetReader(Behavior, "session.harp")
+#   behavior = create_module((Path("session.harp") / "device.yml").read_text())
+#   reader = DatasetReader(behavior, "session.harp")

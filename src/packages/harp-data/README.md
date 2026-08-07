@@ -37,16 +37,16 @@ df  = reader.read(44)             # by address
 everything = reader.read_all()    # {register_name: DataFrame}
 ```
 
-Already have a device class (e.g. a pre-generated package, or one built with
-`create_device`)? Drive `DatasetReader` with it directly:
+Already have a device module (e.g. a pre-generated package, or one built with
+`create_module`)? Drive `DatasetReader` with it directly:
 
 ```python
 from pathlib import Path
 from harp.data import DatasetReader
-from harp.device import create_device
+from harp.device import create_module
 
-Behavior = create_device((Path("session.harp") / "device.yml").read_text())
-reader = DatasetReader(Behavior, "session.harp")
+behavior = create_module((Path("session.harp") / "device.yml").read_text())
+reader = DatasetReader(behavior, "session.harp")
 ```
 
 Timestamps are auto-detected per register and placed on the DataFrame index
