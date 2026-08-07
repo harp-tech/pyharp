@@ -71,18 +71,23 @@ class Device:
     """Harp device protocol logic (framing, request/reply, register access)
     over an :class:`~harp.device.ITransport`.
 
-    Must be opened before use, via ``with`` or :meth:`open`. Subclasses add
-    register class attributes and set :attr:`__whoami__` to validate device
-    identity on open (``0x0`` skips the check).
+    Must be opened before use, via ``with`` or :meth:`open`. :meth:`read`,
+    :meth:`write` and :meth:`subscribe` take a register class, so the device holds
+    no register collection of its own: a device's registers live in its module,
+    beside a ``REGISTER_MAP`` (see :func:`~harp.device.create_module`, or the
+    ``harp-device`` README for the statically generated equivalent).
+
+    A subclass sets :attr:`__whoami__` to validate device identity on open
+    (``0x0`` skips the check)::
+
+        class Behavior(Device):
+            __whoami__ = 1216
     """
 
     REPLY_TIMEOUT: ClassVar[float] = 5.0  # seconds
 
     #: Expected ``WhoAmI`` of the device this class models; ``0x0`` skips the check.
     __whoami__: ClassVar[int] = 0x0
-
-    #: Address -> register class; empty on the base, overridden by generated devices.
-    REGISTER_MAP: ClassVar[dict[int, type[RegisterBase[Any]]]] = {}
 
     def __init__(self, transport: ITransport, *, raise_on_error: bool = True) -> None:
         self._transport = transport

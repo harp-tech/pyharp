@@ -4,7 +4,7 @@ This section contains some examples to help you get started with `harp`.
 
 Working from a device schema:
 
-- [Generating a Device from a Schema](./create_device/create_device.md) - compile a `device.yml` into a typed device at runtime with `create_device`.
+- [Generating Registers from a Schema](./create_module/create_module.md) - compile a `device.yml` into a module of register classes at runtime with `create_module`.
 
 Talking to a device:
 
