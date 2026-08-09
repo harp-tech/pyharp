@@ -74,7 +74,7 @@ class Device:
     Must be opened before use, via ``with`` or :meth:`open`. :meth:`read`,
     :meth:`write` and :meth:`subscribe` take a register class, so the device holds
     no register collection of its own: a device's registers live in its module,
-    beside a ``REGISTER_MAP`` (see :func:`~harp.device.create_module`, or the
+    beside a ``REGISTER_MAP`` (see :func:`~harp.device.create_device_module`, or the
     ``harp-device`` README for the statically generated equivalent).
 
     A subclass sets :attr:`__whoami__` to validate device identity on open

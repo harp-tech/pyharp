@@ -80,15 +80,15 @@ everything = reader.read_all()    # {register_name: DataFrame}
 ```
 
 Both paths are driven by a device schema. If you have only a `device.yml` and no
-pre-generated package, `create_module` compiles it into a module of register classes
+pre-generated package, `create_device_module` compiles it into a module of register classes
 at runtime — no code-generation step — which is exactly what `create_dataset_reader`
 does under the hood:
 
 ```python
 from pathlib import Path
-from harp.device import create_module
+from harp.device import create_device_module
 
-behavior = create_module(Path("device.yml").read_text())
+behavior = create_device_module(Path("device.yml").read_text())
 AnalogData = behavior.AnalogData          # registers are reached by name...
 assert behavior.REGISTER_MAP[44] is AnalogData   # ...or by address
 ```

@@ -73,7 +73,7 @@ nav:
   - Home: index.md
   - Examples:
     - examples/index.md
-    - Generating Registers from a Schema: examples/create_module/create_module.md
+    - Generating Registers from a Schema: examples/create_device_module/create_device_module.md
     - Getting Device Info: examples/get_info/get_info.md
     - Read and Write from Registers: examples/read_and_write_from_registers/read_and_write_from_registers.md
     - Subscribing to Events: examples/subscribing_to_events/subscribing_to_events.md

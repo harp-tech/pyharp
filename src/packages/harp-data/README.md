@@ -38,14 +38,14 @@ everything = reader.read_all()    # {register_name: DataFrame}
 ```
 
 Already have a device module (e.g. a pre-generated package, or one built with
-`create_module`)? Drive `DatasetReader` with it directly:
+`create_device_module`)? Drive `DatasetReader` with it directly:
 
 ```python
 from pathlib import Path
 from harp.data import DatasetReader
-from harp.device import create_module
+from harp.device import create_device_module
 
-behavior = create_module((Path("session.harp") / "device.yml").read_text())
+behavior = create_device_module((Path("session.harp") / "device.yml").read_text())
 reader = DatasetReader(behavior, "session.harp")
 ```
 

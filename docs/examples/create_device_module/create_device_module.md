@@ -1,12 +1,12 @@
 # Generating Registers from a Schema
 
 This example demonstrates how to turn a Harp `device.yml` into a module of register
-classes at runtime with `create_module`, without a code-generation step. This is the
+classes at runtime with `create_device_module`, without a code-generation step. This is the
 quickest way to get started when you have only a device's schema and no
 pre-generated package for it.
 
 A generated device package is a module: register classes at module level, with a
-`REGISTER_MAP` beside them keyed by address. `create_module` builds that same shape
+`REGISTER_MAP` beside them keyed by address. `create_device_module` builds that same shape
 from a schema, so registers are reached the same way either way — by name
 (`behavior.AnalogData`) or by address (`behavior.REGISTER_MAP[44]`). From there they
 work exactly like a pre-generated package's: drive them over a transport with
@@ -15,7 +15,7 @@ data.
 
 ## When to use runtime generation
 
-`create_module` trades statically generated device packages for schema-driven
+`create_device_module` trades statically generated device packages for schema-driven
 convenience. It's worth understanding what that buys you and what it costs.
 
 **You gain:**
@@ -44,7 +44,7 @@ convenience. It's worth understanding what that buys you and what it costs.
 For shipped, widely-used devices a pre-generated package from the
 [Harp C# generator](https://github.com/harp-tech/generators) remains the
 authoritative choice — better editor support and static typing. Reach for
-`create_module` when you want to go from a schema to working code with no
+`create_device_module` when you want to go from a schema to working code with no
 generation step.
 
 !!! warning
@@ -52,6 +52,6 @@ generation step.
 
 <!--codeinclude-->
 ```python
-[](./create_module.py)
+[](./create_device_module.py)
 ```
 <!--/codeinclude-->

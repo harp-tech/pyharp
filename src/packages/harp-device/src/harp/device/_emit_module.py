@@ -2,7 +2,7 @@
 
 A generated device package is already a module: register classes at module level
 and a ``REGISTER_MAP`` beside them (see the ``harp-device`` README).
-:func:`create_module` builds that same shape at runtime from a ``device.yml``, so a
+:func:`create_device_module` builds that same shape at runtime from a ``device.yml``, so a
 schema-driven device and a generated one are reached the same way, by name from the
 module or by address through ``REGISTER_MAP``.
 """
@@ -22,7 +22,7 @@ _DEFAULT_NAME = "Device"
 
 
 class DeviceModule(types.ModuleType):
-    """The module :func:`create_module` returns, describing what a device module holds.
+    """The module :func:`create_device_module` returns, describing what a device module holds.
 
     Declaring the members is what lets a linter resolve them. Register names come
     from the schema, so they can only be described collectively, through
@@ -40,7 +40,7 @@ class DeviceModule(types.ModuleType):
         raise AttributeError(f"module {self.__name__!r} has no register named {name!r}")
 
 
-def create_module(
+def create_device_module(
     source: Union[str, DeviceModel],
     *,
     name: Optional[str] = None,
@@ -68,7 +68,7 @@ def create_module(
     by ``import`` and two schemas may share a name without clashing. Bind it
     yourself::
 
-        behavior = create_module(Path("device.yml").read_text())
+        behavior = create_device_module(Path("device.yml").read_text())
         behavior.AnalogData
     """
     device = source if isinstance(source, DeviceModel) else parse_device_schema(source)

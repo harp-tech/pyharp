@@ -16,14 +16,14 @@ from harp.device import (
     OperationControl,
     OperationControlPayload,
     WhoAmI,
-    create_module,
+    create_device_module,
 )
 from harp.protocol import ParsedHarpMessage, RegisterBase
 
 
 def schema_built_registers(yml: str) -> None:
     """A module built from a schema types its registers collectively."""
-    behavior = create_module(yml)
+    behavior = create_device_module(yml)
     assert_type(behavior, DeviceModule)
     assert_type(behavior.AnalogData, type[RegisterBase[Any]])
     assert_type(behavior.REGISTER_MAP, dict[int, type[RegisterBase[Any]]])

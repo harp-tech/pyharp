@@ -35,12 +35,12 @@ absolute = reader.read(44, epoch=REFERENCE_EPOCH)
 print(absolute.index[:3])
 
 # --- Already have a device module? -------------------------------------------
-# A pre-generated device package, or one you built yourself with `create_module`,
+# A pre-generated device package, or one you built yourself with `create_device_module`,
 # can drive the reader directly — construct `DatasetReader(module, folder)`:
 #
 #   from harp.data import DatasetReader
-#   from harp.device import create_module
+#   from harp.device import create_device_module
 #   from pathlib import Path
 #
-#   behavior = create_module((Path("session.harp") / "device.yml").read_text())
+#   behavior = create_device_module((Path("session.harp") / "device.yml").read_text())
 #   reader = DatasetReader(behavior, "session.harp")

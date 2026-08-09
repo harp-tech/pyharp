@@ -9,7 +9,7 @@ from harp.data import (
     create_dataset_reader,
     parse_to_dataframe,
 )
-from harp.device import create_module
+from harp.device import create_device_module
 
 
 def _records(cls, n, seed):
@@ -23,7 +23,7 @@ def _records(cls, n, seed):
 def emitted_module(device_yml):
     # strict=False: the test device.yml uses a custom DataConverter we don't inject
     # here; native decoding is enough to exercise file resolution and parsing.
-    return create_module(device_yml, strict=False)
+    return create_device_module(device_yml, strict=False)
 
 
 @pytest.fixture

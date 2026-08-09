@@ -1,17 +1,17 @@
 from pathlib import Path
 
 from harp.data import parse_to_dataframe
-from harp.device import Device, create_module
+from harp.device import Device, create_device_module
 from harp.serial import open_serial_device
 
 SERIAL_PORT = "/dev/ttyUSB0"  # or "COMx" in Windows ("x" is the number of the serial port)
 
-# `create_module` compiles a Harp `device.yml` into a module of register classes at
+# `create_device_module` compiles a Harp `device.yml` into a module of register classes at
 # runtime — no code-generation step. This is the quickest way to work with a device
 # when you don't have a pre-generated package for it: point it at the schema and you
 # get the same shape a generated package has, registers at module level beside a
 # `REGISTER_MAP`.
-behavior = create_module(Path("device.yml").read_text())
+behavior = create_device_module(Path("device.yml").read_text())
 
 print("WhoAmI:", behavior.WHO_AM_I)  # device identity, taken from the schema
 AnalogData = behavior.AnalogData  # registers are reached by name...
@@ -39,7 +39,7 @@ print(df.head())
 # A register with a custom `interfaceType` needs a converter so its field decodes
 # to the right Python type. Pass it via `converters=`, keyed by "<Name>Converter":
 #
-#   behavior = create_module(yml_text, converters={"DataConverter": DataConverter()})
+#   behavior = create_device_module(yml_text, converters={"DataConverter": DataConverter()})
 #
 # An unresolved custom type raises `UnknownConverterError`; pass `strict=False` to
 # decode it natively instead. `exclude_private=True` (the default) drops registers

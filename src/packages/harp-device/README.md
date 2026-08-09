@@ -19,52 +19,72 @@ device.write(OperationControl, payload)   # write a register
 
 ## Extending for a specific device
 
-A device's registers live in its module. Downstream (often generated) packages
-declare them at module level and spread the core `REGISTER_MAP` beside them, and may
-subclass `Device` to set `__whoami__` for identity validation on connect:
+A device is described by a module. Downstream, often generated, packages record the
+device identity as `WHO_AM_I`, declare the register classes at module level, and expand
+the core `REGISTER_MAP` beside them:
 
 ```python
-from harp.device import Device, REGISTER_MAP as _CORE_REGISTER_MAP
+from harp.device import REGISTER_MAP as _CORE_REGISTER_MAP
 
-class MyDevice(Device):
-    __whoami__ = 1216
-
+WHO_AM_I: int = 1216
 REGISTER_MAP = {**_CORE_REGISTER_MAP, 32: DigitalInputState, ...}
 ```
 
-`Device` itself holds no register collection: `read`, `write` and `subscribe` take a
-register class, so the module namespace is the only place registers need to live.
+This is the same structure `create_device_module` builds from a schema, so a device
+reads the same way whether it was generated ahead of time or compiled at runtime. A
+`WHO_AM_I` of `0` marks an unregistered device, used while a device is in development
+or outside the official registry, and identity checks are skipped for it.
+
+The common registers are not a device, so the core module carries no `WHO_AM_I`.
+
+`Device` itself holds no register collection. `read`, `write` and `subscribe` take a
+register class, so the module is the only place registers need to live:
+
+```python
+from harp import behavior
+
+# `device` is a Device opened over some transport (see harp-serial)
+device.read(behavior.DigitalInputState)
+```
+
+Identity is not yet read from the module. To validate `WhoAmI` on connect, subclass
+`Device` with the same value, which is what `open` checks against today:
+
+```python
+class MyDevice(Device):
+    __whoami__ = 1216
+```
 
 A new transport is just an object implementing the `ITransport` protocol
 (`open`/`write`/`read`/`close`).
 
 ## Generating registers from a `device.yml`
 
-If you don't have a pre-generated device package, `create_module` builds the same
-shape at runtime from Harp `device.yml` text: register classes at module level, a
-`REGISTER_MAP` beside them, and the schema's identity as `WHO_AM_I`. Field and enum
-names come from the yml verbatim.
+Without a pre-generated device package, `create_device_module` builds the same
+structure at runtime from Harp `device.yml` text: register classes at module level, a
+`REGISTER_MAP` beside them, and the identity declared by the schema as `WHO_AM_I`.
+Field and enum names come from the yml verbatim.
 
 ```python
 from pathlib import Path
-from harp.device import create_module
+from harp.device import create_device_module
 
-behavior = create_module(Path("device.yml").read_text())
+behavior = create_device_module(Path("device.yml").read_text())
 reg = behavior.AnalogData          # by name
 reg = behavior.REGISTER_MAP[44]    # or by address
 ```
 
-The module is not registered in `sys.modules`, so bind it yourself rather than
-`import`-ing it; names come from the schema at runtime, so they don't autocomplete
-and aren't statically checked, which is what a generated package on disk buys you.
+The module is not registered in `sys.modules`, so it has to be bound rather than
+imported. Names come from the schema at runtime, so they don't autocomplete and
+aren't statically checked. A generated package on disk gives both.
 
 For a custom `interfaceType`, pass its converter via `converters=` (keyed by
 `{InterfaceType}Converter` / `{MemberName}Converter`); an unresolved custom type
 raises `UnknownConverterError`, or pass `strict=False` to decode it natively:
 
 ```python
-create_module(yml_text, converters={"DataConverter": DataConverter()})
+create_device_module(yml_text, converters={"DataConverter": DataConverter()})
 ```
 
-`parse_device_schema(yml_text)` is also public if you just want the parsed
-schema model (registers, masks, and optional device identity) without a module.
+`parse_device_schema(yml_text)` is also public, returning the parsed schema model
+without a module: registers, masks, and optional device identity.
