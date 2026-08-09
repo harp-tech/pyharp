@@ -85,8 +85,8 @@ class DatasetReader:
 
     @property
     def registers(self) -> Mapping[int, type[RegisterBase[Any]]]:
-        """The module's address -> register-class map (its ``REGISTER_MAP``)."""
-        return self._module.REGISTER_MAP
+        """The address -> register-class map the module carries as ``REGISTER_MAP``."""
+        return getattr(self._module, "REGISTER_MAP")
 
     @property
     def files(self) -> Mapping[int, list[Path]]:

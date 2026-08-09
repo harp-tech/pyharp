@@ -2,7 +2,7 @@ import sys
 import types
 
 import pytest
-from harp.device import create_module
+from harp.device import DeviceModule, create_module
 
 from .converters import DataConverter
 
@@ -17,6 +17,12 @@ def test_module(device_yml):
 def test_returns_module_named_after_schema(test_module):
     assert isinstance(test_module, types.ModuleType)
     assert test_module.__name__ == "Tests"
+
+
+def test_returns_a_device_module(test_module):
+    # The subclass is what declares REGISTER_MAP, WHO_AM_I and the register names,
+    # so a linter can resolve them on a module built at runtime.
+    assert isinstance(test_module, DeviceModule)
 
 
 def test_whoami_defaults_to_zero_when_absent(test_module):
@@ -56,7 +62,9 @@ def test_core_registers_are_reachable_by_name(test_module):
 
 
 def test_unknown_name_raises_attribute_error(test_module):
-    with pytest.raises(AttributeError):
+    # The message names the module and the register, since a schema-built module
+    # cannot offer the name in an editor.
+    with pytest.raises(AttributeError, match="'Tests' has no register named 'Nonexistent'"):
         _ = test_module.Nonexistent
 
 

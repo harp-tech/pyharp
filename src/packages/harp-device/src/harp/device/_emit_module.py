@@ -21,6 +21,25 @@ from ._schema._model import DeviceModel
 _DEFAULT_NAME = "Device"
 
 
+class DeviceModule(types.ModuleType):
+    """The module :func:`create_module` returns, describing what a device module holds.
+
+    Declaring the members is what lets a linter resolve them. Register names come
+    from the schema, so they can only be described collectively, through
+    :meth:`__getattr__`; ``REGISTER_MAP`` and ``WHO_AM_I`` are named and keep their
+    own types. A statically generated device package is a plain module and needs
+    none of this, since its registers are written out.
+    """
+
+    #: Address -> register class, the common Harp registers merged with the schema's.
+    REGISTER_MAP: dict[int, type[RegisterBase[Any]]]
+    #: The device identity declared by the schema; ``0`` when absent.
+    WHO_AM_I: int
+
+    def __getattr__(self, name: str) -> type[RegisterBase[Any]]:
+        raise AttributeError(f"module {self.__name__!r} has no register named {name!r}")
+
+
 def create_module(
     source: Union[str, DeviceModel],
     *,
@@ -28,7 +47,7 @@ def create_module(
     converters: Optional[Mapping[str, ConverterValue]] = None,
     strict: bool = True,
     exclude_private: bool = True,
-) -> types.ModuleType:
+) -> DeviceModule:
     """Emit a module of register classes from a device schema.
 
     The module holds the schema's registers merged with the common Harp registers,
@@ -39,9 +58,10 @@ def create_module(
     * ``__name__``, the schema's ``device`` name, or ``name`` when given
       (``"Device"`` for a header-less register fragment).
 
-    Because the names come from the schema at runtime they don't autocomplete and
-    aren't statically checked; a generated device package is a real module on disk
-    and does both. On a collision the device's register wins over the common one.
+    Because the names come from the schema at runtime they don't autocomplete, and
+    each resolves as ``type[RegisterBase[Any]]`` rather than its own register type;
+    a generated device package is a real module on disk and gives both. On a
+    collision the device's register wins over the common one.
     ``exclude_private=True`` drops registers whose DSL ``visibility`` is ``private``.
 
     The module is **not** registered in :data:`sys.modules`, so it cannot be reached
@@ -57,10 +77,6 @@ def create_module(
     )
     module_name = name or device.device or _DEFAULT_NAME
 
-    # A device register replaces the common one it collides with, and displaces it
-    # from *both* views at once: a common register whose address or whose name the
-    # schema claims is left out entirely, so `module.<Name>.address` and
-    # `REGISTER_MAP[address]` can never disagree about what sits at an address.
     claimed = {cls.address for cls in registers.values()}
     contents: dict[str, type[RegisterBase[Any]]] = {
         cls.__name__: cls
@@ -70,11 +86,9 @@ def create_module(
     contents.update(registers)
 
     for register in registers.values():
-        # The emitter built these; hand them to the module that now owns them, so a
-        # repr reads `<class 'Behavior.AnalogData'>` instead of naming the emitter.
         register.__module__ = module_name
 
-    module = types.ModuleType(module_name, f"Harp registers for {module_name}, from a schema.")
+    module = DeviceModule(module_name, f"Harp registers for {module_name}, from a schema.")
     vars(module).update(
         contents,
         REGISTER_MAP={cls.address: cls for cls in contents.values()},
