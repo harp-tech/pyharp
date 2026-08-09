@@ -1,6 +1,8 @@
+import numpy as np
 from harp.device import (
     REGISTER_MAP,
     Device,
+    EnableFlag,
     OperationControl,
     OperationControlPayload,
     OperationMode,
@@ -12,7 +14,7 @@ from harp.serial import open_serial_device
 SERIAL_PORT = "/dev/ttyUSB0"  # or "COMx" in Windows ("x" is the number of the serial port)
 
 
-def print_timestamp(msg: ParsedHarpMessage[float]) -> None:
+def print_timestamp(msg: ParsedHarpMessage[np.uint32]) -> None:
     print(f"[timestamp] {msg.timestamp:.6f}  {msg.parsed}")
 
 
@@ -34,10 +36,10 @@ with open_serial_device(Device, port=SERIAL_PORT) as device:
         OperationControlPayload(
             operation_mode=OperationMode.ACTIVE,
             dump_registers=True,
-            heartbeat=True,
+            heartbeat=EnableFlag.ENABLED,
             mute_replies=False,
-            operation_led=True,
-            visual_indicators=True,
+            operation_led=EnableFlag.ENABLED,
+            visual_indicators=EnableFlag.ENABLED,
         ),
     )
 
