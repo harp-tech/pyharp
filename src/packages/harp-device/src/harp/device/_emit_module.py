@@ -8,14 +8,13 @@ module or by address through ``REGISTER_MAP``.
 """
 
 import types
-from typing import Any, Mapping, Optional, Protocol, Union, runtime_checkable
+from typing import Any, Mapping, Optional, Protocol, runtime_checkable
 
 from harp.protocol import RegisterBase
 
 from ._register_map import REGISTER_MAP as CORE_REGISTER_MAP
 from ._schema import create_registers, parse_device_schema
 from ._schema._emit import ConverterValue
-from ._schema._model import DeviceModel
 
 #: Module name used when the schema carries no ``device`` header.
 _DEFAULT_NAME = "Device"
@@ -56,14 +55,14 @@ class DeviceModule(types.ModuleType):
 
 
 def create_device_module(
-    source: Union[str, DeviceModel],
+    text: str,
     *,
     name: Optional[str] = None,
     converters: Optional[Mapping[str, ConverterValue]] = None,
     strict: bool = True,
     exclude_private: bool = True,
 ) -> DeviceModule:
-    """Emit a module of register classes from a device schema.
+    """Emit a module of register classes from ``device.yml`` text.
 
     The module names the registers the schema declares, so ``behavior.AnalogData``
     resolves while a common register such as ``WhoAmI`` is imported from
@@ -81,14 +80,15 @@ def create_device_module(
     address clash the device's register replaces the common one in ``REGISTER_MAP``.
     ``exclude_private=True`` drops registers whose DSL ``visibility`` is ``private``.
 
-    The module is **not** registered in :data:`sys.modules`, so it cannot be reached
-    by ``import`` and two schemas may share a name without clashing. Bind it
-    yourself::
+    ``text`` is the schema itself rather than a path to it, matching
+    :func:`parse_device_schema`, so read the file first. The module is **not**
+    registered in :data:`sys.modules`, so it cannot be reached by ``import`` and two
+    schemas may share a name without clashing. Bind it yourself::
 
         behavior = create_device_module(Path("device.yml").read_text())
         behavior.AnalogData
     """
-    device = source if isinstance(source, DeviceModel) else parse_device_schema(source)
+    device = parse_device_schema(text)
     registers = create_registers(
         device, converters=converters, strict=strict, exclude_private=exclude_private
     )
