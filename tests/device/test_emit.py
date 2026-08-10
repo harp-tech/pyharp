@@ -300,27 +300,53 @@ def test_structured_register_payload_named_after_interface_type():
     assert regs["A"].payload_class is regs["B"].payload_class
 
 
-def test_shared_payload_of_mismatched_size_raises():
-    # Reuse is keyed on the interfaceType name alone, so a same-named payload over a
-    # different element width would silently mis-describe the second register.
-    with pytest.raises(NameCollisionError, match="different size"):
-        create_registers(
-            "registers:\n"
-            "  A:\n"
-            "    address: 40\n"
-            "    type: U8\n"
-            "    access: Read\n"
-            "    interfaceType: Shared\n"
-            "    payloadSpec:\n"
-            "      Foo: {offset: 0}\n"
-            "  B:\n"
-            "    address: 41\n"
-            "    type: U32\n"
-            "    access: Read\n"
-            "    interfaceType: Shared\n"
-            "    payloadSpec:\n"
-            "      Foo: {offset: 0}\n"
-        )
+def test_anchored_registers_share_one_payload_class():
+    # How the published schemas actually reuse a payload: device.behavior anchors Rgb0
+    # and merges it into Rgb1, so both carry the same interfaceType and payloadSpec by
+    # construction. Reuse is keyed on the name alone, matching the generator, which
+    # keeps one struct per interfaceType for the C# target too.
+    regs = create_registers(
+        "registers:\n"
+        "  Rgb0: &rgbRegister\n"
+        "    address: 71\n"
+        "    type: U8\n"
+        "    length: 3\n"
+        "    access: Write\n"
+        "    interfaceType: RgbPayload\n"
+        "    payloadSpec:\n"
+        "      Green: {offset: 0}\n"
+        "      Red: {offset: 1}\n"
+        "      Blue: {offset: 2}\n"
+        "  Rgb1:\n"
+        "    <<: *rgbRegister\n"
+        "    address: 72\n"
+    )
+    shared = regs["Rgb0"].payload_class
+    assert shared is regs["Rgb1"].payload_class
+    assert shared.__name__ == "RgbPayload"
+    assert shared.dtype.names == ("green", "red", "blue")
+
+
+def test_shared_payload_spanning_elements_without_length_is_reused():
+    # A payloadSpec may span several elements without declaring a length, in which case
+    # the payload takes its size from the member offsets. Sharing has to survive that,
+    # since nothing in the schema requires the length to be spelled out.
+    regs = create_registers(
+        "registers:\n"
+        "  A: &shared\n"
+        "    address: 40\n"
+        "    type: U16\n"
+        "    access: Read\n"
+        "    interfaceType: Combo\n"
+        "    payloadSpec:\n"
+        "      Alpha: {offset: 0}\n"
+        "      Beta: {offset: 1}\n"
+        "  B:\n"
+        "    <<: *shared\n"
+        "    address: 41\n"
+    )
+    assert regs["A"].payload_class is regs["B"].payload_class
+    assert regs["A"].payload_class.dtype.itemsize == 4
 
 
 # ---------------------------------------------------------------------------

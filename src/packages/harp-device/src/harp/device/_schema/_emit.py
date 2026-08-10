@@ -1,7 +1,7 @@
 import enum
 import types
 from dataclasses import dataclass
-from typing import Any, Callable, Iterable, Mapping, Optional, Union, cast
+from typing import Any, Callable, Iterable, Mapping, Optional, Union
 
 
 import numpy as np
@@ -37,7 +37,6 @@ from harp.protocol import (
     RegisterU64Array,
     StringConverter,
     StructPayload,
-    PayloadBase,
 )
 from harp.protocol import RESERVED_FIELD_NAMES
 from harp.protocol import PayloadType as ProtoPayloadType
@@ -381,15 +380,8 @@ class _Emitter:
 
     def _build_payload(self, name: str, reg: Register) -> type:
         payload_name = self._payload_name(name, reg)
-        cached = cast(type[PayloadBase[Any]], self.payloads.get(payload_name))
+        cached = self.payloads.get(payload_name)
         if cached is not None:
-            # Reuse is keyed on the name alone (as the generator's payload list is), so
-            # refuse to hand back a class whose layout can't describe this register.
-            if cached.dtype.itemsize != np.dtype(_ELEMENT[reg.type]).itemsize * (reg.length or 1):
-                raise NameCollisionError(
-                    f"{name}: interfaceType {payload_name!r} is already used by a payload "
-                    f"of a different size; the two registers cannot share one payload class"
-                )
             return cached
         payload = self._new_payload(payload_name, reg)
         self.payloads[payload_name] = payload
