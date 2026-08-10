@@ -1,12 +1,16 @@
 import sys
 import types
 
+import harp.device
 import pytest
-from harp.device import DeviceModule, create_device_module
+from harp.device import REGISTER_MAP as CORE_REGISTER_MAP
+from harp.device import DeviceModule, DeviceModuleLike, WhoAmI, create_device_module
 
+from . import expected_device
 from .converters import DataConverter
 
 CONVERTERS = {"DataConverter": DataConverter()}
+MODULE_CONSTANTS = {"REGISTER_MAP", "WHO_AM_I"}
 
 
 @pytest.fixture
@@ -19,7 +23,7 @@ def test_returns_module_named_after_schema(test_module):
     assert test_module.__name__ == "Tests"
 
 
-def test_returns_a_device_module(test_module):
+def test_returns_device_module(test_module):
     # The subclass is what declares REGISTER_MAP, WHO_AM_I and the register names,
     # so a linter can resolve them on a module built at runtime.
     assert isinstance(test_module, DeviceModule)
@@ -55,10 +59,39 @@ def test_register_map_spreads_core(test_module):
     assert reg_map[103].__name__ == "EncoderMode"
 
 
-def test_core_registers_are_reachable_by_name(test_module):
-    from harp.device import WhoAmI
+def test_core_registers_are_not_named_by_module(test_module):
+    # A common register has one definition, in harp.device, so a device module does
+    # not re-export it. It is still in the address space the device can send from.
+    assert not hasattr(test_module, "WhoAmI")
+    assert test_module.REGISTER_MAP[0] is WhoAmI
 
-    assert test_module.WhoAmI is WhoAmI  # the very same class, not a copy
+
+def test_module_names_exactly_schema_registers(test_module):
+    named = {n for n in vars(test_module) if not n.startswith("_") and n not in MODULE_CONSTANTS}
+    addresses = {cls.address for cls in test_module.REGISTER_MAP.values()}
+    # Everything the module names is in the address space, and the map carries the
+    # common registers on top, which is the whole difference between the two.
+    assert all(getattr(test_module, n).address in addresses for n in named)
+    assert {c.__name__ for c in CORE_REGISTER_MAP.values()}.isdisjoint(named)
+    assert len(test_module.REGISTER_MAP) > len(named)
+
+
+def test_emitted_module_matches_device_protocol(test_module):
+    assert isinstance(test_module, DeviceModuleLike)
+
+
+def test_generated_package_matches_device_protocol():
+    # expected_device is a sample of generator output, so this pins that what the
+    # generator emits is accepted wherever a device module is required.
+    assert isinstance(expected_device, DeviceModuleLike)
+
+
+def test_common_registers_are_not_device_module():
+    # They carry REGISTER_MAP but describe no device, so they cannot be passed
+    # where a device module is required, such as to a DatasetReader.
+    assert hasattr(harp.device, "REGISTER_MAP")
+    assert not hasattr(harp.device, "WHO_AM_I")
+    assert not isinstance(harp.device, DeviceModuleLike)
 
 
 def test_unknown_name_raises_attribute_error(test_module):
@@ -68,35 +101,22 @@ def test_unknown_name_raises_attribute_error(test_module):
         _ = test_module.Nonexistent
 
 
-def test_name_and_address_views_agree(test_module):
-    # Both views index one set of classes, so they can never disagree about which
-    # register sits at an address.
-    registers = {cls.__name__: cls for cls in test_module.REGISTER_MAP.values()}
-    assert len(registers) == len(test_module.REGISTER_MAP)  # no two names per address
-    for name, cls in registers.items():
-        assert getattr(test_module, name) is cls
-        assert cls.address in test_module.REGISTER_MAP
+def test_named_registers_are_subset_of_address_space(test_module):
+    # The two are deliberately different sets: the module names what the schema
+    # declares, the map is everything the device can send.
+    for cls in test_module.REGISTER_MAP.values():
+        if cls.address >= 32:
+            assert getattr(test_module, cls.__name__) is cls
+    assert 0 in test_module.REGISTER_MAP
 
 
 def test_device_register_overrides_core_on_clash():
-    # A device register at a core address wins over the spread-in common one, and
-    # displaces it from the name view too, so the two views stay consistent.
+    # A device register at a common address replaces it in the address space.
     mod = create_device_module(
         "device: Clash\nregisters:\n  Shadow: {address: 0, type: U32, access: Read}\n"
     )
     assert mod.REGISTER_MAP[0].__name__ == "Shadow"
     assert mod.Shadow.address == 0
-    assert not hasattr(mod, "WhoAmI")  # the common register it replaced is gone
-
-
-def test_device_register_overrides_core_on_name_clash():
-    # Same rule the other way round: the schema claiming a common *name* displaces
-    # the common register entirely, rather than leaving the address view stale.
-    mod = create_device_module(
-        "device: Clash\nregisters:\n  WhoAmI: {address: 40, type: U16, access: Read}\n"
-    )
-    assert mod.WhoAmI.address == 40
-    assert 0 not in mod.REGISTER_MAP
 
 
 def test_headerless_fragment_builds_default_module():
@@ -111,9 +131,10 @@ def test_headerless_fragment_builds_default_module():
 def test_all_covers_registers_and_module_constants(test_module):
     exported = set(test_module.__all__)
     assert {"REGISTER_MAP", "WHO_AM_I"} <= exported
-    assert {"AnalogData", "EncoderMode", "WhoAmI"} <= exported
-    assert exported - {"REGISTER_MAP", "WHO_AM_I"} == {
-        cls.__name__ for cls in test_module.REGISTER_MAP.values()
+    assert {"AnalogData", "EncoderMode"} <= exported
+    assert "WhoAmI" not in exported  # a common register is not re-exported
+    assert exported - MODULE_CONSTANTS == {
+        cls.__name__ for cls in test_module.REGISTER_MAP.values() if cls.address >= 32
     }
 
 
@@ -122,7 +143,7 @@ def test_module_is_not_registered_in_sys_modules(test_module):
     assert sys.modules.get(test_module.__name__) is not test_module
 
 
-def test_emitted_registers_carry_the_module_name(test_module):
+def test_emitted_registers_carry_module_name(test_module):
     assert test_module.AnalogData.__module__ == "Tests"
 
 

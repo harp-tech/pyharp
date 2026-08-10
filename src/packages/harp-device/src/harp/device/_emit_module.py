@@ -26,12 +26,14 @@ class DeviceModuleLike(Protocol):
     """Any module describing a device, however it was produced.
 
     A generated device package is a plain module, so it cannot be named by a class;
-    what identifies it is carrying the register map. Matching structurally accepts
-    both it and :class:`DeviceModule`, and rejects a module that follows neither.
+    what identifies it is describing a device. Matching structurally accepts both it
+    and :class:`DeviceModule`, and rejects the common register set, which carries
+    registers but is not a device.
     """
 
     __name__: str
     REGISTER_MAP: dict[int, type[RegisterBase[Any]]]
+    WHO_AM_I: int
 
 
 class DeviceModule(types.ModuleType):
@@ -63,18 +65,20 @@ def create_device_module(
 ) -> DeviceModule:
     """Emit a module of register classes from a device schema.
 
-    The module holds the schema's registers merged with the common Harp registers,
-    each reachable by name (``behavior.AnalogData``), plus:
+    The module names the registers the schema declares, so ``behavior.AnalogData``
+    resolves while a common register such as ``WhoAmI`` is imported from
+    :mod:`harp.device`, keeping one definition of each. Beside them it holds:
 
-    * ``REGISTER_MAP``, the address -> register-class map;
-    * ``WHO_AM_I``, the schema's identity (``0`` when absent);
+    * ``REGISTER_MAP``, the device address space, so the common registers are
+      present here even though the module does not name them;
+    * ``WHO_AM_I``, the schema's identity (``0`` for an unregistered device);
     * ``__name__``, the schema's ``device`` name, or ``name`` when given
       (``"Device"`` for a header-less register fragment).
 
     Because the names come from the schema at runtime they don't autocomplete, and
     each resolves as ``type[RegisterBase[Any]]`` rather than its own register type;
-    a generated device package is a real module on disk and gives both. On a
-    collision the device's register wins over the common one.
+    a generated device package is a real module on disk and gives both. On an
+    address clash the device's register replaces the common one in ``REGISTER_MAP``.
     ``exclude_private=True`` drops registers whose DSL ``visibility`` is ``private``.
 
     The module is **not** registered in :data:`sys.modules`, so it cannot be reached
@@ -90,13 +94,9 @@ def create_device_module(
     )
     module_name = name or device.device or _DEFAULT_NAME
 
-    claimed = {cls.address for cls in registers.values()}
-    contents: dict[str, type[RegisterBase[Any]]] = {
-        cls.__name__: cls
-        for cls in CORE_REGISTER_MAP.values()
-        if cls.address not in claimed and cls.__name__ not in registers
-    }
-    contents.update(registers)
+    contents: dict[str, type[RegisterBase[Any]]] = dict(registers)
+    register_map = {cls.address: cls for cls in CORE_REGISTER_MAP.values()}
+    register_map.update({cls.address: cls for cls in registers.values()})
 
     for register in registers.values():
         register.__module__ = module_name
@@ -104,7 +104,7 @@ def create_device_module(
     module = DeviceModule(module_name, f"Harp registers for {module_name}, from a schema.")
     vars(module).update(
         contents,
-        REGISTER_MAP={cls.address: cls for cls in contents.values()},
+        REGISTER_MAP=register_map,
         WHO_AM_I=int(device.whoAmI or 0),
         __all__=[*sorted(contents), "REGISTER_MAP", "WHO_AM_I"],
     )

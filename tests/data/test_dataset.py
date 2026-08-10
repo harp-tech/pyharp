@@ -9,7 +9,7 @@ from harp.data import (
     create_dataset_reader,
     parse_to_dataframe,
 )
-from harp.device import create_device_module
+from harp.device import TimestampSeconds, WhoAmI, create_device_module
 
 
 def _records(cls, n, seed):
@@ -53,12 +53,30 @@ def test_read_by_class_and_by_address(dataset):
         assert reader.read(address).equals(expected)
 
 
-def test_read_by_name_from_the_module(dataset):
+def test_read_by_name_from_module(dataset):
     mod, _name, root, specs = dataset
     reader = DatasetReader(mod, root)
     for address, (cls, _timestamped, _buf) in specs.items():
         # The register reached by name off the module is the one at that address.
         assert reader.read(getattr(mod, cls.__name__)).equals(reader.read(address))
+
+
+def test_reads_common_registers_not_named_by_module(emitted_module, tmp_path):
+    """A device module names only its own registers, but a session folder also holds
+    files for the common ones, so the reader must still decode those."""
+    mod = emitted_module
+    assert not hasattr(mod, "WhoAmI")  # imported from harp.device, not re-exported
+
+    for cls in (WhoAmI, TimestampSeconds):
+        records = _records(cls, 4, seed=cls.address)
+        buf = bytes(cls.format_bulk(records))
+        (tmp_path / f"{mod.__name__}_{cls.address}.bin").write_bytes(buf)
+
+    reader = DatasetReader(mod, tmp_path)
+    # By address, and by the class imported from harp.device, and in read_all.
+    assert len(reader.read(WhoAmI.address)) == 4
+    assert reader.read(WhoAmI).equals(reader.read(WhoAmI.address))
+    assert set(reader.read_all()) == {"WhoAmI", "TimestampSeconds"}
 
 
 def test_timestamp_is_auto_detected(dataset):

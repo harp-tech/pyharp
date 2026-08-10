@@ -35,7 +35,10 @@ reads the same way whether it was generated ahead of time or compiled at runtime
 `WHO_AM_I` of `0` marks an unregistered device, used while a device is in development
 or outside the official registry, and identity checks are skipped for it.
 
-The common registers are not a device, so the core module carries no `WHO_AM_I`.
+A device module names only the registers its schema declares, so `REGISTER_MAP` is the
+device address space while the module namespace is what the device adds to it. The
+common registers have a single definition, currently exported from `harp.device`, and
+are not a device, so the core register set carries no `WHO_AM_I`.
 
 `Device` itself holds no register collection. `read`, `write` and `subscribe` take a
 register class, so the module is the only place registers need to live:
