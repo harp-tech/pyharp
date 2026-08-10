@@ -25,8 +25,9 @@ convenience. It's worth understanding what that buys you and what it costs.
   or keep in sync with the schema.
 - **Coverage for any device.** You don't need a published package for the device;
   unreleased, custom, or one-off schemas work immediately.
-- **The schema stays the single source of truth.** Register, field, and enum names
-  come straight from the `device.yml`, verbatim.
+- **The schema stays the single source of truth.** Registers, fields, and enums come
+  straight from the `device.yml`, under the same naming convention a generated
+  package uses — so code written against either lines up name for name.
 
 **You give up:**
 
@@ -34,10 +35,6 @@ convenience. It's worth understanding what that buys you and what it costs.
   so an editor can't offer them and a type checker can't verify them. A generated
   package is a real module on disk, so both work. The module also isn't in
   `sys.modules`, so you bind it yourself rather than `import`-ing it.
-- **Generator naming conventions.** Identifiers are kept verbatim from the yml
-  (`AnalogInput0`, `DIO0`) rather than the C# generator's snake_case fields and
-  `UPPER_SNAKE` enum members, so code written against a generated package won't line
-  up name-for-name.
 - **Turn-key custom types.** A custom `interfaceType` must be injected yourself via
   `converters=` (see below), whereas a generated package ships its own converters.
 

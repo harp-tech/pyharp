@@ -17,10 +17,12 @@ from ._emit import (
     ConverterContext,
     ConverterFactory,
     ConverterValue,
+    NameCollisionError,
     UnknownConverterError,
     create_registers,
     parse_device_schema,
 )
+from ._naming import enum_member_name, field_name
 
 __all__ = [
     "parse_device_schema",
@@ -28,7 +30,10 @@ __all__ = [
     "ConverterContext",
     "ConverterFactory",
     "ConverterValue",
+    "NameCollisionError",
     "UnknownConverterError",
+    "enum_member_name",
+    "field_name",
     "DeviceModel",
     "Registers",
     "Register",

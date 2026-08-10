@@ -1,7 +1,8 @@
 import enum
 import types
 from dataclasses import dataclass
-from typing import Any, Callable, Mapping, Optional, Union
+from typing import Any, Callable, Iterable, Mapping, Optional, Union, cast
+
 
 import numpy as np
 from typing_extensions import Sentinel
@@ -36,10 +37,13 @@ from harp.protocol import (
     RegisterU64Array,
     StringConverter,
     StructPayload,
+    PayloadBase,
 )
+from harp.protocol import RESERVED_FIELD_NAMES
 from harp.protocol import PayloadType as ProtoPayloadType
 
 from ._model import DeviceModel, PayloadMember, PayloadType, Register, Registers, Visibility
+from ._naming import enum_member_name, field_name
 
 # Register base element: schema PayloadType -> numpy scalar type (byte size via np.dtype).
 _ELEMENT: dict[PayloadType, type[np.generic]] = {
@@ -191,6 +195,15 @@ class UnknownConverterError(ValueError):
     """A custom ``interfaceType`` needs a converter not found in ``converters=``."""
 
 
+class NameCollisionError(ValueError):
+    """Two schema identifiers collapse to one Python name, or one shadows a reserved name.
+
+    Casing is not significant to the generator naming convention, so distinct yml
+    keys (``DIO0`` / ``Dio0``) can converge — which would silently alias an enum
+    member or drop a payload field.
+    """
+
+
 def _is_native(interface_type: Optional[str]) -> bool:
     """True when a value decodes as a native numpy passthrough: no interfaceType, or a
     fixed-width primitive one. Such a whole-register value needs no payload wrapper.
@@ -220,18 +233,55 @@ class _Emitter:
         self.group_masks = device.groupMasks or {}
         self.bit_masks = device.bitMasks or {}
         self.enums = self._build_enums()
+        # Payload classes are cached by name so registers sharing an ``interfaceType``
+        # share one class, as the generator's module-level payload list does.
+        self.payloads: dict[str, type] = {}
+
+    # -- naming -----------------------------------------------------------
+    def _rename(
+        self,
+        kind: str,
+        owner: str,
+        keys: Iterable[str],
+        convert: Callable[[str], str],
+        reserved: bool = False,
+    ) -> dict[str, str]:
+        """Map yml keys to their Python names, rejecting collisions.
+
+        Type-level names (registers, enums, payloads) stay verbatim; only enum
+        members and payload fields are converted, so only those can collide.
+        """
+        renamed: dict[str, str] = {}
+        origin: dict[str, str] = {}
+        for key in keys:
+            name = convert(key)
+            clash = origin.get(name)
+            if clash is not None:
+                raise NameCollisionError(
+                    f"{owner}: {kind}s {clash!r} and {key!r} both map to {name!r}; "
+                    f"rename one in the schema"
+                )
+            if reserved and name in RESERVED_FIELD_NAMES:
+                raise NameCollisionError(
+                    f"{owner}: {kind} {key!r} maps to {name!r}, which is reserved by "
+                    f"the payload base class; rename it in the schema"
+                )
+            origin[name] = key
+            renamed[key] = name
+        return renamed
 
     # -- enums ------------------------------------------------------------
     def _build_enums(self) -> dict[str, Any]:
-        # Enum names and members are kept verbatim from the yml.
+        # Enum type names stay verbatim; members take the generator's SCREAMING_SNAKE.
         enums: dict[str, Any] = {}
         for name, spec in self.bit_masks.items():
             # IntFlag has no zero-valued member; drop it if present.
-            members = {k: int(v) for k, v in spec.bits.items() if int(v) != 0}
-            enums[name] = enum.IntFlag(name, members)
+            bits = {k: v for k, v in spec.bits.items() if int(v) != 0}
+            renamed = self._rename("bit", name, bits, enum_member_name)
+            enums[name] = enum.IntFlag(name, {renamed[k]: int(v) for k, v in bits.items()})
         for name, spec in self.group_masks.items():
-            members = {k: int(v) for k, v in spec.values.items()}
-            enums[name] = enum.IntEnum(name, members)
+            renamed = self._rename("value", name, spec.values, enum_member_name)
+            enums[name] = enum.IntEnum(name, {renamed[k]: int(v) for k, v in spec.values.items()})
         return enums
 
     # -- converter resolution (one uniform factory pipeline) -------------
@@ -288,7 +338,10 @@ class _Emitter:
         return _NO_DEFAULT  # custom domain interfaceType: no numeric default
 
     # -- fields -----------------------------------------------------------
-    def _build_field(self, key: str, member: PayloadMember, reg: Register) -> tuple[str, Any]:
+    def _build_field(self, key: str, member: PayloadMember, reg: Register) -> Any:
+        # ``key`` stays the verbatim yml name: it feeds ``ConverterContext.name``, and
+        # a custom converter symbol is derived from the pre-rename key ("Data" ->
+        # "DataConverter"). The renamed attribute name is applied by the caller.
         elem_np = _ELEMENT[reg.type]
         elem_size = np.dtype(elem_np).itemsize
         offset = member.offset or 0
@@ -309,28 +362,52 @@ class _Emitter:
         if type_name in self.group_masks:
             full = (1 << (elem_size * 8)) - 1
             mask = member.mask if member.mask is not None else full
-            return key, GroupMask(
-                enum=self.enums[type_name], mask=mask, offset=offset, **default_kwarg
-            )
+            return GroupMask(enum=self.enums[type_name], mask=mask, offset=offset, **default_kwarg)
 
         field_kwargs: dict[str, Any] = {"offset": offset, **default_kwarg}
         if member.mask is not None:
             field_kwargs["mask"] = member.mask
-        return key, Field(self._resolve_converter(ctx), **field_kwargs)
+        return Field(self._resolve_converter(ctx), **field_kwargs)
 
     # -- payloads ---------------------------------------------------------
+    def _payload_name(self, name: str, reg: Register) -> str:
+        """The payload class name: the ``interfaceType`` when a structured register
+        declares one (so registers sharing that type share a class), else
+        ``{Register}Payload``."""
+        it = reg.interfaceType.root if reg.interfaceType else None
+        if reg.payloadSpec is not None and it:
+            return it
+        return f"{name}Payload"
+
     def _build_payload(self, name: str, reg: Register) -> type:
+        payload_name = self._payload_name(name, reg)
+        cached = cast(type[PayloadBase[Any]], self.payloads.get(payload_name))
+        if cached is not None:
+            # Reuse is keyed on the name alone (as the generator's payload list is), so
+            # refuse to hand back a class whose layout can't describe this register.
+            if cached.dtype.itemsize != np.dtype(_ELEMENT[reg.type]).itemsize * (reg.length or 1):
+                raise NameCollisionError(
+                    f"{name}: interfaceType {payload_name!r} is already used by a payload "
+                    f"of a different size; the two registers cannot share one payload class"
+                )
+            return cached
+        payload = self._new_payload(payload_name, reg)
+        self.payloads[payload_name] = payload
+        return payload
+
+    def _new_payload(self, name: str, reg: Register) -> type:
         elem_np = _ELEMENT[reg.type]
         elem_size = np.dtype(elem_np).itemsize
         length = reg.length or 1
 
         if reg.payloadSpec is not None:
-            namespace = {}
-            for key, member in reg.payloadSpec.items():
-                fname, descriptor = self._build_field(key, member, reg)
-                namespace[fname] = descriptor
+            renamed = self._rename("field", name, reg.payloadSpec, field_name, reserved=True)
+            namespace = {
+                renamed[key]: self._build_field(key, member, reg)
+                for key, member in reg.payloadSpec.items()
+            }
             kwds = {"length": length} if length > 1 else {}
-            return _new_class(f"{name}Payload", (StructPayload[elem_np],), namespace, kwds)
+            return _new_class(name, (StructPayload[elem_np],), namespace, kwds)
 
         # anonymous single-value payload
         mt = reg.maskType.root if reg.maskType else None
@@ -353,10 +430,14 @@ class _Emitter:
                 element_size=elem_size,
             )
             descriptor = Field(self._resolve_converter(ctx))
-        return _new_class(f"{name}Payload", (AnonymousPayload[elem_np],), {"__value__": descriptor})
+        return _new_class(name, (AnonymousPayload[elem_np],), {"__value__": descriptor})
 
     # -- registers --------------------------------------------------------
-    def _build_register(self, name: str, reg: Register) -> type[RegisterBase[Any]]:
+    def _class_name(self, name: str, reg: Register) -> str:
+        """A private register's class is underscore-prefixed; its payload class is not."""
+        return f"_{name}" if reg.visibility is Visibility.private else name
+
+    def _build_register(self, name: str, class_name: str, reg: Register) -> type[RegisterBase[Any]]:
         length = reg.length or 1
         it = reg.interfaceType.root if reg.interfaceType else None
 
@@ -370,13 +451,13 @@ class _Emitter:
         ):
             if length > 1:  # plain array register
                 cls = _ARRAY_REGISTER[reg.type](reg.address, length=length)
-                cls.__name__ = cls.__qualname__ = name
+                cls.__name__ = cls.__qualname__ = class_name
                 return cls
-            return _new_class(name, (_SCALAR_REGISTER[reg.type],), {"address": reg.address})
+            return _new_class(class_name, (_SCALAR_REGISTER[reg.type],), {"address": reg.address})
 
         payload_cls = self._build_payload(name, reg)
         return _new_class(
-            name,
+            class_name,
             (RegisterBase,),
             {
                 "address": reg.address,
@@ -386,11 +467,13 @@ class _Emitter:
         )
 
     def emit(self) -> dict[str, type[RegisterBase[Any]]]:
-        return {
-            name: self._build_register(name, reg)
-            for name, reg in self.device.registers.items()
-            if not (self.exclude_private and reg.visibility is Visibility.private)
-        }
+        emitted: dict[str, type[RegisterBase[Any]]] = {}
+        for name, reg in self.device.registers.items():
+            if self.exclude_private and reg.visibility is Visibility.private:
+                continue
+            class_name = self._class_name(name, reg)
+            emitted[class_name] = self._build_register(name, class_name, reg)
+        return emitted
 
 
 def parse_device_schema(text: str) -> DeviceModel:
@@ -417,15 +500,19 @@ def create_registers(
     """Emit runtime register classes from a device schema.
 
     ``source`` is yaml text or an already-parsed :class:`DeviceModel` /
-    :class:`Registers`. Identifiers (fields, enum members) are
-    kept verbatim from the yml. ``converters`` supplies custom converters keyed by
+    :class:`Registers`. Identifiers follow the same conventions as the statically
+    generated device packages: register, enum, and payload class names stay verbatim
+    from the yml, while payload fields become ``snake_case`` and enum members
+    ``SCREAMING_SNAKE_CASE``. ``converters`` supplies custom converters keyed by
     symbol name (e.g. ``{"DataConverter": ...}``); a value is either a ready
     :class:`~harp.protocol.Converter` instance or a factory
     ``(ctx: ConverterContext) -> Converter`` that builds one from the field's DSL
     context. A custom type with no matching converter raises
     ``UnknownConverterError`` when ``strict`` (the default); ``strict=False``
     decodes it as its native element type instead. ``exclude_private=True`` drops
-    registers whose DSL ``visibility`` is ``private``.
+    registers whose DSL ``visibility`` is ``private``; when kept, a private register's
+    class is underscore-prefixed (``_Reserved0``). Note that the converter symbol for a
+    payload field derives from its *verbatim* yml key, not the renamed field.
     """
     device = source if isinstance(source, Registers) else parse_device_schema(source)
     return _Emitter(device, converters, strict, exclude_private).emit()
