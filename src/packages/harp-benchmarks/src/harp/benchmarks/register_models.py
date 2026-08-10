@@ -40,26 +40,26 @@ class PortDigitalIOS(enum.IntFlag):
     DIO1 = 0x2
     DIO2 = 0x4
     DIO3 = 0x8
-    DIPort0 = 0x100
-    TestDIPort1 = 0x200
-    SupplyPort0 = 0x400
-    PortDIO1 = 0x800
+    DI_PORT0 = 0x100
+    TEST_DI_PORT1 = 0x200
+    SUPPLY_PORT0 = 0x400
+    PORT_DIO1 = 0x800
 
 
 class PwmPort(enum.IntEnum):
-    """device.yml groupMasks.PwmPort (note Pwm3 = 0xA)."""
+    """device.yml groupMasks.PwmPort (note PWM3 = 0xA)."""
 
-    Pwm0 = 0x1
-    Pwm1 = 0x2
-    Pwm2 = 0x4
-    Pwm3 = 0xA
+    PWM0 = 0x1
+    PWM1 = 0x2
+    PWM2 = 0x4
+    PWM3 = 0xA
 
 
 class EncoderModeMask(enum.IntEnum):
     """device.yml groupMasks.EncoderModeMask."""
 
-    Position = 0x0
-    Displacement = 0x1
+    POSITION = 0x0
+    DISPLACEMENT = 0x1
 
 
 # ===========================================================================
@@ -106,10 +106,10 @@ class DigitalInputs(RegisterU8):
 
 
 class AnalogDataPayload(StructPayload[np.float32], length=6):
-    Analog0: np.float32 = Field(IdentityConverter(np.float32), offset=0)
-    Analog1: np.float32 = Field(IdentityConverter(np.float32), offset=1)
-    Analog2: np.float32 = Field(IdentityConverter(np.float32), offset=2)
-    Accelerometer: NDArray[np.float32] = Field(
+    analog0: np.float32 = Field(IdentityConverter(np.float32), offset=0)
+    analog1: np.float32 = Field(IdentityConverter(np.float32), offset=1)
+    analog2: np.float32 = Field(IdentityConverter(np.float32), offset=2)
+    accelerometer: NDArray[np.float32] = Field(
         IdentityConverter(np.dtype((np.float32, (3,)))), offset=3
     )
 
@@ -126,13 +126,11 @@ class AnalogData(RegisterBase[AnalogDataPayload]):
 
 
 class ComplexConfigurationPayload(StructPayload[np.uint8], length=17):
-    PwmPort: "PwmPort" = GroupMask(
-        enum=PwmPort, mask=0xFF, offset=0
-    )  # quoted: member name shadows enum type
-    DutyCycle: np.float32 = Field(IdentityConverter(np.float32), offset=4)
-    Frequency: np.float32 = Field(IdentityConverter(np.float32), offset=8)
-    EventsEnabled: bool = Field(BoolConverter(), offset=12)
-    Delta: np.uint32 = Field(IdentityConverter(np.uint32), offset=13)
+    pwm_port: PwmPort = GroupMask(enum=PwmPort, mask=0xFF, offset=0)
+    duty_cycle: np.float32 = Field(IdentityConverter(np.float32), offset=4)
+    frequency: np.float32 = Field(IdentityConverter(np.float32), offset=8)
+    events_enabled: bool = Field(BoolConverter(), offset=12)
+    delta: np.uint32 = Field(IdentityConverter(np.uint32), offset=13)
 
 
 class ComplexConfiguration(RegisterBase[ComplexConfigurationPayload]):
@@ -147,11 +145,11 @@ class ComplexConfiguration(RegisterBase[ComplexConfigurationPayload]):
 
 
 class VersionPayload(StructPayload[np.uint8], length=32):
-    ProtocolVersion: HarpVersion = Field(HarpVersionConverter(np.uint8), offset=0)
-    FirmwareVersion: HarpVersion = Field(HarpVersionConverter(np.uint8), offset=3)
-    HardwareVersion: HarpVersion = Field(HarpVersionConverter(np.uint8), offset=6)
-    CoreId: str = Field(StringConverter(3), offset=9)
-    InterfaceHash: NDArray[np.uint8] = Field(
+    protocol_version: HarpVersion = Field(HarpVersionConverter(np.uint8), offset=0)
+    firmware_version: HarpVersion = Field(HarpVersionConverter(np.uint8), offset=3)
+    hardware_version: HarpVersion = Field(HarpVersionConverter(np.uint8), offset=6)
+    core_id: str = Field(StringConverter(3), offset=9)
+    interface_hash: NDArray[np.uint8] = Field(
         IdentityConverter(np.dtype((np.uint8, (20,)))), offset=12
     )
 
@@ -194,8 +192,8 @@ class CustomRawPayload(RegisterBase[HarpVersion]):
 
 
 class CustomMemberConverterPayload(StructPayload[np.uint8], length=3):
-    Header: np.uint8 = Field(IdentityConverter(np.uint8))
-    Data: int = Field(BytesToIntConverter(2, signed=True), offset=1)
+    header: np.uint8 = Field(IdentityConverter(np.uint8))
+    data: int = Field(BytesToIntConverter(2, signed=True), offset=1)
 
 
 class CustomMemberConverter(RegisterBase[CustomMemberConverterPayload]):
@@ -210,8 +208,8 @@ class CustomMemberConverter(RegisterBase[CustomMemberConverterPayload]):
 
 
 class BitmaskSplitterPayload(StructPayload[np.uint8]):
-    Low: np.int32 = Field(IdentityConverter(np.int32), mask=0x0F)
-    High: np.int32 = Field(IdentityConverter(np.int32), mask=0xF0)
+    low: np.int32 = Field(IdentityConverter(np.int32), mask=0x0F)
+    high: np.int32 = Field(IdentityConverter(np.int32), mask=0xF0)
 
 
 class BitmaskSplitter(RegisterBase[BitmaskSplitterPayload]):
@@ -265,8 +263,8 @@ class PulseDO0(RegisterU16):
 
 
 class StartPulsePayload(StructPayload[np.uint16]):
-    DigitalOutput: PwmPort = GroupMask(enum=PwmPort, mask=0xC00)
-    PulseWidth: np.uint16 = Field(IdentityConverter(np.uint16), mask=0x3FF)
+    digital_output: PwmPort = GroupMask(enum=PwmPort, mask=0xC00)
+    pulse_width: np.uint16 = Field(IdentityConverter(np.uint16), mask=0x3FF)
 
 
 class StartPulse(RegisterBase[StartPulsePayload]):
@@ -281,12 +279,12 @@ class StartPulse(RegisterBase[StartPulsePayload]):
 
 
 class StartPulseTrainPayload(StructPayload[np.uint16], length=2):
-    DigitalOutput: PwmPort = GroupMask(enum=PwmPort, mask=0xC00, offset=0)
-    PulseWidth: np.uint16 = Field(IdentityConverter(np.uint16), mask=0x3FF, offset=0)
-    Frequency: np.uint8 = Field(
+    digital_output: PwmPort = GroupMask(enum=PwmPort, mask=0xC00, offset=0)
+    pulse_width: np.uint16 = Field(IdentityConverter(np.uint16), mask=0x3FF, offset=0)
+    frequency: np.uint8 = Field(
         IdentityConverter(np.uint8), mask=0xFF00, offset=1, default=np.uint8(1)
     )
-    PulseCount: np.uint8 = Field(IdentityConverter(np.uint8), mask=0xFF, offset=1)
+    pulse_count: np.uint8 = Field(IdentityConverter(np.uint8), mask=0xFF, offset=1)
 
 
 class StartPulseTrain(RegisterBase[StartPulseTrainPayload]):
@@ -327,26 +325,26 @@ def main() -> None:  # pragma: no cover - manual exploration entry point
     print("DigitalInputs            OK")
 
     ad = AnalogDataPayload(
-        Analog0=np.float32(1.0),
-        Analog1=np.float32(2.0),
-        Analog2=np.float32(3.0),
-        Accelerometer=np.array([4, 5, 6], dtype=np.float32),
+        analog0=np.float32(1.0),
+        analog1=np.float32(2.0),
+        analog2=np.float32(3.0),
+        accelerometer=np.array([4, 5, 6], dtype=np.float32),
     )
     p = _roundtrip(AnalogData, ad)
-    assert float(p.Analog0) == 1.0 and float(p.Analog2) == 3.0
-    np.testing.assert_array_equal(p.Accelerometer, [4, 5, 6])
+    assert float(p.analog0) == 1.0 and float(p.analog2) == 3.0
+    np.testing.assert_array_equal(p.accelerometer, [4, 5, 6])
     print(f"AnalogData               OK  ({AnalogDataPayload.dtype.itemsize} bytes)")
 
     cc = ComplexConfigurationPayload(
-        PwmPort=PwmPort.Pwm2,
-        DutyCycle=np.float32(0.5),
-        Frequency=np.float32(1000.0),
-        EventsEnabled=True,
-        Delta=np.uint32(42),
+        pwm_port=PwmPort.PWM2,
+        duty_cycle=np.float32(0.5),
+        frequency=np.float32(1000.0),
+        events_enabled=True,
+        delta=np.uint32(42),
     )
     p = _roundtrip(ComplexConfiguration, cc)
-    assert p.PwmPort == PwmPort.Pwm2 and p.EventsEnabled is True and int(p.Delta) == 42
-    assert float(p.DutyCycle) == 0.5
+    assert p.pwm_port == PwmPort.PWM2 and p.events_enabled is True and int(p.delta) == 42
+    assert float(p.duty_cycle) == 0.5
     assert ComplexConfigurationPayload.dtype.itemsize == 17
     assert cc.raw_payload.tobytes()[1:4] == b"\x00\x00\x00"
     print(
@@ -354,15 +352,15 @@ def main() -> None:  # pragma: no cover - manual exploration entry point
     )
 
     ver = VersionPayload(
-        ProtocolVersion=HarpVersion(2, 0, 0),
-        FirmwareVersion=HarpVersion(1, 2, 3),
-        HardwareVersion=HarpVersion(1, 0, 0),
-        CoreId="abc",
-        InterfaceHash=np.arange(20, dtype=np.uint8),
+        protocol_version=HarpVersion(2, 0, 0),
+        firmware_version=HarpVersion(1, 2, 3),
+        hardware_version=HarpVersion(1, 0, 0),
+        core_id="abc",
+        interface_hash=np.arange(20, dtype=np.uint8),
     )
     p = _roundtrip(Version, ver)
-    assert p.ProtocolVersion == HarpVersion(2, 0, 0) and p.CoreId == "abc"
-    np.testing.assert_array_equal(p.InterfaceHash, np.arange(20))
+    assert p.protocol_version == HarpVersion(2, 0, 0) and p.core_id == "abc"
+    np.testing.assert_array_equal(p.interface_hash, np.arange(20))
     print(f"Version                  OK  ({VersionPayload.dtype.itemsize} bytes)")
 
     p = _roundtrip(CustomPayload, HarpVersion(3, 1, 4))
@@ -372,13 +370,13 @@ def main() -> None:  # pragma: no cover - manual exploration entry point
     print("CustomPayload/RawPayload OK  (single-member unwrap)")
 
     p = _roundtrip(
-        CustomMemberConverter, CustomMemberConverterPayload(Header=np.uint8(7), Data=-1234)
+        CustomMemberConverter, CustomMemberConverterPayload(header=np.uint8(7), data=-1234)
     )
-    assert int(p.Header) == 7 and int(p.Data) == -1234
+    assert int(p.header) == 7 and int(p.data) == -1234
     print("CustomMemberConverter    OK")
 
-    p = _roundtrip(BitmaskSplitter, BitmaskSplitterPayload(Low=0xA, High=0x5))
-    assert int(p.Low) == 0xA and int(p.High) == 0x5
+    p = _roundtrip(BitmaskSplitter, BitmaskSplitterPayload(low=0xA, high=0x5))
+    assert int(p.low) == 0xA and int(p.high) == 0x5
     assert p.raw_payload.tobytes() == bytes([0x5A])
     print("BitmaskSplitter          OK")
 
@@ -396,28 +394,28 @@ def main() -> None:  # pragma: no cover - manual exploration entry point
     print("PulseDOPort0 / PulseDO0  OK")
 
     p = _roundtrip(
-        StartPulse, StartPulsePayload(DigitalOutput=PwmPort.Pwm1, PulseWidth=np.uint16(300))
+        StartPulse, StartPulsePayload(digital_output=PwmPort.PWM1, pulse_width=np.uint16(300))
     )
-    assert p.DigitalOutput == PwmPort.Pwm1 and int(p.PulseWidth) == 300
+    assert p.digital_output == PwmPort.PWM1 and int(p.pulse_width) == 300
     print("StartPulse               OK")
 
     p = _roundtrip(
         StartPulseTrain,
         StartPulseTrainPayload(
-            DigitalOutput=PwmPort.Pwm1,
-            PulseWidth=np.uint16(300),
-            Frequency=np.uint8(200),
-            PulseCount=np.uint8(50),
+            digital_output=PwmPort.PWM1,
+            pulse_width=np.uint16(300),
+            frequency=np.uint8(200),
+            pulse_count=np.uint8(50),
         ),
     )
-    assert p.DigitalOutput == PwmPort.Pwm1 and int(p.PulseWidth) == 300
-    assert int(p.Frequency) == 200 and int(p.PulseCount) == 50
+    assert p.digital_output == PwmPort.PWM1 and int(p.pulse_width) == 300
+    assert int(p.frequency) == 200 and int(p.pulse_count) == 50
     assert StartPulseTrainPayload.dtype.itemsize == 4
-    assert int(StartPulseTrainPayload(PulseCount=np.uint8(3)).Frequency) == 1  # defaultValue
-    print("StartPulseTrain          OK  (4 masked members, 2 words, default Frequency=1)")
+    assert int(StartPulseTrainPayload(pulse_count=np.uint8(3)).frequency) == 1  # defaultValue
+    print("StartPulseTrain          OK  (4 masked members, 2 words, default frequency=1)")
 
-    p = _roundtrip(EncoderMode, EncoderModeMask.Displacement)
-    assert p == EncoderModeMask.Displacement  # single-member unwrap
+    p = _roundtrip(EncoderMode, EncoderModeMask.DISPLACEMENT)
+    assert p == EncoderModeMask.DISPLACEMENT  # single-member unwrap
     print("EncoderMode              OK")
 
     print("\nAll device.yml registers round-trip cleanly.")
