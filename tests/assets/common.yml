@@ -1,0 +1,145 @@
+# yaml-language-server: $schema=registers.json
+registers:
+  WhoAmI:
+    address: 0
+    type: U16
+    access: Read
+    description: Specifies the identity class of the device.
+  HardwareVersionHigh:
+    address: 1
+    type: U8
+    access: Read
+    description: Specifies the major hardware version of the device.
+  HardwareVersionLow:
+    address: 2
+    type: U8
+    access: Read
+    description: Specifies the minor hardware version of the device.
+  AssemblyVersion:
+    address: 3
+    type: U8
+    access: Read
+    description: Specifies the version of the assembled components in the device.
+  CoreVersionHigh:
+    address: 4
+    type: U8
+    access: Read
+    description: Specifies the major version of the Harp core implemented by the device.
+  CoreVersionLow:
+    address: 5
+    type: U8
+    access: Read
+    description: Specifies the minor version of the Harp core implemented by the device.
+  FirmwareVersionHigh:
+    address: 6
+    type: U8
+    access: Read
+    description: Specifies the major version of the Harp core implemented by the device.
+  FirmwareVersionLow:
+    address: 7
+    type: U8
+    access: Read
+    description: Specifies the minor version of the Harp core implemented by the device.
+  TimestampSeconds:
+    address: 8
+    type: U32
+    access: [Read, Write, Event]
+    description: Stores the integral part of the system timestamp, in seconds.
+    volatile: true
+  TimestampMicroseconds:
+    address: 9
+    type: U16
+    access: Read
+    description: Stores the fractional part of the system timestamp, in microseconds.
+    volatile: true
+  OperationControl:
+    address: 10
+    type: U8
+    access: Write
+    description: Stores the configuration mode of the device.
+    payloadSpec:
+      OperationMode:
+        description: Specifies the operation mode of the device.
+        maskType: OperationMode
+        mask: 0x3
+      DumpRegisters:
+        description: Specifies whether the device should report the content of all registers on initialization.
+        interfaceType: bool
+        mask: 0x8
+      MuteReplies:
+        description: Specifies whether the replies to all commands will be muted, i.e. not sent by the device.
+        interfaceType: bool
+        mask: 0x10
+      VisualIndicators:
+        description: Specifies the state of all visual indicators on the device.
+        maskType: LedState
+        mask: 0x20
+      OperationLed:
+        description: Specifies whether the device state LED should report the operation mode of the device.
+        maskType: LedState
+        mask: 0x40
+      Heartbeat:
+        description: Specifies whether the device should report the content of the seconds register each second.
+        maskType: EnableFlag
+        mask: 0x80
+  ResetDevice:
+    address: 11
+    type: U8
+    access: Write
+    maskType: ResetFlags
+    description: Resets the device and saves non-volatile registers.
+  DeviceName:
+    address: 12
+    type: U8
+    length: 25
+    access: Write
+    description: Stores the user-specified device name.
+  SerialNumber:
+    address: 13
+    type: U16
+    access: Write
+    description: Specifies the unique serial number of the device.
+  ClockConfiguration:
+    address: 14
+    type: U8
+    access: Write
+    maskType: ClockConfigurationFlags
+    description: Specifies the configuration for the device synchronization clock.
+groupMasks:
+  OperationMode:
+    description: Specifies the operation mode of the device.
+    values:
+      Standby: {value: 0, description: Disable all event reporting on the device.}
+      Active: {value: 1, description: Event detection is enabled. Only enabled events are reported by the device.}
+      Speed: {value: 3, description: The device enters speed mode.}
+  EnableFlag:
+    description: Specifies whether a specific register flag is enabled or disabled.
+    values:
+      Disabled: {value: 0, description: Specifies that the flag is disabled.}
+      Enabled: {value: 1, description: Specifies that the flag is enabled.}
+  LedState:
+    description: Specifies the state of an LED on the device.
+    values:
+      Off: {value: 0, description: Specifies that the LED is off.}
+      On: {value: 1, description: Specifies that the LED is on.}
+bitMasks:
+  ResetFlags:
+    description: Specifies the behavior of the non-volatile registers when resetting the device.
+    bits:
+      None: {value: 0, description: All reset flags are cleared.}
+      RestoreDefault: {value: 0x1, description: The device will boot with all the registers reset to their default factory values.}
+      RestoreEeprom: {value: 0x2, description: The device will boot and restore all the registers to the values stored in non-volatile memory.}
+      Save: {value: 0x4, description: The device will boot and save all the current register values to non-volatile memory.}
+      RestoreName: {value: 0x8, description: The device will boot with the default device name.}
+      BootFromDefault: {value: 0x40, description: Specifies that the device has booted from default factory values.}
+      BootFromEeprom: {value: 0x80, description: Specifies that the device has booted from non-volatile values stored in EEPROM.}
+  ClockConfigurationFlags:
+    description: Specifies configuration flags for the device synchronization clock.
+    bits:
+      None: {value: 0, description: All clock configuration flags are cleared.}
+      ClockRepeater: {value: 0x1, description: "The device will repeat the clock synchronization signal to the clock output connector, if available."}
+      ClockGenerator: {value: 0x2, description: "The device resets and generates the clock synchronization signal on the clock output connector, if available."}
+      RepeaterCapability: {value: 0x8, description: Specifies the device has the capability to repeat the clock synchronization signal to the clock output connector.}
+      GeneratorCapability: {value: 0x10, description: Specifies the device has the capability to generate the clock synchronization signal to the clock output connector.}
+      ClockUnlock: {value: 0x40, description: The device will unlock the timestamp register counter and will accept commands to set new timestamp values.}
+      ClockLock: {value: 0x80, description: The device will lock the timestamp register counter and will not accept commands to set new timestamp values.}

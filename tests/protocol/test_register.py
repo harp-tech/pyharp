@@ -4,7 +4,7 @@ from typing import ClassVar
 
 import numpy as np
 import pytest
-from harp.data import payload_to_dataframe
+from harp.data import parse_to_dataframe, payload_to_dataframe, to_buffer, to_file
 from harp.protocol._message import HarpMessage
 from harp.protocol._message_type import MessageType
 from harp.protocol._payload import (
@@ -514,3 +514,44 @@ def test_repr_fields_auto_derived_shared_slot_bitfields():
         high = Field(converter=_IdentityConverter("u1"), mask=0xF0, offset=0)
 
     assert P._repr_fields == ("low", "high")
+
+
+# ---------------------------------------------------------------------------
+# format_bulk (inverse of parse_bulk) + harp.data.to_buffer / to_file
+# ---------------------------------------------------------------------------
+
+
+def test_format_bulk_single_matches_format():
+    reg = RegisterU16(0x20)
+    one = reg.format(np.uint16(42), message_type=MessageType.Event, timestamp=1.0)
+    bulk = reg.format_bulk(
+        np.array([42], dtype="<u2"), timestamps=[1.0], message_type=MessageType.Event
+    )
+    assert bytes(bulk) == one
+
+
+def test_format_bulk_parse_bulk_roundtrip():
+    reg = RegisterU16(0x20)
+    values = np.array([1, 2, 3], dtype="<u2")
+    buf = reg.format_bulk(values, timestamps=[1.0, 2.0, 3.0])
+    df = parse_to_dataframe(reg, bytes(buf), timestamp=False)
+    assert df["value"].tolist() == [1, 2, 3]
+
+
+def test_format_bulk_is_exact_inverse_of_parse_bulk():
+    reg = RegisterS16Array(0x2C, length=3)
+    original = reg.format_bulk(np.array([[1, 0, 2], [3, 4, 5]], dtype="<i2"), timestamps=[1.0, 2.0])
+    _data, ts, msg, payload = reg.parse_bulk(bytes(original))
+    rebuilt = reg.format_bulk(payload, timestamps=np.asarray(ts), message_type=np.asarray(msg))
+    assert bytes(rebuilt) == bytes(original)
+
+
+def test_to_buffer_and_to_file_roundtrip(tmp_path):
+    reg = RegisterU16(0x20)
+    values = np.array([10, 20], dtype="<u2")
+    buf = to_buffer(reg, values, timestamps=[1.0, 2.0])
+    assert parse_to_dataframe(reg, bytes(buf))["value"].tolist() == [10, 20]
+
+    path = tmp_path / "reg.bin"
+    to_file(reg, values, path, timestamps=[1.0, 2.0])
+    assert parse_to_dataframe(reg, path)["value"].tolist() == [10, 20]

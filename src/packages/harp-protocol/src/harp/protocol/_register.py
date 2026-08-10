@@ -2,7 +2,7 @@ from abc import ABC, ABCMeta
 from typing import Any, ClassVar, Generic, TypeVar, cast, final, overload
 
 import numpy as np
-from numpy.typing import NDArray
+from numpy.typing import ArrayLike, NDArray
 from typing_extensions import Sentinel
 
 from ._builder import build_message_frame
@@ -15,7 +15,7 @@ from ._constants import (
     _TS_MICROS_OFFSET,
 )
 from ._message import HarpMessage
-from ._message_type import MessageType
+from ._message_type import MessageType, message_type_to_byte
 from ._payload import (
     Batch,
     PayloadBase,
@@ -38,9 +38,25 @@ from ._payload import (
     PayloadU64,
     PayloadU64Array,
 )
-from ._payload_type import PayloadType
+from ._payload_type import PayloadType, encode_payload_type
 
 _MISSING = Sentinel("_MISSING")
+
+
+def _encode_message_types(message_type: MessageType | ArrayLike, nrows: int) -> NDArray[np.uint8]:
+    """Resolve a scalar/array ``message_type`` argument to N message-type bytes.
+
+    A single :class:`MessageType` (error-bit aware) fills all frames; a scalar int
+    is used verbatim; an array (e.g. the msgtype view from ``parse_bulk``, or a
+    list of ``MessageType``/ints) becomes the per-frame bytes.
+    """
+    if isinstance(message_type, MessageType):
+        return np.full(nrows, message_type_to_byte(message_type), dtype=np.uint8)
+    values = np.asarray(message_type)
+    if values.ndim == 0:
+        return np.full(nrows, int(values.item()), dtype=np.uint8)
+    return values.astype(np.uint8)
+
 
 U = TypeVar("U")
 _R = TypeVar("_R")
@@ -181,6 +197,76 @@ class RegisterBase(ABC, Generic[U]):
 
         payload = payload_cls.from_array(payload_arr)
         return data, timestamps, msgtype_view, cast("Batch[Any]", payload)
+
+    @classmethod
+    def format_bulk(
+        cls,
+        values: PayloadBase | ArrayLike,
+        *,
+        timestamps: ArrayLike | None = None,
+        message_type: MessageType | ArrayLike = MessageType.Event,
+        port: int = _DEFAULT_PORT,
+    ) -> NDArray[np.uint8]:
+        """Build a flat buffer of N frames of this register type — the inverse of
+        :meth:`parse_bulk`.
+
+        ``values`` is a payload (scalar or :class:`Batch`) or an ndarray of the
+        register's ``payload_class.dtype``. ``timestamps`` (a length-N array of
+        seconds) makes every frame timestamped. ``message_type`` is one
+        :class:`MessageType` for all frames, or a length-N array of message-type
+        bytes / values (e.g. the ``msgtype`` view returned by ``parse_bulk``).
+        """
+        payload_cls = cls.payload_class
+        itemsize = payload_cls.dtype.itemsize
+        if isinstance(values, PayloadBase):
+            records = np.atleast_1d(np.asarray(values.raw_payload))
+        else:
+            records = np.atleast_1d(np.asarray(values))
+            # Coerce the element type only for plain scalar payloads (e.g. an int
+            # list for a scalar register). Struct/sub-array records already carry
+            # the right byte layout and must not be re-cast.
+            plain = (
+                records.dtype.names is None
+                and records.dtype.subdtype is None
+                and payload_cls.dtype.names is None
+                and payload_cls.dtype.subdtype is None
+            )
+            if plain and records.dtype != payload_cls.dtype:
+                records = records.astype(payload_cls.dtype)
+        nrows = len(records)
+        flat = np.ascontiguousarray(records).tobytes()
+        if len(flat) != nrows * itemsize:
+            raise ValueError(
+                f"{cls.__name__}.format_bulk: {len(flat)} payload bytes for {nrows} frames "
+                f"is not a multiple of itemsize {itemsize}; check the values shape/dtype"
+            )
+
+        is_timestamped = timestamps is not None
+        payload_offset = _TIMESTAMPED_PAYLOAD_OFFSET if is_timestamped else _HEADER_LEN
+        stride = payload_offset + itemsize + 1  # trailing checksum byte
+
+        buf = np.zeros((nrows, stride), dtype=np.uint8)
+        buf[:, 0] = _encode_message_types(message_type, nrows)
+        buf[:, 1] = stride - 2
+        buf[:, 2] = cls.address
+        buf[:, 3] = port
+        buf[:, 4] = encode_payload_type(cls.payload_type, has_timestamp=is_timestamped)
+
+        if is_timestamped:
+            ts = np.atleast_1d(np.asarray(timestamps, dtype=np.float64))
+            seconds = ts.astype(np.uint32)
+            micros = np.round((ts - seconds.astype(np.float64)) / _TICK_PERIOD_S).astype(np.uint16)
+            buf[:, _HEADER_LEN:_TS_MICROS_OFFSET] = np.frombuffer(
+                seconds.astype("<u4").tobytes(), dtype=np.uint8
+            ).reshape(nrows, 4)
+            buf[:, _TS_MICROS_OFFSET:_TIMESTAMPED_PAYLOAD_OFFSET] = np.frombuffer(
+                micros.astype("<u2").tobytes(), dtype=np.uint8
+            ).reshape(nrows, 2)
+
+        payload_bytes = np.frombuffer(flat, dtype=np.uint8).reshape(nrows, itemsize)
+        buf[:, payload_offset : payload_offset + itemsize] = payload_bytes
+        buf[:, -1] = buf[:, :-1].sum(axis=1, dtype=np.uint64).astype(np.uint8)
+        return buf.reshape(-1)
 
     @overload
     @classmethod

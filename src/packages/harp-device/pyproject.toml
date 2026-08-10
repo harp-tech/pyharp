@@ -5,6 +5,8 @@ description = "Transport-agnostic Harp device protocol layer"
 requires-python = ">=3.11"
 dependencies = [
     "harp-protocol",
+    "pydantic>=2",
+    "pydantic-yaml>=1",
 ]
 
 [build-system]

@@ -3,6 +3,9 @@
 ---
 
 ::: harp.device.Device
+::: harp.device.create_device
+::: harp.device.parse_device_schema
+::: harp.device.ConverterContext
 ::: harp.device.HarpFramer
 ::: harp.device.ITransport
 ::: harp.device.TransportError
