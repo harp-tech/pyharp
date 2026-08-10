@@ -41,7 +41,7 @@ def device_with_module(transport: ITransport, module: DeviceModule) -> None:
     """Device constructed with a module is typed on that module."""
     device = Device(transport, module)
     assert_type(device, Device[DeviceModule])
-    assert_type(device.module, DeviceModule | None)
+    assert_type(device.module, DeviceModule)
 
 
 def device_without_module(transport: ITransport) -> None:
@@ -55,7 +55,7 @@ def open_serial_device_with_module(module: DeviceModule) -> None:
     """open_serial_device with a module returns Device[M]."""
     device = open_serial_device(module, port="COM3")
     assert_type(device, Device[DeviceModule])
-    assert_type(device.module, DeviceModule | None)
+    assert_type(device.module, DeviceModule)
 
 
 def open_serial_device_without_module() -> None:

@@ -130,9 +130,9 @@ class Device(Generic[M]):
         self._event_thread: threading.Thread | None = None
 
     @property
-    def module(self) -> M | None:
+    def module(self) -> M:
         """The device module injected at construction, or ``None`` if not set."""
-        return self._device_module
+        return self._device_module  # type: ignore[return-value]
 
     # ------------------------------------------------------------------
     # Lifecycle
