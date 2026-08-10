@@ -524,7 +524,23 @@ _DECLARATION_TYPES = _SCALAR_DECLARATION_TYPES + _BATCH_DECLARATION_TYPES
 
 # value/raw_payload deliberately omitted: overriding them is the intended
 # pattern for single-slot converter-driven payloads.
-_RESERVED_FIELD_NAMES = frozenset({"_arr", "_dtype", "_repr_fields", "Batch"})
+#: Attribute names :class:`PayloadBase` owns; a field may not shadow one. Exposed so
+#: code that derives field names from an external schema can reject a clash up front
+#: with a message naming the original identifier.
+RESERVED_FIELD_NAMES = frozenset(
+    {
+        "_arr",
+        "_dtype",
+        "_repr_fields",
+        "Batch",
+        "dtype",
+        "_scalar_cls",
+        "_batch_cls",
+        "_defaults",
+        "_elem_dtype",
+        "_single_member",
+    }
+)
 
 
 def _batch_init_disabled(self: "PayloadBase", *args: object, **kwargs: object) -> None:
@@ -766,7 +782,7 @@ class PayloadBase(Generic[NpStructT]):
         cls._single_member = None
 
         for name, val in cls.__dict__.items():
-            if isinstance(val, _DECLARATION_TYPES) and name in _RESERVED_FIELD_NAMES:
+            if isinstance(val, _DECLARATION_TYPES) and name in RESERVED_FIELD_NAMES:
                 raise TypeError(f"{cls.__name__}: field name {name!r} is reserved by PayloadBase")
 
         own_declarations = [

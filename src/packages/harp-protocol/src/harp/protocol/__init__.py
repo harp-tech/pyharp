@@ -10,6 +10,7 @@ from ._payload_converters import (
     HarpVersion,
 )
 from ._payload import (
+    RESERVED_FIELD_NAMES,
     PayloadBase,
     StructPayload,
     Field,
@@ -88,6 +89,7 @@ __all__ = [
     "PayloadBase",
     "StructPayload",
     "AnonymousPayload",
+    "RESERVED_FIELD_NAMES",
     "Column",
     "Field",
     "GroupMask",
