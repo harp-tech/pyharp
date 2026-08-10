@@ -19,4 +19,15 @@ frame = WhoAmI.format(np.uint16(1216))           # build a Write frame
 value = WhoAmI.parse(HarpMessage.parse(frame))   # -> np.uint16(1216)
 ```
 
+## Register value types
+
+`parse` returns numpy scalars rather than plain `int` or `float`, so a value carries the width its register declares. A Python `int` has no width and no upper bound, so it cannot distinguish a `U8` from a `U32`, nor detect a value leaving the register range.
+
+```python
+np.uint16(65535) + 1   # RuntimeWarning: overflow encountered in scalar add
+65535 + 1              # 65536, wider than the register can hold
+```
+
+Numpy scalars behave like plain Python numbers in arithmetic, comparison and formatting. Use `int()` or `float()` where a built-in type is required.
+
 It carries no transport or device logic — see [`harp-device`](../harp-device) for the device layer.

@@ -3,11 +3,10 @@ from collections.abc import Callable, Mapping
 from datetime import datetime
 from os import PathLike
 from pathlib import Path
-from types import ModuleType
 from typing import Any
 
 import pandas as pd
-from harp.device import create_device_module
+from harp.device import DeviceModuleLike, create_device_module
 from harp.protocol import RegisterBase
 from harp.protocol._constants import _TIMESTAMP_FLAG
 
@@ -43,7 +42,7 @@ class DatasetReader:
         df = reader.read(44)                   # by address
         everything = reader.read_all()         # {register_name: DataFrame}
 
-    ``module`` is a device module -- a generated device package, or one built from a
+    ``device_module`` is a device module -- a generated device package, or one built from a
     schema with :func:`~harp.device.create_device_module`. Its ``REGISTER_MAP`` and
     ``__name__`` are read on demand. ``name`` overrides the ``<DeviceName>`` file
     prefix, which defaults to the module name.
@@ -56,13 +55,13 @@ class DatasetReader:
 
     def __init__(
         self,
-        module: ModuleType,
+        device_module: DeviceModuleLike,
         root: str | PathLike[str],
         *,
         name: str | None = None,
         resolver: FileNameResolver = default_file_resolver,
     ) -> None:
-        self._module = module
+        self._device_module = device_module
         self._root = Path(root)
         self._name_override = name
         self._resolver = resolver
@@ -74,19 +73,19 @@ class DatasetReader:
         return self._root
 
     @property
-    def module(self) -> ModuleType:
+    def device_module(self) -> DeviceModuleLike:
         """The device module this reader parses against."""
-        return self._module
+        return self._device_module
 
     @property
     def name(self) -> str:
         """The ``<DeviceName>`` prefix used to match binary files."""
-        return self._name_override or self._module.__name__
+        return self._name_override or self._device_module.__name__
 
     @property
     def registers(self) -> Mapping[int, type[RegisterBase[Any]]]:
         """The address -> register-class map the module carries as ``REGISTER_MAP``."""
-        return getattr(self._module, "REGISTER_MAP")
+        return self._device_module.REGISTER_MAP
 
     @property
     def files(self) -> Mapping[int, list[Path]]:
@@ -207,7 +206,7 @@ def create_dataset_reader(
     ``schema`` points at the schema file explicitly when it isn't ``root/device.yml``.
     ``converters`` and ``strict`` are forwarded to :func:`~harp.device.create_device_module`
     for custom ``interfaceType`` decoding; ``name`` and ``resolver`` are forwarded to
-    :class:`DatasetReader`. Use ``DatasetReader(module, root)`` directly when you
+    :class:`DatasetReader`. Use ``DatasetReader(device_module, root)`` directly when you
     already have a (e.g. pre-generated) device module.
     """
     root_path = Path(root)
@@ -215,7 +214,9 @@ def create_dataset_reader(
     if not schema_path.is_file():
         raise FileNotFoundError(
             f"No device schema at '{schema_path}'. Pass schema= to point at a device.yml, "
-            f"or build the module yourself and use DatasetReader(module, root)."
+            f"or build the device module yourself and use DatasetReader(device_module, root)."
         )
-    module = create_device_module(schema_path.read_text(), converters=converters, strict=strict)
-    return DatasetReader(module, root_path, name=name, resolver=resolver)
+    device_module = create_device_module(
+        schema_path.read_text(), converters=converters, strict=strict
+    )
+    return DatasetReader(device_module, root_path, name=name, resolver=resolver)

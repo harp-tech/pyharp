@@ -8,7 +8,7 @@ module or by address through ``REGISTER_MAP``.
 """
 
 import types
-from typing import Any, Mapping, Optional, Union
+from typing import Any, Mapping, Optional, Protocol, Union, runtime_checkable
 
 from harp.protocol import RegisterBase
 
@@ -19,6 +19,19 @@ from ._schema._model import DeviceModel
 
 #: Module name used when the schema carries no ``device`` header.
 _DEFAULT_NAME = "Device"
+
+
+@runtime_checkable
+class DeviceModuleLike(Protocol):
+    """Any module describing a device, however it was produced.
+
+    A generated device package is a plain module, so it cannot be named by a class;
+    what identifies it is carrying the register map. Matching structurally accepts
+    both it and :class:`DeviceModule`, and rejects a module that follows neither.
+    """
+
+    __name__: str
+    REGISTER_MAP: dict[int, type[RegisterBase[Any]]]
 
 
 class DeviceModule(types.ModuleType):

@@ -208,7 +208,7 @@ def test_read_all_registers_of_mock_device(emitted_module, tmp_path):
 def test_reader_derives_name_and_registers_from_module(dataset):
     mod, name, root, _specs = dataset
     reader = DatasetReader(mod, root)
-    assert reader.module is mod
+    assert reader.device_module is mod
     assert reader.name == name
     assert reader.registers == mod.REGISTER_MAP
 

@@ -5,7 +5,6 @@ documented expression resolves to, so a change that silently degrades an inferre
 type fails the build rather than being noticed downstream.
 """
 
-from types import ModuleType
 from typing import Any, assert_type
 
 import numpy as np
@@ -13,6 +12,7 @@ from harp.data import DatasetReader
 from harp.device import (
     Device,
     DeviceModule,
+    DeviceModuleLike,
     OperationControl,
     OperationControlPayload,
     WhoAmI,
@@ -42,7 +42,9 @@ def register_writes(device: Device, payload: OperationControlPayload) -> None:
     assert_type(device.write(OperationControl, payload).parsed, OperationControlPayload)
 
 
-def dataset_reader_accepts_either_module(schema_built: DeviceModule, generated: ModuleType) -> None:
+def dataset_reader_accepts_either_module(
+    schema_built: DeviceModule, generated: DeviceModuleLike
+) -> None:
     """The reader takes a schema-built module and a generated package alike."""
     DatasetReader(schema_built, "session.harp")
     reader = DatasetReader(generated, "session.harp")
