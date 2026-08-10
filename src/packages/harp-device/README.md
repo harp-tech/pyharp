@@ -41,23 +41,20 @@ device address space while the module namespace is what the device adds to it. T
 common registers have a single definition, currently exported from `harp.device`, and
 are not a device, so the core register set carries no `WHO_AM_I`.
 
-`Device` itself holds no register collection. `read`, `write` and `subscribe` take a
-register class, so the module is the only place registers need to live:
+Pass the module to `Device` (or `open_serial_device`) to validate identity on open and
+pre-populate the register map for event parsing:
 
 ```python
+from harp.device import Device
 from harp import behavior
 
-# `device` is a Device opened over some transport (see harp-serial)
-device.read(behavior.DigitalInputState)
+with Device(transport, behavior) as device:
+    device.read(behavior.DigitalInputState)
 ```
 
-Identity is not yet read from the module. To validate `WhoAmI` on connect, subclass
-`Device` with the same value, which is what `open` checks against today:
-
-```python
-class MyDevice(Device):
-    __whoami__ = 1216
-```
+`WHO_AM_I` in the module drives the check; `0` skips it. Omitting the module skips
+validation and starts with an empty register map — individual registers from
+`harp.device` (e.g. `WhoAmI`, `OperationControl`) can still be used directly.
 
 A new transport is just an object implementing the `ITransport` protocol
 (`open`/`write`/`read`/`close`).

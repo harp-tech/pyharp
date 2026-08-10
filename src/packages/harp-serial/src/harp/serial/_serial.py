@@ -1,14 +1,16 @@
 """Serial transport and factory for Harp devices."""
 
-from typing import TypeVar
+from typing import TypeVar, overload
 
 import serial
 
 from harp.device.client import Device, TransportError
-
-D = TypeVar("D", bound=Device)
+from harp.device.schema import DeviceModuleLike
 
 DEFAULT_BAUDRATE: int = 1_000_000
+
+D = TypeVar("D", bound=Device)
+M = TypeVar("M", bound=DeviceModuleLike)
 
 
 class SerialTransport:
@@ -51,20 +53,65 @@ class SerialTransport:
         self._serial.close()
 
 
+@overload
 def open_serial_device(
-    device: type[D],
+    device_or_module: M,
+    *,
+    port: str,
+    baudrate: int = ...,
+    raise_on_error: bool = ...,
+) -> Device[M]: ...
+
+
+@overload
+def open_serial_device(
+    device_or_module: None = ...,
+    *,
+    port: str,
+    baudrate: int = ...,
+    raise_on_error: bool = ...,
+) -> Device[None]: ...
+
+
+@overload
+def open_serial_device(
+    device_or_module: type[D],
+    *,
+    port: str,
+    baudrate: int = ...,
+    raise_on_error: bool = ...,
+) -> D: ...
+
+
+def open_serial_device(
+    device_or_module: DeviceModuleLike | type[D] | None = None,
     *,
     port: str,
     baudrate: int = DEFAULT_BAUDRATE,
     raise_on_error: bool = True,
-) -> D:
-    """Build ``device`` over a serial transport and open it.
+) -> Device:
+    """Build a :class:`~harp.device.client.Device` over a serial transport and open it.
 
-    Like the builtin :func:`open`, the returned device is already connected;
-    use it directly or in a ``with`` block for guaranteed close::
+    Accepts either a device module or a :class:`~harp.device.client.Device` subclass:
 
-        with open_serial_device(behavior.Device, port="COM3") as dev:
+    - **Module** (preferred): validates identity and pre-populates the register map::
+
+        import harp.device.behavior as behavior
+
+        with open_serial_device(behavior, port="COM3") as dev:
             dev.read(behavior.WhoAmI)
+
+    - **Device subclass**: instantiates the subclass directly, preserving its type::
+
+        with open_serial_device(MyBehavior, port="COM3") as dev:
+            dev.arm()   # method defined on MyBehavior
+
+    Omit the first argument for schema-free access (no identity check, empty register map).
+
+    Like the builtin :func:`open`, the returned device is already connected; use it
+    directly or in a ``with`` block for guaranteed close.
     """
     transport = SerialTransport(port, baudrate)
-    return device(transport, raise_on_error=raise_on_error).open()
+    if isinstance(device_or_module, type):
+        return device_or_module(transport, raise_on_error=raise_on_error).open()
+    return Device(transport, device_or_module, raise_on_error=raise_on_error).open()

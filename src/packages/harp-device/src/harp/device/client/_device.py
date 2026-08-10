@@ -1,7 +1,7 @@
 """Transport-agnostic Harp device base class."""
 
 from collections.abc import Callable, Iterable
-from typing import Any, ClassVar, Self, TypeVar
+from typing import Any, ClassVar, Generic, Self, TypeVar, overload
 
 import logging
 import queue
@@ -11,12 +11,14 @@ from harp.protocol import HarpMessage, MessageType
 from harp.protocol._message import ParsedHarpMessage
 from harp.protocol._register import RegisterBase
 
+from harp.device.schema import DeviceModuleLike
 from ._framer import HarpFramer
 from ._transport import ITransport, TransportError
 from harp.device.core import (
     WhoAmI,
 )
 
+M = TypeVar("M", bound="DeviceModuleLike | None")
 P = TypeVar("P")
 
 _logger = logging.getLogger(__name__)
@@ -67,30 +69,51 @@ class Subscription:
         self.unsubscribe()
 
 
-class Device:
+class Device(Generic[M]):
     """Harp device protocol logic (framing, request/reply, register access)
     over an :class:`~harp.device.client.ITransport`.
 
     Must be opened before use, via ``with`` or :meth:`open`. :meth:`read`,
-    :meth:`write` and :meth:`subscribe` take a register class, so the device holds
-    no register collection of its own: a device's registers live in its module,
-    beside a ``REGISTER_MAP`` (see :func:`~harp.device.schema.create_device_module`, or the
-    ``harp-device`` README for the statically generated equivalent).
+    :meth:`write` and :meth:`subscribe` take a register class directly.
 
-    A subclass sets :attr:`__whoami__` to validate device identity on open
-    (``0x0`` skips the check)::
+    Pass a ``device_module`` (from :func:`~harp.device.schema.create_device_module` or a
+    statically generated device package) to validate device identity on open and
+    pre-populate the register map for event parsing::
 
-        class Behavior(Device):
-            __whoami__ = 1216
+        behavior = create_device_module(schema_text)
+        with Device(transport, behavior) as dev:
+            dev.read(behavior.OperationControl)
+
+    Omitting ``device_module`` skips identity validation and starts with an empty
+    register map; individual registers can still be used via :meth:`read`,
+    :meth:`write`, and :meth:`subscribe`.
     """
 
     REPLY_TIMEOUT: ClassVar[float] = 5.0  # seconds
 
-    #: Expected ``WhoAmI`` of the device this class models; ``0x0`` skips the check.
-    __whoami__: ClassVar[int] = 0x0
+    @overload
+    def __init__(
+        self: "Device[M]", transport: ITransport, device_module: M, *, raise_on_error: bool = ...
+    ) -> None: ...
 
-    def __init__(self, transport: ITransport, *, raise_on_error: bool = True) -> None:
+    @overload
+    def __init__(
+        self: "Device[None]",
+        transport: ITransport,
+        device_module: None = ...,
+        *,
+        raise_on_error: bool = ...,
+    ) -> None: ...
+
+    def __init__(
+        self,
+        transport: ITransport,
+        device_module: M | None = None,
+        *,
+        raise_on_error: bool = True,
+    ) -> None:
         self._transport = transport
+        self._device_module = device_module
         self.raise_on_error = raise_on_error
         self._framer = HarpFramer()
         self._pending: dict[int, queue.SimpleQueue] = {}
@@ -105,6 +128,11 @@ class Device:
         self._sub_lock = threading.Lock()
         self._event_queue: queue.SimpleQueue[HarpMessage | None] = queue.SimpleQueue()
         self._event_thread: threading.Thread | None = None
+
+    @property
+    def module(self) -> M | None:
+        """The device module injected at construction, or ``None`` if not set."""
+        return self._device_module
 
     # ------------------------------------------------------------------
     # Lifecycle
@@ -130,15 +158,16 @@ class Device:
         return self
 
     def _validate_whoami(self) -> None:
-        """Check the device's ``WhoAmI`` against :attr:`__whoami__` (``0x0`` skips)."""
-        expected = self.__whoami__
+        """Check the device's ``WhoAmI`` against the module (skipped if no module or ``WHO_AM_I == 0x0``)."""
+        if self._device_module is None:
+            return
+        expected = self._device_module.WHO_AM_I
         if expected == 0x0:
             return
         actual = int(self.read(WhoAmI).parsed)
         if actual != expected:
             raise RuntimeError(
-                f"WhoAmI mismatch: {type(self).__name__} expected 0x{expected:04x} "
-                f"but device reported 0x{actual:04x}."
+                f"WhoAmI mismatch: expected 0x{expected:04x} but device reported 0x{actual:04x}."
             )
 
     def close(self) -> None:
