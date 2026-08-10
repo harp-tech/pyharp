@@ -1,5 +1,5 @@
 from ._device import Device, EventHandler, Subscription
-from ._emit_device import create_device
+from ._emit_module import DeviceModule, DeviceModuleLike, create_device_module
 from ._framer import HarpFramer
 from ._registers import (
     AssemblyVersion,
@@ -34,7 +34,9 @@ __all__ = [
     "Device",
     "EventHandler",
     "Subscription",
-    "create_device",
+    "create_device_module",
+    "DeviceModule",
+    "DeviceModuleLike",
     "parse_device_schema",
     "ConverterContext",
     "HarpFramer",

@@ -118,13 +118,14 @@ include = [
     "src/packages/harp-device/src",
     "src/packages/harp-serial/src",
     "src/packages/harp-data/src",
+    "docs/examples",
+    "tests/conformance.py",
 ]
 exclude = [
     "**/node_modules",
     "**/__pycache__",
     "**/.*",
     ".venv",
-    "tests",
 ]
 venvPath = "."
 venv = ".venv"

@@ -30,6 +30,9 @@ from .converters import (
 )
 
 
+WHO_AM_I: int = 0
+
+
 class PortDigitalIOS(enum.IntFlag):
     DIO0 = 0x1
     DIO1 = 0x2

@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any
 
 import pandas as pd
-from harp.device import Device, create_device
+from harp.device import DeviceModuleLike, create_device_module
 from harp.protocol import RegisterBase
 from harp.protocol._constants import _TIMESTAMP_FLAG
 
@@ -34,17 +34,18 @@ def default_file_resolver(root: Path, name: str) -> dict[int, list[Path]]:
 class DatasetReader:
     """Reader over a de-multiplexed Harp dataset folder.
 
-    Construct from a generated device and a dataset folder, then read a register's
+    Construct from a device module and a dataset folder, then read a register's
     frames into a DataFrame by register class or by address::
 
-        reader = DatasetReader(Behavior, "session.harp")
-        df = reader.read(AnalogData)   # by register class
-        df = reader.read(44)           # by address
-        everything = reader.read_all() # {register_name: DataFrame}
+        reader = DatasetReader(behavior, "session.harp")
+        df = reader.read(behavior.AnalogData)  # by register class
+        df = reader.read(44)                   # by address
+        everything = reader.read_all()         # {register_name: DataFrame}
 
-    ``device`` is a generated :class:`~harp.device.Device` subclass; its
-    ``REGISTER_MAP`` and class name are read on demand. ``name`` overrides the
-    ``<DeviceName>`` file prefix, which defaults to the device class name.
+    ``device_module`` is a device module -- a generated device package, or one built from a
+    schema with :func:`~harp.device.create_device_module`. Its ``REGISTER_MAP`` and
+    ``__name__`` are read on demand. ``name`` overrides the ``<DeviceName>`` file
+    prefix, which defaults to the module name.
 
     File resolution defaults to the Harp file format: ``<name>_<address>.bin`` and,
     when a register was logged as several ``<name>_<address>_<suffix>.bin`` chunks,
@@ -54,13 +55,13 @@ class DatasetReader:
 
     def __init__(
         self,
-        device: type[Device],
+        device_module: DeviceModuleLike,
         root: str | PathLike[str],
         *,
         name: str | None = None,
         resolver: FileNameResolver = default_file_resolver,
     ) -> None:
-        self._device = device
+        self._device_module = device_module
         self._root = Path(root)
         self._name_override = name
         self._resolver = resolver
@@ -72,19 +73,19 @@ class DatasetReader:
         return self._root
 
     @property
-    def device(self) -> type[Device]:
-        """The generated device this reader parses against."""
-        return self._device
+    def device_module(self) -> DeviceModuleLike:
+        """The device module this reader parses against."""
+        return self._device_module
 
     @property
     def name(self) -> str:
         """The ``<DeviceName>`` prefix used to match binary files."""
-        return self._name_override or self._device.__name__
+        return self._name_override or self._device_module.__name__
 
     @property
     def registers(self) -> Mapping[int, type[RegisterBase[Any]]]:
-        """The device's address -> register-class map."""
-        return self._device.REGISTER_MAP
+        """The address -> register-class map the module carries as ``REGISTER_MAP``."""
+        return self._device_module.REGISTER_MAP
 
     @property
     def files(self) -> Mapping[int, list[Path]]:
@@ -196,24 +197,26 @@ def create_dataset_reader(
     """Build a :class:`DatasetReader` for a dataset folder, device and all.
 
     Convenience wrapper that finds the device schema inside ``root`` (``device.yml``
-    by default), generates a device from it with :func:`~harp.device.create_device`,
-    and returns a reader ready to :meth:`~DatasetReader.read`::
+    by default), builds its module with :func:`~harp.device.create_device_module`, and
+    returns a reader ready to :meth:`~DatasetReader.read`::
 
         reader = create_dataset_reader("session.harp")
         df = reader.read(44)
 
     ``schema`` points at the schema file explicitly when it isn't ``root/device.yml``.
-    ``converters`` and ``strict`` are forwarded to :func:`~harp.device.create_device`
+    ``converters`` and ``strict`` are forwarded to :func:`~harp.device.create_device_module`
     for custom ``interfaceType`` decoding; ``name`` and ``resolver`` are forwarded to
-    :class:`DatasetReader`. Use ``DatasetReader(device, root)`` directly when you
-    already have a (e.g. pre-generated) device class.
+    :class:`DatasetReader`. Use ``DatasetReader(device_module, root)`` directly when you
+    already have a (e.g. pre-generated) device module.
     """
     root_path = Path(root)
     schema_path = Path(schema) if schema is not None else root_path / DEVICE_SCHEMA_FILENAME
     if not schema_path.is_file():
         raise FileNotFoundError(
             f"No device schema at '{schema_path}'. Pass schema= to point at a device.yml, "
-            f"or build the device yourself and use DatasetReader(device, root)."
+            f"or build the device module yourself and use DatasetReader(device_module, root)."
         )
-    device = create_device(schema_path.read_text(), converters=converters, strict=strict)
-    return DatasetReader(device, root_path, name=name, resolver=resolver)
+    device_module = create_device_module(
+        schema_path.read_text(), converters=converters, strict=strict
+    )
+    return DatasetReader(device_module, root_path, name=name, resolver=resolver)
