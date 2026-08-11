@@ -74,7 +74,7 @@ names come from the yml verbatim, payload fields are `snake_case`, and enum memb
 from pathlib import Path
 from harp.device import create_device_module
 
-behavior = create_device_module(Path("device.yml").read_text())
+behavior = create_device_module(Path("device.yml").read_bytes())
 reg = behavior.AnalogData          # by name
 reg = behavior.REGISTER_MAP[44]    # or by address
 ```

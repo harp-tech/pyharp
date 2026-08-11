@@ -16,7 +16,7 @@ device.yml coverage model — also imported by the acceptance tests under `tests
 | `src/harp/benchmarks/register_models.py` | Reference models for every device.yml register (fixtures shared with the acceptance tests). |
 | `src/harp/benchmarks/_registers.py` | Registry: each register + a representative sample value; artifact paths. |
 | `src/harp/benchmarks/generate.py` | Writes `./benchmark/data/<Name>_<addr>.bin`; exposes `ensure_corpus` (cache-aware). |
-| `src/harp/benchmarks/benchmark.py` | Ensures corpora exist, then times `parse_bulk`, `parse_to_dataframe`, `to_columns`; writes `./benchmark/report.md`. |
+| `src/harp/benchmarks/benchmark.py` | Ensures corpora exist, then times `parse_bulk`, `parse_to_dataframe`, `payload_as_columns`; writes `./benchmark/report.md`. |
 
 All generated artifacts (corpora + report) are written under **`./benchmark`** in the
 current working directory — git-ignored and fully regenerable.
@@ -45,8 +45,8 @@ Equivalent module invocations: `uv run python -m harp.benchmarks.benchmark` /
 - **`parse_bulk`** — the core zero-copy strided-view parse into a `Batch` payload.
   This is **lazy**: it builds strided views only and runs **no** converters.
 - **`parse_to_dataframe`** — the full path to a pandas `DataFrame` (`copy=False`).
-- **`to_columns`** (decode only) — `parse_bulk` views built once up front, then only
-  `payload.to_columns()` timed. This is where each field's `converter.decode_batch`
+- **`payload_as_columns`** (decode only) — `parse_bulk` views built once up front, then only
+  `payload.payload_as_columns()` timed. This is where each field's `converter.decode_batch`
   actually runs, with no file read and no pandas construction.
 
 `parse_bulk` and `parse_to_dataframe` are each timed in two modes:
@@ -54,4 +54,4 @@ Equivalent module invocations: `uv run python -m harp.benchmarks.benchmark` /
 - **pre-read** — file read once up front; only deserialization is timed (isolates library speed).
 - **re-read** — file re-read from disk on every run (real-world "load a dump" path, includes disk).
 
-The report also decomposes `parse_to_dataframe ≈ parse_bulk + to_columns + pandas overhead`.
+The report also decomposes `parse_to_dataframe ≈ parse_bulk + payload_as_columns + pandas overhead`.

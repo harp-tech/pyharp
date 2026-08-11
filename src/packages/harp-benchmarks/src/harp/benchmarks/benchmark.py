@@ -99,7 +99,7 @@ def benchmark_register(reg: BenchmarkedRegister, path: Path, *, runs: int) -> Re
         frames=frames,
         file_bytes=file_bytes,
     )
-    # Decode only: pre-parse the bulk views once, then time to_columns() alone —
+    # Decode only: pre-parse the bulk views once, then time payload_as_columns() alone —
     # this is where every converter's decode_batch runs, with no file read and no
     # pandas DataFrame construction. Matches parse_to_dataframe's decode options.
     _, _, _, payload = register.parse_bulk(raw, parse_timestamp=True)
@@ -207,9 +207,9 @@ def build_report(results: list[RegisterResult], *, runs: int) -> str:
         lambda r: (r.df_preread, r.df_reread),
     )
 
-    # Decode-only table (single mode): to_columns() runs every field's
+    # Decode-only table (single mode): payload_as_columns() runs every field's
     # converter.decode_batch, with no file read and no pandas construction.
-    lines.append("## `to_columns` (decode only — where converters run)\n")
+    lines.append("## `payload_as_columns` (decode only — where converters run)\n")
     lines.append(
         "Isolates the decode step: `parse_bulk` views are built once up front, then "
         "only `payload.payload_as_columns()` is timed. This is where each field's "
@@ -227,16 +227,18 @@ def build_report(results: list[RegisterResult], *, runs: int) -> str:
         )
     lines.append("")
 
-    # Decomposition: parse_to_dataframe(pre) ≈ parse_bulk(pre) + to_columns + pandas.
+    # Decomposition: parse_to_dataframe(pre) ≈ parse_bulk(pre) + payload_as_columns + pandas.
     lines.append("## Decomposition (pre-read means, ms)\n")
     lines.append(
-        "`parse_to_dataframe` ≈ `parse_bulk` (build views) + `to_columns` (decode) + "
-        "pandas DataFrame construction. The residual column is `df − bulk − to_columns`, "
+        "`parse_to_dataframe` ≈ `parse_bulk` (build views) + `payload_as_columns` (decode) + "
+        "pandas DataFrame construction. The residual column is `df − bulk − payload_as_columns`, "
         "i.e. the pandas/column-assembly overhead. Note the three terms are timed in "
         "separate loops, so for converter-dominated registers (large mean, large stdev) "
         "the residual is within noise and can even go slightly negative.\n"
     )
-    lines.append("| Register | parse_bulk | to_columns | parse_to_dataframe | pandas residual |")
+    lines.append(
+        "| Register | parse_bulk | payload_as_columns | parse_to_dataframe | pandas residual |"
+    )
     lines.append("| --- | ---: | ---: | ---: | ---: |")
     for r in results:
         residual = r.df_preread.mean - r.bulk_preread.mean - r.cols.mean
@@ -329,7 +331,7 @@ def main() -> None:
         results.append(res)
         print(
             f"bulk={_fmt_ms(res.bulk_preread.mean):>8s}ms "
-            f"to_columns={_fmt_ms(res.cols.mean):>9s}ms "
+            f"payload_as_columns={_fmt_ms(res.cols.mean):>9s}ms "
             f"df={_fmt_ms(res.df_preread.mean):>9s}ms"
         )
         if args.head:

@@ -470,13 +470,15 @@ class _Emitter:
         return emitted
 
 
-def parse_device_schema(text: str) -> DeviceModel:
+def parse_device_schema(text: str | bytes) -> DeviceModel:
     """Parse a Harp ``device.yml`` (or a header-less fragment) into a :class:`DeviceModel`.
 
     A header-less fragment (just ``registers`` / ``bitMasks`` / ``groupMasks``)
     parses fine — the identity fields (``device`` / ``whoAmI`` / ...) are simply
     ``None``. Read files yourself, e.g.
-    ``parse_device_schema(Path("device.yml").read_text())``.
+    ``parse_device_schema(Path("device.yml").read_bytes())``. Prefer reading bytes:
+    a YAML stream declares its own encoding, so the parser decodes it, whereas
+    ``read_text()`` without an explicit encoding uses the locale default.
 
     Uses ``pydantic-yaml`` (ruamel-backed, YAML 1.2), so group-mask keys like
     ``Off`` / ``On`` stay strings instead of being coerced to booleans.
@@ -485,7 +487,7 @@ def parse_device_schema(text: str) -> DeviceModel:
 
 
 def create_registers(
-    source: Union[str, DeviceModel, Registers],
+    source: str | bytes | DeviceModel | Registers,
     *,
     converters: Optional[Mapping[str, ConverterValue]] = None,
     strict: bool = True,
