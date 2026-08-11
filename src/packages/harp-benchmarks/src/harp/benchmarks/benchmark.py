@@ -84,7 +84,7 @@ def benchmark_register(reg: BenchmarkedRegister, path: Path, *, runs: int) -> Re
     register = reg.register
     raw = path.read_bytes()
     file_bytes = len(raw)
-    payload_bytes = register.payload_class.dtype.itemsize
+    payload_bytes = register.payload_class.payload_dtype.itemsize
     frames, stride = _dataset_info(raw, payload_bytes)
 
     bulk_pre = _time(
@@ -104,7 +104,7 @@ def benchmark_register(reg: BenchmarkedRegister, path: Path, *, runs: int) -> Re
     # pandas DataFrame construction. Matches parse_to_dataframe's decode options.
     _, _, _, payload = register.parse_bulk(raw, parse_timestamp=True)
     cols = _time(
-        lambda: payload.to_columns(decode_enums=True, demux_bit_masks=False),
+        lambda: payload.payload_as_columns(decode_enums=True, demux_bit_masks=False),
         runs=runs,
         frames=frames,
         file_bytes=file_bytes,
@@ -212,7 +212,7 @@ def build_report(results: list[RegisterResult], *, runs: int) -> str:
     lines.append("## `to_columns` (decode only — where converters run)\n")
     lines.append(
         "Isolates the decode step: `parse_bulk` views are built once up front, then "
-        "only `payload.to_columns()` is timed. This is where each field's "
+        "only `payload.payload_as_columns()` is timed. This is where each field's "
         "`converter.decode_batch` executes. Registers whose converters loop in Python "
         "(`HarpVersionConverter`, `StringConverter`, `BytesToIntConverter` → object "
         "dtype) dominate here; vectorized converters stay cheap.\n"

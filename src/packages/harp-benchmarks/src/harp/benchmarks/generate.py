@@ -22,7 +22,7 @@ def _frames(reg: BenchmarkedRegister, entries: int) -> np.ndarray:
     decoded (``to_columns`` / ``parse_to_dataframe``) during the benchmark. Timestamps,
     when present, are a monotonic ramp. Returns the flat uint8 wire buffer.
     """
-    dtype = reg.register.payload_class.dtype
+    dtype = reg.register.payload_class.payload_dtype
     rng = np.random.default_rng(_SEED + reg.address)
     records = rng.integers(0, 128, size=entries * dtype.itemsize, dtype=np.uint8).view(dtype)
     timestamps = np.arange(entries, dtype=np.float64) if reg.timestamped else None

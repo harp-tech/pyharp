@@ -174,7 +174,7 @@ def test_format_with_payload_instance(reg_cls, payload_cls, value):
     frame = reg.format(payload)
     msg = _parse_frame(frame)
     assert msg.message_type == MessageType.Write
-    assert msg.payload == payload.raw_payload.tobytes()
+    assert msg.payload == payload.payload_array.tobytes()
 
 
 def test_format_with_payload_instance_via_register():
@@ -187,7 +187,7 @@ def test_format_with_payload_instance_via_register():
 
 
 def test_structured_register_format_single_sample():
-    sample = np.array([(100, 512, -200)], dtype=AnalogDataPayload.dtype)
+    sample = np.array([(100, 512, -200)], dtype=AnalogDataPayload.payload_dtype)
     frame = AnalogData.format(sample)
     msg = _parse_frame(frame)
     parsed = AnalogData.parse(msg)
@@ -201,10 +201,10 @@ def test_structured_register_format_single_sample():
 def test_structured_register_to_dataframe():
     raw = np.array(
         [(1, 2, 3), (4, 5, 6)],
-        dtype=AnalogDataPayload.dtype,
+        dtype=AnalogDataPayload.payload_dtype,
     ).tobytes()
-    # Bulk decode goes through .Batch; from_buffer handles the redirect.
-    bulk = AnalogDataPayload.from_buffer(raw)
+    # Bulk decode goes through ._batch; from_buffer handles the redirect.
+    bulk = AnalogDataPayload.payload_from_buffer(raw)
     df = payload_to_dataframe(bulk)
     assert list(df.columns) == ["analog_input0", "encoder", "analog_input1"]
     assert len(df) == 2
@@ -328,13 +328,13 @@ def test_format_write_with_timestamp():
 def test_anonymous_payload_roundtrip(payload_cls, raw_value, np_dtype):
     """Anonymous payload constructor + raw_payload roundtrips through bytes."""
     payload = payload_cls(raw_value)
-    assert payload.raw_payload.dtype == np_dtype
-    assert payload.raw_payload.tobytes() == np.asarray(raw_value, dtype=np_dtype).tobytes()
+    assert payload.payload_array.dtype == np_dtype
+    assert payload.payload_array.tobytes() == np.asarray(raw_value, dtype=np_dtype).tobytes()
 
 
 def test_structured_payload_descriptors_single():
-    buf = np.array([(100, 512, -200)], dtype=AnalogDataPayload.dtype).tobytes()
-    parsed = AnalogDataPayload.from_buffer(buf)
+    buf = np.array([(100, 512, -200)], dtype=AnalogDataPayload.payload_dtype).tobytes()
+    parsed = AnalogDataPayload.payload_from_buffer(buf)
     # 1-D batch (frombuffer always returns at least 1-D); descriptors return ndarrays.
     np.testing.assert_array_equal(parsed.analog_input0, [100])
     np.testing.assert_array_equal(parsed.encoder, [512])
@@ -343,8 +343,8 @@ def test_structured_payload_descriptors_single():
 
 def test_structured_payload_descriptors_multi():
     records = [(100, 512, -200), (110, 513, -210), (120, 514, -220)]
-    buf = np.array(records, dtype=AnalogDataPayload.dtype).tobytes()
-    parsed = AnalogDataPayload.from_buffer(buf)
+    buf = np.array(records, dtype=AnalogDataPayload.payload_dtype).tobytes()
+    parsed = AnalogDataPayload.payload_from_buffer(buf)
     assert len(parsed) == 3
     np.testing.assert_array_equal(parsed.analog_input0, [100, 110, 120])
     np.testing.assert_array_equal(parsed.encoder, [512, 513, 514])
@@ -370,10 +370,10 @@ def test_anonymous_payload_converter_roundtrip():
 
     # dtype derives from the converter (one structured slot); raw bytes are the
     # encoded, null-padded value.
-    assert PayloadDeviceName.dtype.names == ("__value__",)
-    assert PayloadDeviceName.dtype.itemsize == 25
+    assert PayloadDeviceName.payload_dtype.names == ("__value__",)
+    assert PayloadDeviceName.payload_dtype.itemsize == 25
     payload = PayloadDeviceName("Behavior")
-    assert payload.raw_payload.tobytes() == b"Behavior".ljust(25, b"\x00")
+    assert payload.payload_array.tobytes() == b"Behavior".ljust(25, b"\x00")
 
     # Register round-trip decodes back to the high-level str, whether format()
     # is given a payload instance or the bare value (symmetric with parse()).
@@ -384,10 +384,10 @@ def test_anonymous_payload_converter_roundtrip():
     # to_dataframe decodes both a single record and a batch.
     assert payload_to_dataframe(PayloadDeviceName("Behavior"))["value"].tolist() == ["Behavior"]
     two = (
-        PayloadDeviceName("Foo").raw_payload.tobytes()
-        + PayloadDeviceName("Bar").raw_payload.tobytes()
+        PayloadDeviceName("Foo").payload_array.tobytes()
+        + PayloadDeviceName("Bar").payload_array.tobytes()
     )
-    batch = PayloadDeviceName.from_buffer(two)
+    batch = PayloadDeviceName.payload_from_buffer(two)
     assert payload_to_dataframe(batch)["value"].tolist() == ["Foo", "Bar"]
 
 
@@ -406,10 +406,10 @@ def test_anonymous_payload_scalar_converter_roundtrip():
     class PayloadColor(AnonymousPayload[np.uint8]):
         __value__: Color = Field(EnumConverter(Color))
 
-    assert PayloadColor.dtype.itemsize == 1
-    raw = PayloadColor(Color.BLUE).raw_payload.tobytes()
-    record = np.frombuffer(raw, dtype=PayloadColor.dtype, count=1)[0]
-    assert PayloadColor.unwrap(record) == Color.BLUE
+    assert PayloadColor.payload_dtype.itemsize == 1
+    raw = PayloadColor(Color.BLUE).payload_array.tobytes()
+    record = np.frombuffer(raw, dtype=PayloadColor.payload_dtype, count=1)[0]
+    assert PayloadColor._unwrap(record) == Color.BLUE
 
 
 def test_array_register_parse_returns_ndarray():
@@ -425,7 +425,7 @@ def test_array_register_parse_returns_ndarray():
 
 
 # ---------------------------------------------------------------------------
-# 10. parse vs read_frames / .Batch contract
+# 10. parse vs read_frames / ._batch contract
 # ---------------------------------------------------------------------------
 
 
@@ -456,8 +456,8 @@ def test_batch_payload_routes_to_batch_twin():
     """
     reg = RegisterU32Array(0x08, length=3)
     rows = np.array([[1, 2, 3], [4, 5, 6]], dtype=np.dtype("<u4"))
-    batch = reg.payload_class.from_buffer(rows.tobytes())
-    assert type(batch) is reg.payload_class.Batch
+    batch = reg.payload_class.payload_from_buffer(rows.tobytes())
+    assert type(batch) is reg.payload_class._batch
     assert isinstance(batch, reg.payload_class)
     assert batch._arr.shape == (2, 3)
 
@@ -470,15 +470,17 @@ def test_struct_payload_field_descriptors_codegen_style():
         b = Field(converter=_IdentityConverter("<i2"), offset=2)
         c = Field(converter=_IdentityConverter("<i2"), offset=4)
 
-    p = GeneratedAnalogPayload.from_array(np.array((1, 2, 3), dtype=GeneratedAnalogPayload.dtype))
+    p = GeneratedAnalogPayload._from_array(
+        np.array((1, 2, 3), dtype=GeneratedAnalogPayload.payload_dtype)
+    )
     # 0-D _arr → numpy scalar per field.
     assert int(p.a) == 1
     assert int(p.b) == 2
     assert int(p.c) == 3
 
     # 1-D _arr → ndarray columns. Same descriptor handles both.
-    batch_arr = np.array([(1, 2, 3), (4, 5, 6)], dtype=GeneratedAnalogPayload.dtype)
-    batch = GeneratedAnalogPayload.from_buffer(batch_arr.tobytes())
+    batch_arr = np.array([(1, 2, 3), (4, 5, 6)], dtype=GeneratedAnalogPayload.payload_dtype)
+    batch = GeneratedAnalogPayload.payload_from_buffer(batch_arr.tobytes())
     np.testing.assert_array_equal(batch.a, [1, 4])
     np.testing.assert_array_equal(batch.b, [2, 5])
     assert batch._arr.ndim == 1

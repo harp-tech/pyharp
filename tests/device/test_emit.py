@@ -46,7 +46,9 @@ def test_device_register_matches_generator_layout(name, device_registers):
     expected = _device_registers()[name]
     assert emitted.address == expected.address
     assert emitted.payload_type == expected.payload_type
-    assert _layout(emitted.payload_class.dtype) == _layout(expected.payload_class.dtype)
+    assert _layout(emitted.payload_class.payload_dtype) == _layout(
+        expected.payload_class.payload_dtype
+    )
 
 
 def test_device_emits_all_registers(device_registers):
@@ -63,13 +65,13 @@ def _enum_of(reg, field):
 
 
 def test_field_names_are_snake_case(device_registers):
-    fields = device_registers["AnalogData"].payload_class.dtype.names
+    fields = device_registers["AnalogData"].payload_class.payload_dtype.names
     assert fields == ("analog0", "analog1", "analog2", "accelerometer")
 
 
 def test_field_names_match_generator(device_registers):
     # A run of capitals stays one word; a trailing digit never separates.
-    fields = device_registers["Version"].payload_class.dtype.names
+    fields = device_registers["Version"].payload_class.payload_dtype.names
     assert fields == (
         "protocol_version",
         "firmware_version",
@@ -114,7 +116,7 @@ def test_enum_names_match_generator_for_every_enum(device_registers):
     """Every enum the golden module declares has identical members in the emitter."""
     for name, reg in _device_registers().items():
         payload = reg.payload_class
-        if payload.dtype.names is None:
+        if payload.payload_dtype.names is None:
             continue
         for field in payload._repr_fields:
             expected_desc = payload._mro_descriptor(field)
@@ -143,12 +145,17 @@ def test_core_register_structural(name, common_yml):
     expected = _core_expected()[name]
     assert emitted.address == expected.address
     assert emitted.payload_type == expected.payload_type
-    assert emitted.payload_class.dtype.itemsize == expected.payload_class.dtype.itemsize
+    assert (
+        emitted.payload_class.payload_dtype.itemsize
+        == expected.payload_class.payload_dtype.itemsize
+    )
     if name == "DeviceName":
         # Generator enriches DeviceName to interfaceType: string; protocol's
         # common.yml does not, so only the layout size matches here.
         return
-    assert _layout(emitted.payload_class.dtype) == _layout(expected.payload_class.dtype)
+    assert _layout(emitted.payload_class.payload_dtype) == _layout(
+        expected.payload_class.payload_dtype
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -209,7 +216,7 @@ def test_non_strict_falls_back_to_native(device_yml):
     regs = create_registers(device_yml, strict=False)
     # Data decodes as the raw native element (u8[2]) rather than the custom int.
     reg = regs["CustomMemberConverter"]
-    assert reg.payload_class.dtype.itemsize == 3
+    assert reg.payload_class.payload_dtype.itemsize == 3
 
 
 def test_converter_factory_receives_dsl_context(device_yml):
@@ -324,7 +331,7 @@ def test_anchored_registers_share_one_payload_class():
     shared = regs["Rgb0"].payload_class
     assert shared is regs["Rgb1"].payload_class
     assert shared.__name__ == "RgbPayload"
-    assert shared.dtype.names == ("green", "red", "blue")
+    assert shared.payload_dtype.names == ("green", "red", "blue")
 
 
 def test_shared_payload_spanning_elements_without_length_is_reused():
@@ -346,7 +353,7 @@ def test_shared_payload_spanning_elements_without_length_is_reused():
         "    address: 41\n"
     )
     assert regs["A"].payload_class is regs["B"].payload_class
-    assert regs["A"].payload_class.dtype.itemsize == 4
+    assert regs["A"].payload_class.payload_dtype.itemsize == 4
 
 
 # ---------------------------------------------------------------------------
@@ -381,18 +388,33 @@ def test_colliding_enum_members_raise():
         )
 
 
-def test_field_name_shadowing_payload_attribute_raises():
-    with pytest.raises(NameCollisionError, match="reserved"):
-        create_registers(
-            "registers:\n"
-            "  R:\n"
-            "    address: 40\n"
-            "    type: U8\n"
-            "    access: Read\n"
-            "    payloadSpec:\n"
-            "      Dtype: {offset: 0}\n"
-            "      Other: {offset: 1}\n"
-        )
+def _one_field_schema(key: str) -> str:
+    return (
+        "registers:\n"
+        "  R:\n"
+        "    address: 40\n"
+        "    type: U8\n"
+        "    access: Read\n"
+        "    payloadSpec:\n"
+        f"      {key}: {{offset: 0}}\n"
+        "      Other: {offset: 1}\n"
+    )
+
+
+@pytest.mark.parametrize("key", ["PayloadDtype", "PayloadColumns", "PayloadAnything"])
+def test_field_name_taking_reserved_prefix_raises(key):
+    # Payload members all carry the payload_ prefix, so a field is barred from the
+    # prefix rather than from a list of the members that happen to exist today.
+    with pytest.raises(NameCollisionError, match="reserved for payload members"):
+        create_registers(_one_field_schema(key))
+
+
+@pytest.mark.parametrize("key", ["Break", "Class", "Return"])
+def test_field_name_renaming_to_keyword_raises(key):
+    # `Break` renames to `break`, which is only reachable through getattr and is a
+    # syntax error in a statically generated module.
+    with pytest.raises(NameCollisionError, match="is a Python keyword"):
+        create_registers(_one_field_schema(key))
 
 
 # ---------------------------------------------------------------------------
@@ -417,7 +439,9 @@ def _random_records(dtype, n, seed):
 def test_emitted_register_bulk_matches_oracle(name, device_registers):
     emitted = device_registers[name]
     oracle = _device_registers()[name]
-    records = _random_records(emitted.payload_class.dtype, 5, seed=zlib.crc32(name.encode()))
+    records = _random_records(
+        emitted.payload_class.payload_dtype, 5, seed=zlib.crc32(name.encode())
+    )
 
     # Cross-write: same address / payload_type / byte layout -> identical wire bytes.
     buf = bytes(emitted.format_bulk(records))

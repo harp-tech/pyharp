@@ -50,7 +50,7 @@ def payload_to_dataframe(
     # TODO: we may need to account for cases where columns have the same name.
     # this can happen when demuxing bitmasks, for example, where each bitmask column
     # is expanded into multiple boolean columns with the same name.
-    cols = payload.to_columns(decode_enums=decode_enums, demux_bit_masks=demux_bit_masks)
+    cols = payload.payload_as_columns(decode_enums=decode_enums, demux_bit_masks=demux_bit_masks)
     return pd.DataFrame(
         {
             (c.name if c.name is not None else _DEFAULT_COLUMN_NAME): (

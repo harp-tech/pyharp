@@ -333,7 +333,7 @@ def main() -> None:  # pragma: no cover - manual exploration entry point
     p = _roundtrip(AnalogData, ad)
     assert float(p.analog0) == 1.0 and float(p.analog2) == 3.0
     np.testing.assert_array_equal(p.accelerometer, [4, 5, 6])
-    print(f"AnalogData               OK  ({AnalogDataPayload.dtype.itemsize} bytes)")
+    print(f"AnalogData               OK  ({AnalogDataPayload.payload_dtype.itemsize} bytes)")
 
     cc = ComplexConfigurationPayload(
         pwm_port=PwmPort.PWM2,
@@ -345,10 +345,10 @@ def main() -> None:  # pragma: no cover - manual exploration entry point
     p = _roundtrip(ComplexConfiguration, cc)
     assert p.pwm_port == PwmPort.PWM2 and p.events_enabled is True and int(p.delta) == 42
     assert float(p.duty_cycle) == 0.5
-    assert ComplexConfigurationPayload.dtype.itemsize == 17
-    assert cc.raw_payload.tobytes()[1:4] == b"\x00\x00\x00"
+    assert ComplexConfigurationPayload.payload_dtype.itemsize == 17
+    assert cc.payload_array.tobytes()[1:4] == b"\x00\x00\x00"
     print(
-        f"ComplexConfiguration     OK  ({ComplexConfigurationPayload.dtype.itemsize} bytes, gap 1..3)"
+        f"ComplexConfiguration     OK  ({ComplexConfigurationPayload.payload_dtype.itemsize} bytes, gap 1..3)"
     )
 
     ver = VersionPayload(
@@ -361,7 +361,7 @@ def main() -> None:  # pragma: no cover - manual exploration entry point
     p = _roundtrip(Version, ver)
     assert p.protocol_version == HarpVersion(2, 0, 0) and p.core_id == "abc"
     np.testing.assert_array_equal(p.interface_hash, np.arange(20))
-    print(f"Version                  OK  ({VersionPayload.dtype.itemsize} bytes)")
+    print(f"Version                  OK  ({VersionPayload.payload_dtype.itemsize} bytes)")
 
     p = _roundtrip(CustomPayload, HarpVersion(3, 1, 4))
     assert p == HarpVersion(3, 1, 4)  # single-member unwrap -> bare HarpVersion
@@ -377,7 +377,7 @@ def main() -> None:  # pragma: no cover - manual exploration entry point
 
     p = _roundtrip(BitmaskSplitter, BitmaskSplitterPayload(low=0xA, high=0x5))
     assert int(p.low) == 0xA and int(p.high) == 0x5
-    assert p.raw_payload.tobytes() == bytes([0x5A])
+    assert p.payload_array.tobytes() == bytes([0x5A])
     print("BitmaskSplitter          OK")
 
     assert int(_roundtrip(Counter0, np.int32(-100000))) == -100000
@@ -386,7 +386,7 @@ def main() -> None:  # pragma: no cover - manual exploration entry point
     p = _roundtrip(PortDIOSet, PortDigitalIOS.DIO0 | PortDigitalIOS.DIO3)
     assert p == PortDigitalIOS.DIO0 | PortDigitalIOS.DIO3  # single-member unwrap
     assert PortDigitalIOS.DIO1 not in p
-    assert PortDIOSetPayload.dtype.itemsize == 1
+    assert PortDIOSetPayload.payload_dtype.itemsize == 1
     print("PortDIOSet               OK")
 
     assert int(_roundtrip(PulseDOPort0, np.uint16(5))) == 5
@@ -410,7 +410,7 @@ def main() -> None:  # pragma: no cover - manual exploration entry point
     )
     assert p.digital_output == PwmPort.PWM1 and int(p.pulse_width) == 300
     assert int(p.frequency) == 200 and int(p.pulse_count) == 50
-    assert StartPulseTrainPayload.dtype.itemsize == 4
+    assert StartPulseTrainPayload.payload_dtype.itemsize == 4
     assert int(StartPulseTrainPayload(pulse_count=np.uint8(3)).frequency) == 1  # defaultValue
     print("StartPulseTrain          OK  (4 masked members, 2 words, default frequency=1)")
 

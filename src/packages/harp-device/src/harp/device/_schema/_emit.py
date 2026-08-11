@@ -38,7 +38,7 @@ from harp.protocol import (
     StringConverter,
     StructPayload,
 )
-from harp.protocol import RESERVED_FIELD_NAMES
+from harp.protocol._payload import _reserved_field_reason
 from harp.protocol import PayloadType as ProtoPayloadType
 
 from ._model import DeviceModel, PayloadMember, PayloadType, Register, Registers, Visibility
@@ -260,11 +260,13 @@ class _Emitter:
                     f"{owner}: {kind}s {clash!r} and {key!r} both map to {name!r}; "
                     f"rename one in the schema"
                 )
-            if reserved and name in RESERVED_FIELD_NAMES:
-                raise NameCollisionError(
-                    f"{owner}: {kind} {key!r} maps to {name!r}, which is reserved by "
-                    f"the payload base class; rename it in the schema"
-                )
+            if reserved:
+                unusable = _reserved_field_reason(name)
+                if unusable is not None:
+                    raise NameCollisionError(
+                        f"{owner}: {kind} {key!r} maps to {name!r}, which {unusable}; "
+                        f"rename it in the schema"
+                    )
             origin[name] = key
             renamed[key] = name
         return renamed
@@ -383,23 +385,23 @@ class _Emitter:
         cached = self.payloads.get(payload_name)
         if cached is not None:
             return cached
-        payload = self._new_payload(payload_name, reg)
+        payload = self._new_payload(payload_name, name, reg)
         self.payloads[payload_name] = payload
         return payload
 
-    def _new_payload(self, name: str, reg: Register) -> type:
+    def _new_payload(self, class_name: str, owner: str, reg: Register) -> type:
         elem_np = _ELEMENT[reg.type]
         elem_size = np.dtype(elem_np).itemsize
         length = reg.length or 1
 
         if reg.payloadSpec is not None:
-            renamed = self._rename("field", name, reg.payloadSpec, field_name, reserved=True)
+            renamed = self._rename("field", owner, reg.payloadSpec, field_name, reserved=True)
             namespace = {
                 renamed[key]: self._build_field(key, member, reg)
                 for key, member in reg.payloadSpec.items()
             }
             kwds = {"length": length} if length > 1 else {}
-            return _new_class(name, (StructPayload[elem_np],), namespace, kwds)
+            return _new_class(class_name, (StructPayload[elem_np],), namespace, kwds)
 
         # anonymous single-value payload
         mt = reg.maskType.root if reg.maskType else None
@@ -411,7 +413,7 @@ class _Emitter:
             descriptor = BitMask(enum=self.enums[mt])
         else:
             assert it is not None, (
-                f"{name}: register needs a payloadSpec, maskType, or interfaceType"
+                f"{owner}: register needs a payloadSpec, maskType, or interfaceType"
             )
             ctx = ConverterContext(
                 name="__value__",
@@ -422,7 +424,7 @@ class _Emitter:
                 element_size=elem_size,
             )
             descriptor = Field(self._resolve_converter(ctx))
-        return _new_class(name, (AnonymousPayload[elem_np],), {"__value__": descriptor})
+        return _new_class(class_name, (AnonymousPayload[elem_np],), {"__value__": descriptor})
 
     # -- registers --------------------------------------------------------
     def _class_name(self, name: str, reg: Register) -> str:

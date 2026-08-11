@@ -15,17 +15,17 @@ class SimplePayload(PayloadBase):
 class BitPackedPayload(PayloadBase):
     packed = Field(converter=_IdentityConverter("u1"))
 
-    def to_columns(
+    def payload_as_columns(
         self, *, decode_enums: bool = True, demux_bit_masks: bool = False
     ) -> list[Column]:
         return [
-            Column("flag_a", (self.raw_payload["packed"] & 0x01).astype(bool)),
-            Column("flag_b", ((self.raw_payload["packed"] >> 1) & 0x01).astype(bool)),
+            Column("flag_a", (self.payload_array["packed"] & 0x01).astype(bool)),
+            Column("flag_b", ((self.payload_array["packed"] >> 1) & 0x01).astype(bool)),
         ]
 
 
 def _make_simple_bytes(n: int) -> bytes:
-    arr = np.zeros(n, dtype=SimplePayload.dtype)
+    arr = np.zeros(n, dtype=SimplePayload.payload_dtype)
     arr["x"] = np.arange(n, dtype=np.int16) * -1
     arr["y"] = np.arange(n, dtype=np.uint8)
     return arr.tobytes()
@@ -33,27 +33,29 @@ def _make_simple_bytes(n: int) -> bytes:
 
 def test_from_buffer_shape():
     data = _make_simple_bytes(5)
-    p = SimplePayload.from_buffer(data)
+    p = SimplePayload.payload_from_buffer(data)
     assert len(p) == 5
 
 
 def test_from_buffer_values():
     data = _make_simple_bytes(3)
-    p = SimplePayload.from_buffer(data)
+    p = SimplePayload.payload_from_buffer(data)
     np.testing.assert_array_equal(p.x, [0, -1, -2])
     np.testing.assert_array_equal(p.y, [0, 1, 2])
 
 
 def test_to_dataframe_columns():
-    p = SimplePayload.from_buffer(_make_simple_bytes(3))
+    p = SimplePayload.payload_from_buffer(_make_simple_bytes(3))
     df = payload_to_dataframe(p)
     assert list(df.columns) == ["x", "y"]
     assert len(df) == 3
 
 
 def test_to_dataframe_override():
-    arr = np.array([(0b00000011,), (0b00000001,), (0b00000010,)], dtype=BitPackedPayload.dtype)
-    p = BitPackedPayload.from_buffer(arr.tobytes())
+    arr = np.array(
+        [(0b00000011,), (0b00000001,), (0b00000010,)], dtype=BitPackedPayload.payload_dtype
+    )
+    p = BitPackedPayload.payload_from_buffer(arr.tobytes())
     df = payload_to_dataframe(p)
     assert list(df.columns) == ["flag_a", "flag_b"]
     assert list(df["flag_a"]) == [True, True, False]
@@ -62,15 +64,15 @@ def test_to_dataframe_override():
 
 def test_from_buffer_zero_copy():
     data = _make_simple_bytes(4)
-    p = SimplePayload.from_buffer(data)
+    p = SimplePayload.payload_from_buffer(data)
     # np.frombuffer returns a read-only view — writes should raise
     with pytest.raises((ValueError, TypeError)):
-        p.raw_payload["x"][0] = 999
+        p.payload_array["x"][0] = 999
 
 
 def test_payload_property():
-    p = SimplePayload.from_buffer(_make_simple_bytes(2))
-    assert p.raw_payload.dtype == SimplePayload.dtype
+    p = SimplePayload.payload_from_buffer(_make_simple_bytes(2))
+    assert p.payload_array.dtype == SimplePayload.payload_dtype
 
 
 class _SparseMode(enum.IntEnum):
@@ -87,14 +89,16 @@ class _SparseModePayload(AnonymousPayload[np.uint8]):
 def test_groupmask_undefined_code_preserves_raw():
     # Codes: defined (0->Low, 2->High), an in-range gap (1), and out-of-range (90, 255).
     # Every undefined code is preserved as its raw int (like C#'s unchecked cast) —
-    batch = _SparseModePayload.from_buffer(np.array([0, 2, 1, 90, 255], dtype=np.uint8).tobytes())
+    batch = _SparseModePayload.payload_from_buffer(
+        np.array([0, 2, 1, 90, 255], dtype=np.uint8).tobytes()
+    )
     assert list(payload_to_dataframe(batch)["value"]) == ["Low", "High", 1, 90, 255]
 
 
 def test_groupmask_scalar_matches_batch_for_undefined():
     # Scalar decode is permissive the same way
-    defined = _SparseModePayload.from_buffer(np.array([2], dtype=np.uint8).tobytes())
+    defined = _SparseModePayload.payload_from_buffer(np.array([2], dtype=np.uint8).tobytes())
     assert defined.__value__ is _SparseMode.High
-    undefined = _SparseModePayload.from_buffer(np.array([90], dtype=np.uint8).tobytes())
+    undefined = _SparseModePayload.payload_from_buffer(np.array([90], dtype=np.uint8).tobytes())
     assert undefined.__value__ == 90
     assert not isinstance(undefined.__value__, _SparseMode)

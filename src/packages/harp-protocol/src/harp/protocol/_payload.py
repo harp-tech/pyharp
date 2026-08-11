@@ -1,3 +1,4 @@
+import keyword
 import enum
 from dataclasses import dataclass
 from typing import (
@@ -497,19 +498,19 @@ class Batch(Protocol[_PT]):
     Statically, ``Batch[P]`` is a distinct type from ``P`` so the type
     checker knows ``read_frames`` returns an ndarray-shaped view rather
     than a single record. At runtime, the value is the auto-derived
-    ``P.Batch`` sibling whose descriptors return ``NDArray`` views.
+    ``P._batch`` sibling whose descriptors return ``NDArray`` views.
 
     Per-field dtype precision is intentionally dropped — every declared
     field reports ``NDArray[Any]`` — to keep ``RegisterBase[P]``
     parameterized by a single TypeVar.
     """
 
-    raw_payload: "NDArray[Any]"
+    payload_array: "NDArray[Any]"
     value: "NDArray[Any]"
 
     def __len__(self) -> int: ...  # type: ignore[empty-body]
 
-    def to_columns(  # type: ignore[empty-body]
+    def payload_as_columns(  # type: ignore[empty-body]
         self, *, decode_enums: bool = True, demux_bit_masks: bool = False
     ) -> "list[Column]": ...
 
@@ -522,25 +523,24 @@ _BATCH_DECLARATION_TYPES = (_FieldBatch, _GroupMaskBatch, _BitMaskBatch)
 _DECLARATION_TYPES = _SCALAR_DECLARATION_TYPES + _BATCH_DECLARATION_TYPES
 
 
-# value/raw_payload deliberately omitted: overriding them is the intended
-# pattern for single-slot converter-driven payloads.
-#: Attribute names :class:`PayloadBase` owns; a field may not shadow one. Exposed so
-#: code that derives field names from an external schema can reject a clash up front
-#: with a message naming the original identifier.
-RESERVED_FIELD_NAMES = frozenset(
-    {
-        "_arr",
-        "_dtype",
-        "_repr_fields",
-        "Batch",
-        "dtype",
-        "_scalar_cls",
-        "_batch_cls",
-        "_defaults",
-        "_elem_dtype",
-        "_single_member",
-    }
-)
+#: Every member the payload classes own carries one of these prefixes, so a field name
+#: is barred from them rather than from a list of the members themselves. Dunders are
+#: exempt because ``__value__`` is how a single-slot payload declares its root field.
+_RESERVED_FIELD_PREFIXES = ("_", "payload_")
+
+
+def _reserved_field_reason(name: str) -> "str | None":
+    """Returns why ``name`` cannot be a payload field, or ``None`` when it can."""
+    if name.startswith("__") and name.endswith("__"):
+        return None
+    if not name.isidentifier():
+        return "is not a valid Python identifier"
+    if keyword.iskeyword(name):
+        return "is a Python keyword"
+    for prefix in _RESERVED_FIELD_PREFIXES:
+        if name.startswith(prefix):
+            return f"starts with {prefix!r}, which is reserved for payload members"
+    return None
 
 
 def _batch_init_disabled(self: "PayloadBase", *args: object, **kwargs: object) -> None:
@@ -659,7 +659,7 @@ class PayloadBase(Generic[NpStructT]):
     """
 
     # Structured numpy dtype describing the memory layout of a single payload record.
-    dtype: ClassVar[np.dtype]
+    payload_dtype: ClassVar[np.dtype]
     # Field names shown in __repr__ and used as the column order.
     _repr_fields: ClassVar[tuple[str, ...]]
     # The scalar twin of this class (identity for scalar classes, points to scalar from Batch).
@@ -669,7 +669,7 @@ class PayloadBase(Generic[NpStructT]):
     # Cached map of attribute name → default value for fields that declare one.
     _defaults: ClassVar[dict[str, Any]]
     # Auto-generated sibling class whose descriptors return NDArray views instead of scalars.
-    Batch: ClassVar["type[PayloadBase]"]
+    _batch: ClassVar["type[PayloadBase]"]
     # Base element dtype (from the ``StructPayload[...]`` type arg); governs offset
     # arithmetic and the integer width used for masked reads. Defaults to uint8.
     _elem_dtype: ClassVar[np.dtype] = _DEFAULT_ELEMENT
@@ -680,7 +680,7 @@ class PayloadBase(Generic[NpStructT]):
 
     def __init__(self, *args: object, **kwargs: object) -> None:
         cls = type(self)
-        names = self.dtype.names
+        names = self.payload_dtype.names
         if names is None:
             raise TypeError(f"{type(self).__name__}.dtype has no named fields")
 
@@ -701,7 +701,7 @@ class PayloadBase(Generic[NpStructT]):
                 merged.update(kwargs)
                 kwargs = merged
 
-        arr = np.zeros((), dtype=self.dtype)
+        arr = np.zeros((), dtype=self.payload_dtype)
 
         # Route each kwarg by its descriptor kind, not by whether its name happens
         # to match a numpy slot — masked descriptors may share a slot whose name
@@ -769,7 +769,7 @@ class PayloadBase(Generic[NpStructT]):
         if _batch_of is not None:
             # Auto-generated Batch sibling: borrow dtype/_repr_fields from its
             # scalar twin and wire the scalar↔batch pointers.
-            cls.dtype = _batch_of.dtype
+            cls.payload_dtype = _batch_of.payload_dtype
             cls._repr_fields = _batch_of._repr_fields
             cls._elem_dtype = _batch_of._elem_dtype
             cls._single_member = _batch_of._single_member
@@ -782,8 +782,10 @@ class PayloadBase(Generic[NpStructT]):
         cls._single_member = None
 
         for name, val in cls.__dict__.items():
-            if isinstance(val, _DECLARATION_TYPES) and name in RESERVED_FIELD_NAMES:
-                raise TypeError(f"{cls.__name__}: field name {name!r} is reserved by PayloadBase")
+            if isinstance(val, _DECLARATION_TYPES):
+                reason = _reserved_field_reason(name)
+                if reason is not None:
+                    raise TypeError(f"{cls.__name__}: field name {name!r} {reason}")
 
         own_declarations = [
             (name, val)
@@ -792,7 +794,7 @@ class PayloadBase(Generic[NpStructT]):
         ]
 
         if own_declarations:
-            cls.dtype = _build_struct_dtype(cls, own_declarations, length)
+            cls.payload_dtype = _build_struct_dtype(cls, own_declarations, length)
             # Only an AnonymousPayload root (its lone __value__ field) unwraps on
             # parse; a StructPayload always returns the wrapper, never auto-unwraps.
             if getattr(cls, "_root", False):
@@ -804,12 +806,12 @@ class PayloadBase(Generic[NpStructT]):
         cls._scalar_cls = cls
         cls._batch_cls = cls  # rebound below once Batch is generated
 
-        if hasattr(cls, "dtype"):
+        if hasattr(cls, "payload_dtype"):
             batch_attrs: dict[str, Any] = {"__init__": _batch_init_disabled}
             for name, val in cls.__dict__.items():
                 if isinstance(val, _SCALAR_DECLARATION_TYPES):
                     batch_attrs[name] = val._to_batch()
-            cls.Batch = type(
+            cls._batch = type(
                 f"{cls.__name__}Batch",
                 (cls,),
                 batch_attrs,
@@ -819,22 +821,22 @@ class PayloadBase(Generic[NpStructT]):
         cls._defaults = cls._collect_defaults()
 
     @classmethod
-    def from_array(cls, arr: "np.ndarray") -> Self:
+    def _from_array(cls, arr: "np.ndarray") -> Self:
         target = cls._scalar_cls if arr.ndim == 0 else cls._batch_cls
         obj = target.__new__(target)
         obj._arr = arr
         return obj  # type: ignore[return-value]
 
     @classmethod
-    def from_buffer(cls, buf: bytes | bytearray | memoryview) -> Self:
-        arr = np.frombuffer(buf, dtype=cls.dtype)
-        return cls.from_array(arr[0] if len(arr) == 1 else arr)
+    def payload_from_buffer(cls, buf: bytes | bytearray | memoryview) -> Self:
+        arr = np.frombuffer(buf, dtype=cls.payload_dtype)
+        return cls._from_array(arr[0] if len(arr) == 1 else arr)
 
     @property
-    def raw_payload(self) -> NDArray[NpStructT]:
+    def payload_array(self) -> NDArray[NpStructT]:
         return self._arr
 
-    def to_columns(
+    def payload_as_columns(
         self, *, decode_enums: bool = True, demux_bit_masks: bool = False
     ) -> list[Column]:
         """Returns a list of Column where each member represents a field from a payload across multiple messages.
@@ -871,7 +873,7 @@ class PayloadBase(Generic[NpStructT]):
         return repr(self)
 
     @classmethod
-    def unwrap(cls, arr: "np.ndarray") -> Any:
+    def _unwrap(cls, arr: "np.ndarray") -> Any:
         """Dispatch hook used by ``RegisterBase.parse``.
 
         Struct payloads always return a typed wrapper so descriptors like
@@ -880,7 +882,7 @@ class PayloadBase(Generic[NpStructT]):
         the unwrapped ``__value__`` (the single-member branch below, reached via
         the override's ``super()`` call). A struct payload never auto-unwraps.
         """
-        obj = cls.from_array(arr)
+        obj = cls._from_array(arr)
         if cls._single_member is not None and arr.ndim == 0:
             return getattr(obj, cls._single_member)
         return obj
@@ -992,14 +994,18 @@ class AnonymousPayload(PayloadBase[NpStructT]):
             super().__init_subclass__(**kwargs)  # pyright: ignore[reportArgumentType]
             return
         # Raw scalar slot required, unless a Batch twin / array concrete supplies dtype.
-        if scalar_dtype is None and "_batch_of" not in kwargs and "dtype" not in cls.__dict__:
+        if (
+            scalar_dtype is None
+            and "_batch_of" not in kwargs
+            and "payload_dtype" not in cls.__dict__
+        ):
             raise TypeError(
                 f"{cls.__name__}: an AnonymousPayload subclass must define its single slot via a "
                 f"{cls._VALUE_FIELD!r} descriptor field or scalar_dtype= (a codec is a "
                 f"{cls._VALUE_FIELD!r} Field with a Converter)."
             )
         if scalar_dtype is not None:
-            cls.dtype = np.dtype(scalar_dtype)
+            cls.payload_dtype = np.dtype(scalar_dtype)
             cls._repr_fields = ()
         super().__init_subclass__(**kwargs)  # pyright: ignore[reportArgumentType]
 
@@ -1018,12 +1024,12 @@ class AnonymousPayload(PayloadBase[NpStructT]):
                 raise TypeError(f"{type(self).__name__}() requires a value")
         if kwargs:
             raise TypeError(f"{type(self).__name__}() got unexpected kwargs: {sorted(kwargs)}")
-        self._arr = np.asarray(value, dtype=self.dtype)
+        self._arr = np.asarray(value, dtype=self.payload_dtype)
 
     @classmethod
-    def unwrap(cls, arr: "np.ndarray") -> Any:
+    def _unwrap(cls, arr: "np.ndarray") -> Any:
         if cls._root:
-            return super().unwrap(arr)  # PayloadBase single-member unwrap (.__value__)
+            return super()._unwrap(arr)  # PayloadBase single-member unwrap (.__value__)
         # 0-D → numpy scalar via item-like access (preserves dtype).
         # 1-D / sub-array → return the ndarray as-is.
         return arr if arr.ndim > 0 else arr[()]
@@ -1036,7 +1042,7 @@ class AnonymousPayload(PayloadBase[NpStructT]):
     def __repr__(self) -> str:
         return f"{type(self).__name__}({self._repr_kwargs()})"
 
-    def to_columns(
+    def payload_as_columns(
         self, *, decode_enums: bool = True, demux_bit_masks: bool = False
     ) -> list[Column]:
         # Anonymous values carry no name (name=None); the consumer supplies the label.
