@@ -202,7 +202,7 @@ def test_bitfield_payloads_ndim_aware():
 
     # 1-D batch — Batch sibling, ndarray-typed accessors.
     batch = _Flags.payload_from_buffer(bytes([0x01, 0x02]))
-    assert type(batch) is _Flags._batch
+    assert type(batch) is _Flags._PayloadBatchType
     assert isinstance(batch, _Flags)
     np.testing.assert_array_equal(batch.flag, [1, 0])
     np.testing.assert_array_equal(batch.group, [0, 1])

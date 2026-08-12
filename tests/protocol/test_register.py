@@ -203,7 +203,7 @@ def test_structured_register_to_dataframe():
         [(1, 2, 3), (4, 5, 6)],
         dtype=AnalogDataPayload.payload_dtype,
     ).tobytes()
-    # Bulk decode goes through ._batch; from_buffer handles the redirect.
+    # Bulk decode goes through ._PayloadBatchType; from_buffer handles the redirect.
     bulk = AnalogDataPayload.payload_from_buffer(raw)
     df = payload_to_dataframe(bulk)
     assert list(df.columns) == ["analog_input0", "encoder", "analog_input1"]
@@ -425,7 +425,7 @@ def test_array_register_parse_returns_ndarray():
 
 
 # ---------------------------------------------------------------------------
-# 10. parse vs read_frames / ._batch contract
+# 10. parse vs read_frames / ._PayloadBatchType contract
 # ---------------------------------------------------------------------------
 
 
@@ -457,7 +457,7 @@ def test_batch_payload_routes_to_batch_twin():
     reg = RegisterU32Array(0x08, length=3)
     rows = np.array([[1, 2, 3], [4, 5, 6]], dtype=np.dtype("<u4"))
     batch = reg.payload_class.payload_from_buffer(rows.tobytes())
-    assert type(batch) is reg.payload_class._batch
+    assert type(batch) is reg.payload_class._PayloadBatchType
     assert isinstance(batch, reg.payload_class)
     assert batch._arr.shape == (2, 3)
 

@@ -498,7 +498,7 @@ class Batch(Protocol[_PT]):
     Statically, ``Batch[P]`` is a distinct type from ``P`` so the type
     checker knows ``read_frames`` returns an ndarray-shaped view rather
     than a single record. At runtime, the value is the auto-derived
-    ``P._batch`` sibling whose descriptors return ``NDArray`` views.
+    ``P._PayloadBatchType`` sibling whose descriptors return ``NDArray`` views.
 
     Per-field dtype precision is intentionally dropped — every declared
     field reports ``NDArray[Any]`` — to keep ``RegisterBase[P]``
@@ -669,7 +669,7 @@ class PayloadBase(Generic[NpStructT]):
     # Cached map of attribute name → default value for fields that declare one.
     _defaults: ClassVar[dict[str, Any]]
     # Auto-generated sibling class whose descriptors return NDArray views instead of scalars.
-    _batch: ClassVar["type[PayloadBase]"]
+    _PayloadBatchType: ClassVar["type[PayloadBase]"]
     # Base element dtype (from the ``StructPayload[...]`` type arg); governs offset
     # arithmetic and the integer width used for masked reads. Defaults to uint8.
     _elem_dtype: ClassVar[np.dtype] = _DEFAULT_ELEMENT
@@ -811,7 +811,7 @@ class PayloadBase(Generic[NpStructT]):
             for name, val in cls.__dict__.items():
                 if isinstance(val, _SCALAR_DECLARATION_TYPES):
                     batch_attrs[name] = val._to_batch()
-            cls._batch = type(
+            cls._PayloadBatchType = type(
                 f"{cls.__name__}Batch",
                 (cls,),
                 batch_attrs,
