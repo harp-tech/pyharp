@@ -94,19 +94,20 @@ def open_serial_device(
 
     Accepts either a device module or a :class:`~harp.device.client.Device` subclass:
 
-    - **Module** (preferred): validates identity and pre-populates the register map::
+    - **Module** (preferred): validates identity on open::
 
-        import harp.device.behavior as behavior
+        from harp.device import behavior, core
 
         with open_serial_device(behavior, port="COM3") as dev:
-            dev.read(behavior.WhoAmI)
+            dev.read(core.WhoAmI)           # a common register
+            dev.read(behavior.AnalogData)   # declared by the schema
 
     - **Device subclass**: instantiates the subclass directly, preserving its type::
 
         with open_serial_device(MyBehavior, port="COM3") as dev:
             dev.arm()   # method defined on MyBehavior
 
-    Omit the first argument for schema-free access (no identity check, empty register map).
+    Omit the first argument for schema-free access, which skips the identity check.
 
     Like the builtin :func:`open`, the returned device is already connected; use it
     directly or in a ``with`` block for guaranteed close.

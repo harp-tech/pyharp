@@ -29,11 +29,11 @@ with open_serial_device(Device, port=SERIAL_PORT) as device:
 df = parse_to_dataframe(AnalogData, "Behavior_44.bin")
 print(df.head())
 
-# To have the identity checked on connect, subclass `Device` with the schema's
-# WhoAmI — the same one-liner a generated package ships:
+# To have the identity checked on connect, pass the module itself. The check is
+# driven by its `WHO_AM_I`, and `0` skips it:
 #
-#   class Behavior(Device):
-#       __whoami__ = behavior.WHO_AM_I
+#   with open_serial_device(behavior, port=SERIAL_PORT) as device:
+#       print("AnalogData:", device.read(AnalogData).parsed)
 
 
 # --- Custom interface types --------------------------------------------------

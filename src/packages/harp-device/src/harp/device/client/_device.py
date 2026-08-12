@@ -77,16 +77,15 @@ class Device(Generic[M]):
     :meth:`write` and :meth:`subscribe` take a register class directly.
 
     Pass a ``device_module`` (from :func:`~harp.device.schema.create_device_module` or a
-    statically generated device package) to validate device identity on open and
-    pre-populate the register map for event parsing::
+    statically generated device package) to validate device identity on open::
 
         behavior = create_device_module(schema_text)
         with Device(transport, behavior) as dev:
             dev.read(behavior.OperationControl)
 
-    Omitting ``device_module`` skips identity validation and starts with an empty
-    register map; individual registers can still be used via :meth:`read`,
-    :meth:`write`, and :meth:`subscribe`.
+    Omitting ``device_module`` skips that check. The module is not otherwise
+    consulted: registers reach :meth:`read`, :meth:`write` and :meth:`subscribe`
+    as arguments either way, and only a subscribed register is parsed on arrival.
     """
 
     REPLY_TIMEOUT: ClassVar[float] = 5.0  # seconds
