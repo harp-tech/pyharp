@@ -55,6 +55,16 @@ class SerialTransport:
 
 @overload
 def open_serial_device(
+    device_or_module: type[D],
+    *,
+    port: str,
+    baudrate: int = ...,
+    raise_on_error: bool = ...,
+) -> D: ...
+
+
+@overload
+def open_serial_device(
     device_or_module: M,
     *,
     port: str,
@@ -71,16 +81,6 @@ def open_serial_device(
     baudrate: int = ...,
     raise_on_error: bool = ...,
 ) -> Device[None]: ...
-
-
-@overload
-def open_serial_device(
-    device_or_module: type[D],
-    *,
-    port: str,
-    baudrate: int = ...,
-    raise_on_error: bool = ...,
-) -> D: ...
 
 
 def open_serial_device(

@@ -5,7 +5,7 @@ documented expression resolves to, so a change that silently degrades an inferre
 type fails the build rather than being noticed downstream.
 """
 
-from typing import Any, assert_type
+from typing import Any, ClassVar, assert_type
 
 import numpy as np
 from harp.data import DatasetReader
@@ -83,3 +83,19 @@ def dataset_reader_accepts_either_module(
     reader = DatasetReader(generated, "session.harp")
     reader.read(WhoAmI)
     reader.read(44)
+
+
+def open_serial_device_prefers_the_subclass_overload() -> None:
+    """A Device subclass is matched as a subclass even when it looks like a module.
+
+    type[D] is narrower than the structural module overload, so it has to come first:
+    a class carrying REGISTER_MAP and WHO_AM_I satisfies DeviceModuleLike too, and the
+    module overload would otherwise win and return Device[type[Hybrid]].
+    """
+
+    class Hybrid(Device[None]):
+        REGISTER_MAP: ClassVar[dict[int, type[RegisterBase[Any]]]] = {}
+        WHO_AM_I: ClassVar[int] = 1216
+
+    device = open_serial_device(Hybrid, port="COM3")
+    assert_type(device, Hybrid)
