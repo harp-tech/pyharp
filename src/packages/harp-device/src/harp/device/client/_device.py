@@ -158,15 +158,17 @@ class Device(Generic[M]):
 
     def _validate_whoami(self) -> None:
         """Check the device's ``WhoAmI`` against the module (skipped if no module or ``WHO_AM_I == 0x0``)."""
-        if self._device_module is None:
+        module = self._device_module
+        if module is None:
             return
-        expected = self._device_module.WHO_AM_I
+        expected = module.WHO_AM_I
         if expected == 0x0:
             return
         actual = int(self.read(WhoAmI).parsed)
         if actual != expected:
             raise RuntimeError(
-                f"WhoAmI mismatch: expected 0x{expected:04x} but device reported 0x{actual:04x}."
+                f"WhoAmI mismatch: {module.__name__} expects 0x{expected:04x} "
+                f"but the device reported 0x{actual:04x}."
             )
 
     def close(self) -> None:
