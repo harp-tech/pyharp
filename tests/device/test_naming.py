@@ -6,7 +6,7 @@ so these lock the port to the C# behaviour rather than to a re-derivation of it.
 """
 
 import pytest
-from harp.device._schema import enum_member_name, field_name
+from harp.device.schema._naming import enum_member_name, field_name
 
 # yml identifier -> generated enum member (SCREAMING_SNAKE_CASE)
 ENUM_MEMBERS = [

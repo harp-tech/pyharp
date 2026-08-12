@@ -5,7 +5,7 @@ import pytest
 from harp.data import parse_to_dataframe
 from harp.protocol import HarpMessage
 
-from harp.device._schema import NameCollisionError, UnknownConverterError, create_registers
+from harp.device.schema._emit import NameCollisionError, UnknownConverterError, create_registers
 
 from . import expected_core, expected_device
 from .converters import DataConverter

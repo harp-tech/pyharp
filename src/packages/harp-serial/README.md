@@ -10,7 +10,8 @@ Like the builtin `open`, the returned device is connected and ready; use it in a
 `with` block for guaranteed cleanup:
 
 ```python
-from harp.device import Device, WhoAmI
+from harp.device.core import WhoAmI
+from harp.device.client import Device
 from harp.serial import open_serial_device
 
 with open_serial_device(Device, port="COM3", baudrate=1_000_000) as dev:

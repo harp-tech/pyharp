@@ -1,6 +1,6 @@
-from ._device import Device, EventHandler, Subscription
-from ._emit_module import DeviceModule, DeviceModuleLike, create_device_module
-from ._framer import HarpFramer
+"""The core register set every Harp device carries, and its address space."""
+
+from ._register_map import REGISTER_MAP
 from ._registers import (
     AssemblyVersion,
     ClockConfiguration,
@@ -26,22 +26,8 @@ from ._registers import (
     TimestampSeconds,
     WhoAmI,
 )
-from ._register_map import REGISTER_MAP
-from ._schema import ConverterContext, parse_device_schema
-from ._transport import ITransport, TransportError
 
 __all__ = [
-    "Device",
-    "EventHandler",
-    "Subscription",
-    "create_device_module",
-    "DeviceModule",
-    "DeviceModuleLike",
-    "parse_device_schema",
-    "ConverterContext",
-    "HarpFramer",
-    "ITransport",
-    "TransportError",
     "REGISTER_MAP",
     "WhoAmI",
     "HardwareVersionHigh",

@@ -1,5 +1,5 @@
 from harp.data import parse_to_dataframe
-from harp.device import OperationControl
+from harp.device.core import OperationControl
 
 # Parse a single register's binary dump into a pandas DataFrame — one row per
 # frame, one column per field. The register class tells `parse_to_dataframe` how

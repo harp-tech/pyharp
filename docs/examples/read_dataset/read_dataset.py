@@ -1,5 +1,5 @@
 from harp.data import REFERENCE_EPOCH, create_dataset_reader
-from harp.device import OperationControl
+from harp.device.core import OperationControl
 
 # A Harp acquisition is usually saved as a de-multiplexed dataset folder — one
 # `.bin` file per register, named "<DeviceName>_<address>.bin", next to the
@@ -39,7 +39,7 @@ print(absolute.index[:3])
 # can drive the reader directly — construct `DatasetReader(module, folder)`:
 #
 #   from harp.data import DatasetReader
-#   from harp.device import create_device_module
+#   from harp.device.schema import create_device_module
 #   from pathlib import Path
 #
 #   behavior = create_device_module((Path("session.harp") / "device.yml").read_bytes())

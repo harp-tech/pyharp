@@ -12,9 +12,8 @@ from typing import Any, Mapping, Optional, Protocol, runtime_checkable
 
 from harp.protocol import RegisterBase
 
-from ._register_map import REGISTER_MAP as CORE_REGISTER_MAP
-from ._schema import create_registers, parse_device_schema
-from ._schema._emit import ConverterValue
+from harp.device.core import REGISTER_MAP as CORE_REGISTER_MAP
+from ._emit import ConverterValue, create_registers, parse_device_schema
 
 #: Module name used when the schema carries no ``device`` header.
 _DEFAULT_NAME = "Device"

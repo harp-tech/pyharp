@@ -58,7 +58,8 @@ serial connection, or reading **data recorded to disk**.
 **Talk to a live device.** Open a connection and read/write registers by class:
 
 ```python
-from harp.device import Device, WhoAmI, OperationControl, OperationControlPayload, OperationMode
+from harp.device.core import OperationControl, OperationControlPayload, OperationMode, WhoAmI
+from harp.device.client import Device
 from harp.serial import open_serial_device
 
 # Use "COMx" on Windows, "/dev/ttyUSBx" on Linux.
@@ -86,7 +87,7 @@ does under the hood:
 
 ```python
 from pathlib import Path
-from harp.device import create_device_module
+from harp.device.schema import create_device_module
 
 behavior = create_device_module(Path("device.yml").read_bytes())
 AnalogData = behavior.AnalogData          # registers are reached by name...

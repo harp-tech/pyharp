@@ -1,4 +1,5 @@
-from harp.device._schema import DeviceModel, PayloadType, parse_device_schema
+from harp.device.schema import parse_device_schema
+from harp.device.schema._model import DeviceModel, PayloadType
 
 
 def test_parse_full_device(device_yml):

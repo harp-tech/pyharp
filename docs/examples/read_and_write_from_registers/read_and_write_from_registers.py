@@ -1,11 +1,11 @@
-from harp.device import (
-    Device,
+from harp.device.core import (
     EnableFlag,
     OperationControl,
     OperationControlPayload,
     OperationMode,
     WhoAmI,
 )
+from harp.device.client import Device
 from harp.serial import open_serial_device
 
 SERIAL_PORT = "/dev/ttyUSB0"  # or "COMx" in Windows ("x" is the number of the serial port)

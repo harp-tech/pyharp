@@ -1,10 +1,11 @@
 import sys
 import types
 
-import harp.device
+import harp.device.core
 import pytest
-from harp.device import REGISTER_MAP as CORE_REGISTER_MAP
-from harp.device import DeviceModule, DeviceModuleLike, WhoAmI, create_device_module
+from harp.device.core import REGISTER_MAP as CORE_REGISTER_MAP
+from harp.device.core import WhoAmI
+from harp.device.schema import DeviceModule, DeviceModuleLike, create_device_module
 
 from . import expected_device
 from .converters import DataConverter
@@ -89,9 +90,9 @@ def test_generated_package_matches_device_protocol():
 def test_common_registers_are_not_device_module():
     # They carry REGISTER_MAP but describe no device, so they cannot be passed
     # where a device module is required, such as to a DatasetReader.
-    assert hasattr(harp.device, "REGISTER_MAP")
-    assert not hasattr(harp.device, "WHO_AM_I")
-    assert not isinstance(harp.device, DeviceModuleLike)
+    assert hasattr(harp.device.core, "REGISTER_MAP")
+    assert not hasattr(harp.device.core, "WHO_AM_I")
+    assert not isinstance(harp.device.core, DeviceModuleLike)
 
 
 def test_unknown_name_raises_attribute_error(test_module):

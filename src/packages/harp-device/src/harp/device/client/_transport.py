@@ -9,7 +9,7 @@ class TransportError(Exception):
 
 @runtime_checkable
 class ITransport(Protocol):
-    """Byte channel a :class:`~harp.device.Device` drives.
+    """Byte channel a :class:`~harp.device.client.Device` drives.
 
     Owns no protocol logic. Failures are reported as :class:`TransportError`.
     """
