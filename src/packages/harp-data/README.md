@@ -45,7 +45,7 @@ from pathlib import Path
 from harp.data import DatasetReader
 from harp.device import create_device_module
 
-behavior = create_device_module((Path("session.harp") / "device.yml").read_text())
+behavior = create_device_module((Path("session.harp") / "device.yml").read_bytes())
 reader = DatasetReader(behavior, "session.harp")
 ```
 

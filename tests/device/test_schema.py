@@ -20,6 +20,24 @@ def test_parse_fragment_yields_null_device():
     assert m.registers["Foo"].type is PayloadType.U16
 
 
+def test_parse_bytes_decodes_as_utf8_regardless_of_locale():
+    # A YAML stream declares its own encoding, so reading a schema as bytes decodes it
+    # correctly where read_text() without an explicit encoding follows the locale.
+    schema = (
+        "registers:\n"
+        "  Poke:\n"
+        "    address: 40\n"
+        "    type: U8\n"
+        "    access: Read\n"
+        "    description: µV threshold\n"
+    )
+    m = parse_device_schema(schema.encode("utf-8"))
+    assert m.registers["Poke"].description == "µV threshold"
+    assert (
+        m.registers["Poke"].description == parse_device_schema(schema).registers["Poke"].description
+    )
+
+
 def test_parse_common_registers(common_yml):
     c = parse_device_schema(common_yml)
     assert c.device is None

@@ -42,5 +42,5 @@ print(absolute.index[:3])
 #   from harp.device import create_device_module
 #   from pathlib import Path
 #
-#   behavior = create_device_module((Path("session.harp") / "device.yml").read_text())
+#   behavior = create_device_module((Path("session.harp") / "device.yml").read_bytes())
 #   reader = DatasetReader(behavior, "session.harp")

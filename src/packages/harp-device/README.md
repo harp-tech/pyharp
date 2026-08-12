@@ -66,13 +66,15 @@ A new transport is just an object implementing the `ITransport` protocol
 Without a pre-generated device package, `create_device_module` builds the same
 structure at runtime from Harp `device.yml` text: register classes at module level, a
 `REGISTER_MAP` beside them, and the identity declared by the schema as `WHO_AM_I`.
-Field and enum names come from the yml verbatim.
+Identifiers match a generated package name for name: register, enum, and payload class
+names come from the yml verbatim, payload fields are `snake_case`, and enum members are
+`SCREAMING_SNAKE_CASE`.
 
 ```python
 from pathlib import Path
 from harp.device import create_device_module
 
-behavior = create_device_module(Path("device.yml").read_text())
+behavior = create_device_module(Path("device.yml").read_bytes())
 reg = behavior.AnalogData          # by name
 reg = behavior.REGISTER_MAP[44]    # or by address
 ```

@@ -54,43 +54,43 @@ def test_scalar_registers_roundtrip():
 
 def test_analog_data_roundtrip():
     ad = AnalogDataPayload(
-        Analog0=np.float32(1.0),
-        Analog1=np.float32(2.0),
-        Analog2=np.float32(3.0),
-        Accelerometer=np.array([4, 5, 6], dtype=np.float32),
+        analog0=np.float32(1.0),
+        analog1=np.float32(2.0),
+        analog2=np.float32(3.0),
+        accelerometer=np.array([4, 5, 6], dtype=np.float32),
     )
     p = _roundtrip(AnalogData, ad)
-    assert float(p.Analog0) == 1.0 and float(p.Analog2) == 3.0
-    np.testing.assert_array_equal(p.Accelerometer, [4, 5, 6])
-    assert AnalogDataPayload.dtype.itemsize == 24  # 6 floats
+    assert float(p.analog0) == 1.0 and float(p.analog2) == 3.0
+    np.testing.assert_array_equal(p.accelerometer, [4, 5, 6])
+    assert AnalogDataPayload.payload_dtype.itemsize == 24  # 6 floats
 
 
 def test_version_roundtrip():
     ver = VersionPayload(
-        ProtocolVersion=HarpVersion(2, 0, 0),
-        FirmwareVersion=HarpVersion(1, 2, 3),
-        HardwareVersion=HarpVersion(1, 0, 0),
-        CoreId="abc",
-        InterfaceHash=np.arange(20, dtype=np.uint8),
+        protocol_version=HarpVersion(2, 0, 0),
+        firmware_version=HarpVersion(1, 2, 3),
+        hardware_version=HarpVersion(1, 0, 0),
+        core_id="abc",
+        interface_hash=np.arange(20, dtype=np.uint8),
     )
     p = _roundtrip(Version, ver)
-    assert p.ProtocolVersion == HarpVersion(2, 0, 0)
-    assert p.CoreId == "abc"
-    np.testing.assert_array_equal(p.InterfaceHash, np.arange(20))
-    assert VersionPayload.dtype.itemsize == 32
+    assert p.protocol_version == HarpVersion(2, 0, 0)
+    assert p.core_id == "abc"
+    np.testing.assert_array_equal(p.interface_hash, np.arange(20))
+    assert VersionPayload.payload_dtype.itemsize == 32
 
 
 def test_custom_member_converter_roundtrip():
     p = _roundtrip(
-        CustomMemberConverter, CustomMemberConverterPayload(Header=np.uint8(7), Data=-1234)
+        CustomMemberConverter, CustomMemberConverterPayload(header=np.uint8(7), data=-1234)
     )
-    assert int(p.Header) == 7 and int(p.Data) == -1234
+    assert int(p.header) == 7 and int(p.data) == -1234
 
 
 def test_encoder_mode_roundtrip():
     # Single whole-register groupMask -> parse() unwraps to the bare enum.
-    p = _roundtrip(EncoderMode, EncoderModeMask.Displacement)
-    assert p == EncoderModeMask.Displacement
+    p = _roundtrip(EncoderMode, EncoderModeMask.DISPLACEMENT)
+    assert p == EncoderModeMask.DISPLACEMENT
     assert isinstance(p, EncoderModeMask)
 
 
@@ -101,26 +101,26 @@ def test_encoder_mode_roundtrip():
 
 def test_complex_configuration_gap_and_offsets():
     cc = ComplexConfigurationPayload(
-        PwmPort=PwmPort.Pwm2,
-        DutyCycle=np.float32(0.5),
-        Frequency=np.float32(1000.0),
-        EventsEnabled=True,
-        Delta=np.uint32(42),
+        pwm_port=PwmPort.PWM2,
+        duty_cycle=np.float32(0.5),
+        frequency=np.float32(1000.0),
+        events_enabled=True,
+        delta=np.uint32(42),
     )
     # itemsize from the register length (17), not the member extent.
-    assert ComplexConfigurationPayload.dtype.itemsize == 17
+    assert ComplexConfigurationPayload.payload_dtype.itemsize == 17
     # bytes 1..3 are an uncovered gap, preserved on encode.
-    assert cc.raw_payload.tobytes()[1:4] == b"\x00\x00\x00"
+    assert cc.payload_array.tobytes()[1:4] == b"\x00\x00\x00"
     # explicit byte offsets (base element = uint8, so element units == bytes).
-    fields = ComplexConfigurationPayload.dtype.fields
-    assert fields["DutyCycle"][1] == 4
-    assert fields["Delta"][1] == 13
+    fields = ComplexConfigurationPayload.payload_dtype.fields
+    assert fields["duty_cycle"][1] == 4
+    assert fields["delta"][1] == 13
 
     p = _roundtrip(ComplexConfiguration, cc)
-    assert p.PwmPort == PwmPort.Pwm2
-    assert float(p.DutyCycle) == 0.5
-    assert p.EventsEnabled is True
-    assert int(p.Delta) == 42
+    assert p.pwm_port == PwmPort.PWM2
+    assert float(p.duty_cycle) == 0.5
+    assert p.events_enabled is True
+    assert int(p.delta) == 42
 
 
 # ---------------------------------------------------------------------------
@@ -130,36 +130,36 @@ def test_complex_configuration_gap_and_offsets():
 
 def test_start_pulse_overlapping_masks():
     # Two views of one U16 element share storage (one numpy field, itemsize 2).
-    assert StartPulsePayload.dtype.itemsize == 2
-    assert len(StartPulsePayload.dtype.names) == 1
+    assert StartPulsePayload.payload_dtype.itemsize == 2
+    assert len(StartPulsePayload.payload_dtype.names) == 1
     p = _roundtrip(
-        StartPulse, StartPulsePayload(DigitalOutput=PwmPort.Pwm1, PulseWidth=np.uint16(300))
+        StartPulse, StartPulsePayload(digital_output=PwmPort.PWM1, pulse_width=np.uint16(300))
     )
-    assert p.DigitalOutput == PwmPort.Pwm1
-    assert int(p.PulseWidth) == 300
+    assert p.digital_output == PwmPort.PWM1
+    assert int(p.pulse_width) == 300
 
 
 def test_start_pulse_train_two_words_and_default():
     p = _roundtrip(
         StartPulseTrain,
         StartPulseTrainPayload(
-            DigitalOutput=PwmPort.Pwm1,
-            PulseWidth=np.uint16(300),
-            Frequency=np.uint8(200),
-            PulseCount=np.uint8(50),
+            digital_output=PwmPort.PWM1,
+            pulse_width=np.uint16(300),
+            frequency=np.uint8(200),
+            pulse_count=np.uint8(50),
         ),
     )
-    assert p.DigitalOutput == PwmPort.Pwm1 and int(p.PulseWidth) == 300
-    assert int(p.Frequency) == 200 and int(p.PulseCount) == 50
-    assert StartPulseTrainPayload.dtype.itemsize == 4  # two U16 words
-    # defaultValue: Frequency defaults to 1 when not provided.
-    assert int(StartPulseTrainPayload(PulseCount=np.uint8(3)).Frequency) == 1
+    assert p.digital_output == PwmPort.PWM1 and int(p.pulse_width) == 300
+    assert int(p.frequency) == 200 and int(p.pulse_count) == 50
+    assert StartPulseTrainPayload.payload_dtype.itemsize == 4  # two U16 words
+    # defaultValue: frequency defaults to 1 when not provided.
+    assert int(StartPulseTrainPayload(pulse_count=np.uint8(3)).frequency) == 1
 
 
 def test_bitmask_splitter_masked_ints():
-    p = _roundtrip(BitmaskSplitter, BitmaskSplitterPayload(Low=0xA, High=0x5))
-    assert int(p.Low) == 0xA and int(p.High) == 0x5
-    assert p.raw_payload.tobytes() == bytes([0x5A])  # High packs into the top nibble
+    p = _roundtrip(BitmaskSplitter, BitmaskSplitterPayload(low=0xA, high=0x5))
+    assert int(p.low) == 0xA and int(p.high) == 0x5
+    assert p.payload_array.tobytes() == bytes([0x5A])  # high packs into the top nibble
 
 
 def test_port_dio_set_bitmask():
@@ -167,7 +167,7 @@ def test_port_dio_set_bitmask():
     p = _roundtrip(PortDIOSet, PortDigitalIOS.DIO0 | PortDigitalIOS.DIO3)
     assert p == PortDigitalIOS.DIO0 | PortDigitalIOS.DIO3
     assert PortDigitalIOS.DIO1 not in p
-    assert PortDIOSetPayload.dtype.itemsize == 1
+    assert PortDIOSetPayload.payload_dtype.itemsize == 1
 
 
 # ---------------------------------------------------------------------------
@@ -180,7 +180,7 @@ def test_custom_payload_single_member_unwrap():
     assert CustomPayloadPayload._single_member == "__value__"
     assert CustomPayloadPayload._root is True
     # U32[3] HarpVersion -> 12-byte buffer (3 x u32), same converter class.
-    assert CustomPayloadPayload.dtype.itemsize == 12
+    assert CustomPayloadPayload.payload_dtype.itemsize == 12
     parsed = _roundtrip(CustomPayload, CustomPayloadPayload(HarpVersion(3, 1, 4)))
     assert isinstance(parsed, HarpVersion)
     assert parsed == HarpVersion(3, 1, 4)
@@ -192,10 +192,10 @@ def test_custom_payload_single_member_unwrap():
 
 
 def test_unknown_enum_code_preserves_raw():
-    # StartPulse.DigitalOutput is a 2-bit field; code 0b11 has no PwmPort member.
+    # StartPulse.digital_output is a 2-bit field; code 0b11 has no PwmPort member.
     raw = np.array(0b11 << 10, dtype=np.uint16).tobytes()
-    payload = StartPulsePayload.from_buffer(raw)
-    value = payload.DigitalOutput  # permissive: the raw code is kept, not raised
+    payload = StartPulsePayload.payload_from_buffer(raw)
+    value = payload.digital_output  # permissive: the raw code is kept, not raised
     assert value == 0b11
     assert not isinstance(value, PwmPort)
 
@@ -207,14 +207,14 @@ def test_unknown_enum_code_preserves_raw():
 
 def test_complex_configuration_to_dataframe():
     cc = ComplexConfigurationPayload(
-        PwmPort=PwmPort.Pwm2,
-        DutyCycle=np.float32(0.5),
-        Frequency=np.float32(1.0),
-        EventsEnabled=True,
-        Delta=np.uint32(42),
+        pwm_port=PwmPort.PWM2,
+        duty_cycle=np.float32(0.5),
+        frequency=np.float32(1.0),
+        events_enabled=True,
+        delta=np.uint32(42),
     )
-    batch = ComplexConfigurationPayload.from_buffer(cc.raw_payload.tobytes() * 2)
+    batch = ComplexConfigurationPayload.payload_from_buffer(cc.payload_array.tobytes() * 2)
     df = payload_to_dataframe(batch)
     assert len(df) == 2
-    assert list(df["PwmPort"]) == ["Pwm2", "Pwm2"]
-    np.testing.assert_array_equal(df["Delta"], [42, 42])
+    assert list(df["pwm_port"]) == ["PWM2", "PWM2"]
+    np.testing.assert_array_equal(df["delta"], [42, 42])

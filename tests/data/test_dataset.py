@@ -13,7 +13,7 @@ from harp.device import TimestampSeconds, WhoAmI, create_device_module
 
 
 def _records(cls, n, seed):
-    dtype = cls.payload_class.dtype
+    dtype = cls.payload_class.payload_dtype
     rng = np.random.default_rng(seed)
     raw = rng.integers(0, 128, size=n * dtype.itemsize, dtype=np.uint8)
     return raw.view(dtype).copy()

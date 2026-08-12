@@ -88,7 +88,7 @@ does under the hood:
 from pathlib import Path
 from harp.device import create_device_module
 
-behavior = create_device_module(Path("device.yml").read_text())
+behavior = create_device_module(Path("device.yml").read_bytes())
 AnalogData = behavior.AnalogData          # registers are reached by name...
 assert behavior.REGISTER_MAP[44] is AnalogData   # ...or by address
 ```

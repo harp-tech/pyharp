@@ -11,7 +11,7 @@ SERIAL_PORT = "/dev/ttyUSB0"  # or "COMx" in Windows ("x" is the number of the s
 # when you don't have a pre-generated package for it: point it at the schema and you
 # get the same shape a generated package has, registers at module level beside a
 # `REGISTER_MAP`.
-behavior = create_device_module(Path("device.yml").read_text())
+behavior = create_device_module(Path("device.yml").read_bytes())
 
 print("WhoAmI:", behavior.WHO_AM_I)  # device identity, taken from the schema
 AnalogData = behavior.AnalogData  # registers are reached by name...

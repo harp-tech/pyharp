@@ -148,8 +148,8 @@ class RegisterBase(ABC, Generic[U]):
         registers) return the raw numpy scalar or ndarray directly.
         """
         buf = value.payload if isinstance(value, HarpMessage) else value
-        record = np.frombuffer(buf, dtype=cls.payload_class.dtype, count=1)[0]
-        return cast(U, cls.payload_class.unwrap(record))
+        record = np.frombuffer(buf, dtype=cls.payload_class.payload_dtype, count=1)[0]
+        return cast(U, cls.payload_class._unwrap(record))
 
     @classmethod
     def parse_bulk(
@@ -165,7 +165,7 @@ class RegisterBase(ABC, Generic[U]):
 
         if len(data) == 0:
             # No frames, but still need to return a Batch with the right dtype.
-            payload = payload_cls.from_array(np.empty(0, dtype=payload_cls.dtype))
+            payload = payload_cls._from_array(np.empty(0, dtype=payload_cls.payload_dtype))
             return data, None, None, cast("Batch[Any]", payload)
 
         stride = (
@@ -189,13 +189,13 @@ class RegisterBase(ABC, Generic[U]):
 
         payload_arr = np.ndarray(
             nrows,
-            dtype=payload_cls.dtype,
+            dtype=payload_cls.payload_dtype,
             buffer=data,
             offset=payload_offset,
             strides=stride,
         )
 
-        payload = payload_cls.from_array(payload_arr)
+        payload = payload_cls._from_array(payload_arr)
         return data, timestamps, msgtype_view, cast("Batch[Any]", payload)
 
     @classmethod
@@ -211,15 +211,15 @@ class RegisterBase(ABC, Generic[U]):
         :meth:`parse_bulk`.
 
         ``values`` is a payload (scalar or :class:`Batch`) or an ndarray of the
-        register's ``payload_class.dtype``. ``timestamps`` (a length-N array of
+        register's ``payload_class.payload_dtype``. ``timestamps`` (a length-N array of
         seconds) makes every frame timestamped. ``message_type`` is one
         :class:`MessageType` for all frames, or a length-N array of message-type
         bytes / values (e.g. the ``msgtype`` view returned by ``parse_bulk``).
         """
         payload_cls = cls.payload_class
-        itemsize = payload_cls.dtype.itemsize
+        itemsize = payload_cls.payload_dtype.itemsize
         if isinstance(values, PayloadBase):
-            records = np.atleast_1d(np.asarray(values.raw_payload))
+            records = np.atleast_1d(np.asarray(values.payload_array))
         else:
             records = np.atleast_1d(np.asarray(values))
             # Coerce the element type only for plain scalar payloads (e.g. an int
@@ -228,11 +228,11 @@ class RegisterBase(ABC, Generic[U]):
             plain = (
                 records.dtype.names is None
                 and records.dtype.subdtype is None
-                and payload_cls.dtype.names is None
-                and payload_cls.dtype.subdtype is None
+                and payload_cls.payload_dtype.names is None
+                and payload_cls.payload_dtype.subdtype is None
             )
-            if plain and records.dtype != payload_cls.dtype:
-                records = records.astype(payload_cls.dtype)
+            if plain and records.dtype != payload_cls.payload_dtype:
+                records = records.astype(payload_cls.payload_dtype)
         nrows = len(records)
         flat = np.ascontiguousarray(records).tobytes()
         if len(flat) != nrows * itemsize:
@@ -309,14 +309,14 @@ class RegisterBase(ABC, Generic[U]):
         else:
             mt = MessageType.Write if message_type is None else message_type
             if isinstance(value, PayloadBase):
-                raw = value.raw_payload.tobytes()
+                raw = value.payload_array.tobytes()
             elif isinstance(value, np.ndarray):
                 raw = value.tobytes()
             else:
                 # A bare high-level value (the symmetric counterpart of what
                 # parse() returns): let the payload class encode it, so any
                 # converter (e.g. a str via StringConverter) is applied.
-                raw = cls.payload_class(value).raw_payload.tobytes()
+                raw = cls.payload_class(value).payload_array.tobytes()
             return build_message_frame(
                 mt, cls.address, cls.payload_type, raw, port=port, timestamp=timestamp
             )
@@ -393,12 +393,12 @@ class _ArrayRegisterMeta(ABCMeta):
         # Anonymous payloads carry a plain (non-structured) dtype. The array
         # variant uses a sub-dtype (inner_dtype, (length,)) so a single buffer
         # element decodes directly to an ndarray of shape (length,).
-        inner = base_payload.dtype
+        inner = base_payload.payload_dtype
         sub_dtype = np.dtype((inner, (length,)))
         concrete_payload = type(
             f"{base_payload.__name__}_{length}",
             (base_payload,),
-            {"dtype": sub_dtype},
+            {"payload_dtype": sub_dtype},
         )
         return cast(
             "type[_AR]",

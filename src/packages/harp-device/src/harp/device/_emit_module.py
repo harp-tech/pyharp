@@ -55,7 +55,7 @@ class DeviceModule(types.ModuleType):
 
 
 def create_device_module(
-    text: str,
+    text: str | bytes,
     *,
     name: Optional[str] = None,
     converters: Optional[Mapping[str, ConverterValue]] = None,
@@ -85,7 +85,7 @@ def create_device_module(
     registered in :data:`sys.modules`, so it cannot be reached by ``import`` and two
     schemas may share a name without clashing. Bind it yourself::
 
-        behavior = create_device_module(Path("device.yml").read_text())
+        behavior = create_device_module(Path("device.yml").read_bytes())
         behavior.AnalogData
     """
     device = parse_device_schema(text)

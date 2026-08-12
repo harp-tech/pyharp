@@ -49,15 +49,15 @@ class _NumericPayload(PayloadBase):
 
 
 def test_identity_converter_scalar_view():
-    rec = np.array((-7, 99), dtype=_NumericPayload.dtype)
-    p = _NumericPayload.from_array(rec)
+    rec = np.array((-7, 99), dtype=_NumericPayload.payload_dtype)
+    p = _NumericPayload._from_array(rec)
     assert int(p.a) == -7
     assert int(p.b) == 99
 
 
 def test_identity_converter_batch_view():
-    arr = np.array([(-7, 99), (1, 2)], dtype=_NumericPayload.dtype)
-    p = _NumericPayload.from_buffer(arr.tobytes())
+    arr = np.array([(-7, 99), (1, 2)], dtype=_NumericPayload.payload_dtype)
+    p = _NumericPayload.payload_from_buffer(arr.tobytes())
     np.testing.assert_array_equal(p.a, [-7, 1])
     np.testing.assert_array_equal(p.b, [99, 2])
 
@@ -74,16 +74,16 @@ class DeclaredPayload(PayloadBase):
 
 def test_declared_dtype_synthesised_from_fields():
     # Field declarations alone build a structured dtype in declaration order.
-    assert DeclaredPayload.dtype.names == ("delta", "flag")
-    assert DeclaredPayload.dtype.fields["delta"][0] == np.dtype(np.uint32)
-    assert DeclaredPayload.dtype.fields["flag"][0] == np.dtype(np.uint8)
+    assert DeclaredPayload.payload_dtype.names == ("delta", "flag")
+    assert DeclaredPayload.payload_dtype.fields["delta"][0] == np.dtype(np.uint32)
+    assert DeclaredPayload.payload_dtype.fields["flag"][0] == np.dtype(np.uint8)
 
 
 def test_declared_dtype_kwarg_init_round_trip():
     p = DeclaredPayload(delta=42, flag=1)
     assert int(p.delta) == 42
     assert int(p.flag) == 1
-    p2 = DeclaredPayload.from_buffer(p.raw_payload.tobytes())
+    p2 = DeclaredPayload.payload_from_buffer(p.payload_array.tobytes())
     assert int(p2.delta) == 42
     assert int(p2.flag) == 1
 
@@ -100,8 +100,8 @@ class _NamedPayload(PayloadBase):
 
 def test_string_converter_dtype_synthesis():
     # name should occupy 8 bytes, delta 2 bytes.
-    assert _NamedPayload.dtype.itemsize == 10
-    assert _NamedPayload.dtype.fields["name"][0].subdtype is not None
+    assert _NamedPayload.payload_dtype.itemsize == 10
+    assert _NamedPayload.payload_dtype.fields["name"][0].subdtype is not None
 
 
 def test_string_converter_scalar_decode_roundtrip():
@@ -109,23 +109,23 @@ def test_string_converter_scalar_decode_roundtrip():
     assert p.name == "abc"
     assert int(p.delta) == 7
     # raw bytes are zero-padded
-    raw = bytes(p.raw_payload["name"])
+    raw = bytes(p.payload_array["name"])
     assert raw == b"abc\x00\x00\x00\x00\x00"
 
 
 def test_string_converter_batch_decode():
-    rec1 = _NamedPayload(name="hi", delta=1).raw_payload.tobytes()
-    rec2 = _NamedPayload(name="bye", delta=2).raw_payload.tobytes()
-    batch = _NamedPayload.from_buffer(rec1 + rec2)
+    rec1 = _NamedPayload(name="hi", delta=1).payload_array.tobytes()
+    rec2 = _NamedPayload(name="bye", delta=2).payload_array.tobytes()
+    batch = _NamedPayload.payload_from_buffer(rec1 + rec2)
     names = batch.name
     assert list(names) == ["hi", "bye"]
     np.testing.assert_array_equal(batch.delta, [1, 2])
 
 
 def test_string_converter_to_dataframe():
-    rec1 = _NamedPayload(name="hi", delta=1).raw_payload.tobytes()
-    rec2 = _NamedPayload(name="bye", delta=2).raw_payload.tobytes()
-    batch = _NamedPayload.from_buffer(rec1 + rec2)
+    rec1 = _NamedPayload(name="hi", delta=1).payload_array.tobytes()
+    rec2 = _NamedPayload(name="bye", delta=2).payload_array.tobytes()
+    batch = _NamedPayload.payload_from_buffer(rec1 + rec2)
     df = payload_to_dataframe(batch)
     # Non-identity converter produces one column per field — no sub-array
     # expansion for the string field.
@@ -155,9 +155,9 @@ def test_groupmask_struct_field_scalar_decode():
 
 
 def test_groupmask_struct_field_batch_decode_returns_ints():
-    p1 = _ConfigPayload(color=_Color.Red, delta=1).raw_payload.tobytes()
-    p2 = _ConfigPayload(color=_Color.Blue, delta=2).raw_payload.tobytes()
-    batch = _ConfigPayload.from_buffer(p1 + p2)
+    p1 = _ConfigPayload(color=_Color.Red, delta=1).payload_array.tobytes()
+    p2 = _ConfigPayload(color=_Color.Blue, delta=2).payload_array.tobytes()
+    batch = _ConfigPayload.payload_from_buffer(p1 + p2)
     np.testing.assert_array_equal(batch.color, [int(_Color.Red), int(_Color.Blue)])
 
 
@@ -195,14 +195,14 @@ def test_bitfield_payloads_ndim_aware():
         group = GroupMask(mask=0x06, enum=_Color)
 
     # 0-D scalar record: flag=1, group bits=01 (Green)
-    scalar = _Flags.from_array(np.array((0x03,), dtype=_Flags.dtype))
+    scalar = _Flags._from_array(np.array((0x03,), dtype=_Flags.payload_dtype))
     assert type(scalar) is _Flags
     assert scalar.flag is _Flag.A
     assert scalar.group is _Color.Green
 
     # 1-D batch — Batch sibling, ndarray-typed accessors.
-    batch = _Flags.from_buffer(bytes([0x01, 0x02]))
-    assert type(batch) is _Flags.Batch
+    batch = _Flags.payload_from_buffer(bytes([0x01, 0x02]))
+    assert type(batch) is _Flags._PayloadBatchType
     assert isinstance(batch, _Flags)
     np.testing.assert_array_equal(batch.flag, [1, 0])
     np.testing.assert_array_equal(batch.group, [0, 1])
@@ -220,4 +220,4 @@ def test_bitfield_kwarg_init_round_trip():
     assert p.group is _Color.Green
     # Wire byte: flag bit + (Green << 1) = 0x01 | 0x02 = 0x03. Masked fields on one
     # element share a slot named after the first declared field ("flag").
-    assert int(p.raw_payload["flag"]) == 0x03
+    assert int(p.payload_array["flag"]) == 0x03

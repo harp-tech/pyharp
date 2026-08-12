@@ -151,6 +151,6 @@ def test_emitted_registers_are_usable(test_module):
     reg = test_module.AnalogData
     # The emitted register class round-trips through the Device.read/write frame path.
     frame = reg.format(
-        reg.payload_class(Analog0=1.0, Analog1=2.0, Analog2=3.0, Accelerometer=[4, 5, 6])
+        reg.payload_class(analog0=1.0, analog1=2.0, analog2=3.0, accelerometer=[4, 5, 6])
     )
     assert isinstance(frame, (bytes, bytearray))

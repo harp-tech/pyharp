@@ -23,7 +23,7 @@ def to_buffer(
     """Encode ``values`` as a flat buffer of ``register`` frames.
 
     ``values`` is a payload (scalar or batch) or an ndarray of the register's
-    ``payload_class.dtype``; ``timestamps`` (length-N seconds) makes every frame
+    ``payload_class.payload_dtype``; ``timestamps`` (length-N seconds) makes every frame
     timestamped; ``message_type`` is one :class:`MessageType` or a length-N array
     (e.g. the msgtype view from ``parse_bulk``).
     """
