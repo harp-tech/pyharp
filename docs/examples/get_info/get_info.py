@@ -1,4 +1,5 @@
-from harp.device import REGISTER_MAP, Device, WhoAmI
+from harp.device.core import REGISTER_MAP, WhoAmI
+from harp.device.client import Device
 from harp.serial import open_serial_device
 
 SERIAL_PORT = "/dev/ttyUSB0"  # or "COMx" in Windows ("x" is the number of the serial port)

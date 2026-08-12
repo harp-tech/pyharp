@@ -1,13 +1,13 @@
 import numpy as np
-from harp.device import (
-    REGISTER_MAP,
-    Device,
+from harp.device.core import (
     EnableFlag,
     OperationControl,
     OperationControlPayload,
     OperationMode,
+    REGISTER_MAP,
     TimestampSeconds,
 )
+from harp.device.client import Device
 from harp.protocol import HarpMessage, ParsedHarpMessage
 from harp.serial import open_serial_device
 

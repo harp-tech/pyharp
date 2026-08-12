@@ -4,7 +4,7 @@ from typing import TypeVar
 
 import serial
 
-from harp.device import Device, TransportError
+from harp.device.client import Device, TransportError
 
 D = TypeVar("D", bound=Device)
 
@@ -12,7 +12,7 @@ DEFAULT_BAUDRATE: int = 1_000_000
 
 
 class SerialTransport:
-    """A serial-port :class:`~harp.device.ITransport` (structural conformance)."""
+    """A serial-port :class:`~harp.device.client.ITransport` (structural conformance)."""
 
     def __init__(self, port: str, baudrate: int = DEFAULT_BAUDRATE) -> None:
         self._port = port

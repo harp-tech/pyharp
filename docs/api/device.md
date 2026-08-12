@@ -2,17 +2,17 @@
 
 ---
 
-::: harp.device.Device
-::: harp.device.create_device_module
-::: harp.device.parse_device_schema
-::: harp.device.ConverterContext
-::: harp.device.HarpFramer
-::: harp.device.ITransport
-::: harp.device.TransportError
-::: harp.device.REGISTER_MAP
-::: harp.device.OperationControl
-::: harp.device.OperationMode
-::: harp.device.ResetDevice
-::: harp.device.ResetFlags
-::: harp.device.ClockConfiguration
-::: harp.device.ClockConfigurationFlags
+::: harp.device.client.Device
+::: harp.device.client.HarpFramer
+::: harp.device.client.ITransport
+::: harp.device.client.TransportError
+::: harp.device.schema.create_device_module
+::: harp.device.schema.parse_device_schema
+::: harp.device.schema.ConverterContext
+::: harp.device.core.REGISTER_MAP
+::: harp.device.core.OperationControl
+::: harp.device.core.OperationMode
+::: harp.device.core.ResetDevice
+::: harp.device.core.ResetFlags
+::: harp.device.core.ClockConfiguration
+::: harp.device.core.ClockConfigurationFlags

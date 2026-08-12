@@ -1,7 +1,8 @@
 from pathlib import Path
 
 from harp.data import parse_to_dataframe
-from harp.device import Device, create_device_module
+from harp.device.client import Device
+from harp.device.schema import create_device_module
 from harp.serial import open_serial_device
 
 SERIAL_PORT = "/dev/ttyUSB0"  # or "COMx" in Windows ("x" is the number of the serial port)

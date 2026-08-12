@@ -9,15 +9,9 @@ from typing import Any, assert_type
 
 import numpy as np
 from harp.data import DatasetReader
-from harp.device import (
-    Device,
-    DeviceModule,
-    DeviceModuleLike,
-    OperationControl,
-    OperationControlPayload,
-    WhoAmI,
-    create_device_module,
-)
+from harp.device.core import OperationControl, OperationControlPayload, WhoAmI
+from harp.device.client import Device
+from harp.device.schema import DeviceModule, DeviceModuleLike, create_device_module
 from harp.protocol import ParsedHarpMessage, RegisterBase
 
 

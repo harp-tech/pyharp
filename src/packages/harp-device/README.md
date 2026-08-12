@@ -10,7 +10,8 @@ dependencies. Pair it with a transport (e.g. [`harp-serial`](../harp-serial)).
 A `Device` is driven over a transport; `read`/`write` take a register class:
 
 ```python
-from harp.device import Device, WhoAmI, OperationControl
+from harp.device.core import OperationControl, WhoAmI
+from harp.device.client import Device
 
 # `device` is a Device opened over some transport (see harp-serial)
 who = device.read(WhoAmI).parsed          # -> np.uint16
@@ -24,7 +25,7 @@ device identity as `WHO_AM_I`, declare the register classes at module level, and
 the core `REGISTER_MAP` beside them:
 
 ```python
-from harp.device import REGISTER_MAP as _CORE_REGISTER_MAP
+from harp.device.core import REGISTER_MAP as _CORE_REGISTER_MAP
 
 WHO_AM_I: int = 1216
 REGISTER_MAP = {**_CORE_REGISTER_MAP, 32: DigitalInputState, ...}
@@ -72,7 +73,7 @@ names come from the yml verbatim, payload fields are `snake_case`, and enum memb
 
 ```python
 from pathlib import Path
-from harp.device import create_device_module
+from harp.device.schema import create_device_module
 
 behavior = create_device_module(Path("device.yml").read_bytes())
 reg = behavior.AnalogData          # by name

@@ -24,7 +24,7 @@ per register, named `<DeviceName>_<address>.bin`, alongside the device's
 ```
 
 Reading is driven by a generated
-[`harp.device.Device`](../harp-device) that describes how to decode each register.
+[`harp.device.client.Device`](../harp-device) that describes how to decode each register.
 `create_dataset_reader` does that for you — it finds the `device.yml` in the folder,
 builds the device, and returns a ready-to-use reader:
 
@@ -43,7 +43,7 @@ Already have a device module (e.g. a pre-generated package, or one built with
 ```python
 from pathlib import Path
 from harp.data import DatasetReader
-from harp.device import create_device_module
+from harp.device.schema import create_device_module
 
 behavior = create_device_module((Path("session.harp") / "device.yml").read_bytes())
 reader = DatasetReader(behavior, "session.harp")

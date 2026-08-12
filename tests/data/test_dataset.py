@@ -9,7 +9,8 @@ from harp.data import (
     create_dataset_reader,
     parse_to_dataframe,
 )
-from harp.device import TimestampSeconds, WhoAmI, create_device_module
+from harp.device.core import TimestampSeconds, WhoAmI
+from harp.device.schema import create_device_module
 
 
 def _records(cls, n, seed):
