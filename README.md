@@ -71,8 +71,10 @@ from harp import data
 
 # Finds device.yml in the folder, builds the device, returns a ready-to-use reader.
 reader = data.create_dataset_reader("session.harp")
-df = reader.read(44)              # one register, by address, or pass its class
-everything = reader.read_all()    # {register_name: DataFrame}
+behavior = reader.device_module
+df = reader.read(behavior.AnalogData)  # by register class
+df = reader.read(44)                   # or by address
+everything = reader.read_all()         # {register_name: DataFrame}
 ```
 
 Both paths are based on a device schema. Given only a `device.yml` and no pre-generated package, `create_device_module` compiles it into a module of register classes at runtime, with no code-generation step. This is exactly what `create_dataset_reader` does internally:
