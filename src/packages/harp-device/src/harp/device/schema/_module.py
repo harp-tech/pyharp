@@ -51,6 +51,9 @@ class DeviceModule(types.ModuleType):
     WHO_AM_I: int
     """The device identity declared by the schema. ``0`` when absent."""
 
+    __all__: list[str]
+    """The declarations of the schema, beside ``REGISTER_MAP`` and ``WHO_AM_I``."""
+
     def __getattr__(self, name: str) -> type[Any]:
         raise AttributeError(f"module {self.__name__!r} has no declaration named {name!r}")
 

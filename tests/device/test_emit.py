@@ -3,8 +3,9 @@ import zlib
 import numpy as np
 import pytest
 from harp.data import parse_to_dataframe
-from harp.protocol import HarpMessage
+from harp.protocol import GroupMask, HarpMessage
 
+from harp.device import core
 from harp.device.schema._emit import NameCollisionError, UnknownConverterError, create_registers
 
 from . import expected_core, expected_device
@@ -200,6 +201,73 @@ def test_custom_converter_roundtrip(device_registers):
     parsed = _roundtrip(reg, payload_cls(header=np.uint8(7), data=-1234))
     assert int(parsed.header) == 7
     assert int(parsed.data) == -1234
+
+
+# ---------------------------------------------------------------------------
+# Core masks reused by a schema that does not declare them
+# ---------------------------------------------------------------------------
+
+CORE_MASKS_YML = (
+    "device: CoreMasks\n"
+    "registers:\n"
+    "  EnableFlow: {address: 32, type: U8, access: Write, maskType: EnableFlag}\n"
+    "  ResetFlow: {address: 33, type: U8, access: Write, maskType: ResetFlags}\n"
+    "  FlowConfiguration:\n"
+    "    address: 34\n"
+    "    type: U8\n"
+    "    access: Write\n"
+    "    payloadSpec:\n"
+    "      Indicators: {maskType: EnableFlag, mask: 0x1, defaultValue: 1}\n"
+)
+
+
+def _value_enum(reg):
+    return reg.payload_class._mro_descriptor("__value__")._enum
+
+
+def test_undeclared_group_mask_resolves_to_core():
+    # Published devices reference EnableFlag without declaring it, so the emitter has
+    # to reuse the core definition rather than fail to type the register.
+    regs = create_registers(CORE_MASKS_YML)
+    assert _value_enum(regs["EnableFlow"]) is core.EnableFlag
+
+
+def test_undeclared_bit_mask_resolves_to_core():
+    regs = create_registers(CORE_MASKS_YML)
+    assert _value_enum(regs["ResetFlow"]) is core.ResetFlags
+
+
+def test_reused_core_mask_roundtrips_as_the_core_type():
+    # Identity matters more than equal members: a value read through a runtime module
+    # must satisfy isinstance against the same enum a generated package would use.
+    regs = create_registers(CORE_MASKS_YML)
+    value = core.ResetFlags.SAVE | core.ResetFlags.RESTORE_NAME
+    parsed = _roundtrip(regs["ResetFlow"], value)
+    assert isinstance(parsed, core.ResetFlags)
+    assert parsed == value
+
+
+def test_reused_core_mask_resolves_on_payload_member():
+    regs = create_registers(CORE_MASKS_YML)
+    descriptor = regs["FlowConfiguration"].payload_class._mro_descriptor("indicators")
+    assert isinstance(descriptor, GroupMask)
+    assert descriptor._enum is core.EnableFlag
+    assert descriptor._default is core.EnableFlag.ENABLED
+
+
+def test_declared_mask_shadows_core_definition():
+    regs = create_registers(
+        "registers:\n"
+        "  Flow: {address: 32, type: U8, access: Read, maskType: EnableFlag}\n"
+        "groupMasks:\n"
+        "  EnableFlag:\n"
+        "    values:\n"
+        "      Closed: {value: 0}\n"
+        "      Open: {value: 1}\n"
+    )
+    emitted = _value_enum(regs["Flow"])
+    assert emitted is not core.EnableFlag
+    assert list(emitted.__members__) == ["CLOSED", "OPEN"]
 
 
 # ---------------------------------------------------------------------------

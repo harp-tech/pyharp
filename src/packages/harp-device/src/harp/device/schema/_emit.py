@@ -41,8 +41,17 @@ from harp.protocol import (
 from harp.protocol._payload import _reserved_field_reason
 from harp.protocol import PayloadType as ProtoPayloadType
 
+from harp.device import core
+
 from ._model import DeviceModel, PayloadMember, PayloadType, Register, Registers, Visibility
 from ._naming import enum_member_name, field_name
+
+
+_CORE_MASKS: dict[str, Any] = {
+    name: declaration
+    for name, declaration in vars(core).items()
+    if name in core.__all__ and isinstance(declaration, type) and issubclass(declaration, enum.Enum)
+}
 
 _ELEMENT: dict[PayloadType, type[np.generic]] = {
     PayloadType.U8: np.uint8,
@@ -243,6 +252,9 @@ class _Emitter:
         # share one class, as the module-level payload list of the generator does.
         self.payloads: dict[str, type] = {}
 
+    def _find_mask(self, name: str) -> Any:
+        return self.enums.get(name) or _CORE_MASKS.get(name)
+
     # -- naming -----------------------------------------------------------
     def _rename(
         self,
@@ -329,12 +341,12 @@ class _Emitter:
         if _default_value is None or (member.length or 0) > 1:
             return _NO_DEFAULT
         value = float(_default_value.root)
-        if type_name in self.group_masks:
-            e = self.enums[type_name]
-            for mv in self.group_masks[type_name].values.values():
-                if int(mv) == int(value):
-                    return e(int(value))
-            return int(value)
+        group_mask = self._find_mask(type_name)
+        if group_mask is not None and issubclass(group_mask, enum.IntEnum):
+            try:
+                return group_mask(int(value))
+            except ValueError:
+                return int(value)
         if member.converter is not None:
             return _NO_DEFAULT  # a custom converter owns its own decoding; no numeric default
         it = ctx.interface_type
@@ -367,10 +379,11 @@ class _Emitter:
         default_kwarg = {} if default is _NO_DEFAULT else {"default": default}
 
         # A group mask is an enum sub-field descriptor, not a Field(converter).
-        if type_name in self.group_masks:
+        group_mask = self._find_mask(type_name)
+        if group_mask is not None and issubclass(group_mask, enum.IntEnum):
             full = (1 << (elem_size * 8)) - 1
             mask = member.mask if member.mask is not None else full
-            return GroupMask(enum=self.enums[type_name], mask=mask, offset=offset, **default_kwarg)
+            return GroupMask(enum=group_mask, mask=mask, offset=offset, **default_kwarg)
 
         field_kwargs: dict[str, Any] = {"offset": offset, **default_kwarg}
         if member.mask is not None:
@@ -413,11 +426,12 @@ class _Emitter:
         # anonymous single-value payload
         mt = reg.maskType.root if reg.maskType else None
         it = reg.interfaceType.root if reg.interfaceType else None
-        if mt in self.group_masks:
+        mask = self._find_mask(mt) if mt else None
+        if mask is not None and issubclass(mask, enum.IntFlag):
+            descriptor: Any = BitMask(enum=mask)
+        elif mask is not None:
             full = (1 << (elem_size * 8)) - 1
-            descriptor: Any = GroupMask(enum=self.enums[mt], mask=full)
-        elif mt in self.bit_masks:
-            descriptor = BitMask(enum=self.enums[mt])
+            descriptor = GroupMask(enum=mask, mask=full)
         else:
             assert it is not None, (
                 f"{owner}: register needs a payloadSpec, maskType, or interfaceType"

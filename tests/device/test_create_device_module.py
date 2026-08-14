@@ -142,6 +142,22 @@ def test_all_covers_declarations_and_module_constants(test_module):
     }
 
 
+def test_reused_core_masks_are_not_named_by_module():
+    # A reused mask has one definition, in harp.device.core, so a device module resolves
+    # registers against it without naming it, as it does for the common registers.
+    mod = create_device_module(
+        "device: CoreMasks\n"
+        "registers:\n"
+        "  EnableFlow: {address: 32, type: U8, access: Write, maskType: EnableFlag}\n"
+    )
+    assert not hasattr(mod, "EnableFlag")
+    assert "EnableFlag" not in mod.__all__
+    assert (
+        mod.EnableFlow.payload_class._mro_descriptor("__value__")._enum
+        is harp.device.core.EnableFlag
+    )
+
+
 def test_module_is_not_registered_in_sys_modules(test_module):
     # Two schemas may share a device name, so the module is handed back unbound.
     assert sys.modules.get(test_module.__name__) is not test_module
