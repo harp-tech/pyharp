@@ -6,22 +6,17 @@
 
 This project includes four main packages:
 
- - **harp-protocol**: Provides the core protocol definitions and utilities for the Harp protocol.
-   See [Protocol API Documentation](https://harp-tech.org/pyharp/api/protocol) for details.
+ - **harp-protocol**: Provides the core protocol definitions and utilities for the Harp protocol. See [Protocol API Documentation](https://harp-tech.org/pyharp/api/protocol) for details.
 
- - **harp-serial**: Implements serial communication functionalities for generic Harp devices.
-   See [Serial API Documentation](https://harp-tech.org/pyharp/api/serial) for more information.
+ - **harp-serial**: Implements serial communication functionalities for generic Harp devices. See [Serial API Documentation](https://harp-tech.org/pyharp/api/serial) for more information.
 
- - **harp-device**: Implements the transport-agnostic `Device` interface, the common register map, and the shared registers and enums.
-   See [Device API Documentation](https://harp-tech.org/pyharp/api/device) for details.
+ - **harp-device**: Implements the transport-agnostic `Device` interface, the common register map, and the shared registers and enums. See [Device API Documentation](https://harp-tech.org/pyharp/api/device) for details.
 
- - **harp-data**: Parses register binary dumps into pandas DataFrames.
-   See [Data API Documentation](https://harp-tech.org/pyharp/api/data) for more information.
+ - **harp-data**: Parses register binary dumps into pandas DataFrames. See [Data API Documentation](https://harp-tech.org/pyharp/api/data) for more information.
 
 ## Installation
 
-All packages are published to PyPI. The `harp` package is a metadata package with no code of
-its own — it just depends on the four packages above, so it's the easiest way to get everything:
+All packages are published to PyPI. The `harp` package is a metadata package with no code of its own. It depends on the four packages above, so it is the easiest way to get everything:
 
 ```sh
 pip install harp
@@ -31,14 +26,13 @@ pip install harp
 uv add harp
 ```
 
-If you only need part of the stack (e.g. you're parsing offline data dumps and don't need serial
-I/O), install just the packages you need — each one only pulls in what it actually depends on:
+To install only part of the stack, for example when parsing offline data dumps with no need for serial I/O, install the individual packages. Each one only pulls in what it actually depends on:
 
 | Package | Provides | Depends on |
 | --- | --- | --- |
-| `harp-protocol` | Core protocol types: registers, messages, payload parsing | — |
+| `harp-protocol` | Core protocol types: registers, messages, payload parsing | none |
 | `harp-device` | Transport-agnostic `Device` class, common register map | `harp-protocol` |
-| `harp-serial` | Serial (COM/tty) transport for `Device` | `harp-protocol`, `harp-device` |
+| `harp-serial` | Serial COM or tty transport for `Device` | `harp-protocol`, `harp-device` |
 | `harp-data` | Parse register binary dumps into pandas DataFrames | `harp-protocol` |
 
 ```sh
@@ -48,81 +42,74 @@ pip install harp-serial
 pip install harp-data
 ```
 
-`harp-benchmarks` (under `src/packages/`) is internal-only and is never published to PyPI.
+`harp-benchmarks`, under `src/packages/`, is internal-only and is never published to PyPI.
 
 ## Quickstart
 
-There are two ways you'll typically use `harp`: talking to a **live device** over a
-serial connection, or reading **data recorded to disk**.
+There are two typical ways to use `harp`: talking to a **live device** over a serial connection, or reading **data recorded to disk**.
 
 **Talk to a live device.** Open a connection and read/write registers by class:
 
 ```python
-from harp.device.core import OperationControl, OperationControlPayload, OperationMode, WhoAmI
-from harp.device.client import Device
-from harp.serial import open_serial_device
+from harp import serial
+from harp.device import behavior, core
 
 # Use "COMx" on Windows, "/dev/ttyUSBx" on Linux.
-with open_serial_device(Device, port="/dev/ttyUSB0") as device:
-    print("WhoAmI:", device.read(WhoAmI).parsed)
-    device.write(OperationControl, OperationControlPayload(operation_mode=OperationMode.ACTIVE))
+with serial.open_serial_device(behavior, port="COM3") as device:
+    print(device.read(core.WhoAmI).parsed)         # a common register
+    print(device.read(behavior.AnalogData).parsed) # a device register
+    device.write(
+        core.OperationControl,
+        core.OperationControlPayload(operation_mode=core.OperationMode.ACTIVE),
+    )
 ```
 
-**Read a recorded session.** Point a `DatasetReader` at a dataset folder and read
-registers into pandas DataFrames — no hardware required:
+**Read a recorded session.** Point a `DatasetReader` at a dataset folder and read registers into pandas DataFrames, with no hardware required:
 
 ```python
-from harp.data import create_dataset_reader
+from harp import data
 
 # Finds device.yml in the folder, builds the device, returns a ready-to-use reader.
-reader = create_dataset_reader("session.harp")
-df = reader.read(44)              # one register, by address (or pass its class)
+reader = data.create_dataset_reader("session.harp")
+df = reader.read(44)              # one register, by address, or pass its class
 everything = reader.read_all()    # {register_name: DataFrame}
 ```
 
-Both paths are driven by a device schema. If you have only a `device.yml` and no
-pre-generated package, `create_device_module` compiles it into a module of register classes
-at runtime — no code-generation step — which is exactly what `create_dataset_reader`
-does under the hood:
+Both paths are based on a device schema. Given only a `device.yml` and no pre-generated package, `create_device_module` compiles it into a module of register classes at runtime, with no code-generation step. This is exactly what `create_dataset_reader` does internally:
 
 ```python
 from pathlib import Path
-from harp.device.schema import create_device_module
 
-behavior = create_device_module(Path("device.yml").read_bytes())
-AnalogData = behavior.AnalogData          # registers are reached by name...
-assert behavior.REGISTER_MAP[44] is AnalogData   # ...or by address
+from harp.device import schema
+
+behavior = schema.create_device_module(Path("device.yml").read_bytes())
+AnalogData = behavior.AnalogData                 # registers are reached by name
+assert behavior.REGISTER_MAP[44] is AnalogData   # or by address
 ```
 
-See the [Examples](https://harp-tech.org/pyharp/examples/) for the full walkthroughs,
-including subscribing to device events and working with custom interface-type converters.
+See the [Examples](https://harp-tech.org/pyharp/examples/) for the full walkthroughs, including subscribing to device events and working with custom interface-type converters.
 
 ## Contributing
 
-harp is a [uv workspace](https://docs.astral.sh/uv/concepts/workspaces/): every package under
-`src/packages/` is its own distribution, plus the root `harp` metadata package. Contributions are
-welcome — please open an issue or PR.
+harp is a [uv workspace](https://docs.astral.sh/uv/concepts/workspaces/): every package under `src/packages/` is its own distribution, plus the root `harp` metadata package. Bug reports and contributions are welcome, so please open an issue or pull request.
 
-Clone the repo and install everything (all workspace packages, editable, plus test/lint tooling)
-with the `dev` dependency group:
+Clone the repository and install everything with the `dev` dependency group: all workspace packages, editable, plus test and lint tooling.
 
 ```sh
 uv sync --group dev
 ```
 
-Before opening a PR, run the same checks CI runs:
+Before opening a pull request, run the same checks CI runs:
 
 ```sh
 uv run ruff format --check   # formatting
 uv run ruff check            # lint
-uv run ty check              # type checking
+uv run pyright               # type checking
 uv run codespell             # spelling
 uv run pytest --cov harp     # tests
 ```
 
-Adding a new package? Drop it under `src/packages/<name>/` with its own `pyproject.toml`, add it
-to `[tool.uv.sources]` in the root `pyproject.toml`, and (if it should ship as part of `harp`) add
-it to the root package's `dependencies` too.
+To add a new package, place it under `src/packages/<name>/` with its own `pyproject.toml` and add it to `[tool.uv.sources]` in the root `pyproject.toml`. If it should ship as part of `harp`, add it to the dependencies of the root package as well.
 
 ## Building the documentation
 

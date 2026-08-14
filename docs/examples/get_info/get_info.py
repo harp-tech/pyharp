@@ -1,15 +1,15 @@
-from harp.device.core import REGISTER_MAP, WhoAmI
-from harp.device.client import Device
-from harp.serial import open_serial_device
+from harp import serial
+from harp.device import core
 
-SERIAL_PORT = "/dev/ttyUSB0"  # or "COMx" in Windows ("x" is the number of the serial port)
+SERIAL_PORT = "/dev/ttyUSB0"  # or "COMx" in Windows, where "x" is the serial port number
 
-# Open a serial connection to the device (closed automatically on exit).
-with open_serial_device(Device, port=SERIAL_PORT) as device:
+# Omitting the device argument gives schema-free access, which skips the identity
+# check, so this works against any device. The connection closes on exit.
+with serial.open_serial_device(port=SERIAL_PORT) as device:
     # Identify the device.
-    print("WhoAmI:", device.read(WhoAmI).parsed)
+    print("WhoAmI:", device.read(core.WhoAmI).parsed)
 
     # Dump every core register.
-    for address, register in sorted(REGISTER_MAP.items()):
+    for address, register in sorted(core.REGISTER_MAP.items()):
         reply = device.read(register)
         print(f"{register.__name__:24s} (addr {address:2d}) = {reply.parsed}")

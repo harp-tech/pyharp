@@ -1,6 +1,6 @@
 # Examples
 
-This section contains some examples to help you get started with `harp`.
+This section contains examples for getting started with `harp`.
 
 Working from a device schema:
 
@@ -15,4 +15,4 @@ Talking to a device:
 Reading recorded data:
 
 - [Reading a Whole Dataset Folder](./read_dataset/read_dataset.md) - load an entire recorded session folder into pandas DataFrames with `DatasetReader`.
-- [Reading Data into a DataFrame](./read_data_to_dataframe/read_data_to_dataframe.md) - decode a single register's binary file into a pandas DataFrame.
+- [Reading Data into a DataFrame](./read_data_to_dataframe/read_data_to_dataframe.md) - decode the binary file of a single register into a pandas DataFrame.

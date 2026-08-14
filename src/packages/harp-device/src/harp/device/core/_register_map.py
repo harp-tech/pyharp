@@ -1,8 +1,8 @@
-"""Address → register-class map for the core Harp registers.
+"""Address to register-class map for the core Harp registers.
 
 Downstream device packages spread this into their own map::
 
-    from harp.device import REGISTER_MAP as _CORE_REGISTER_MAP
+    from harp.device.core import REGISTER_MAP as _CORE_REGISTER_MAP
 
     REGISTER_MAP = {**_CORE_REGISTER_MAP, 32: DigitalInputState, ...}
 """

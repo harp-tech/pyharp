@@ -1,22 +1,19 @@
 # harp-serial
 
-Serial transport for [`harp-device`](../harp-device). Provides `SerialTransport`
-and the `open_serial_device` factory, which pairs a `Device` class with a serial
-port. This is the package that pulls in `pyserial`.
+Serial transport for [`harp-device`](../harp-device). Provides `SerialTransport` and the `open_serial_device` factory, which pairs a device module or a `Device` class with a serial port. This is the package that pulls in `pyserial`.
 
 ## Usage
 
-Like the builtin `open`, the returned device is connected and ready; use it in a
-`with` block for guaranteed cleanup:
+Like the builtin `open`, the returned device is connected and ready. Use it in a `with` block for guaranteed cleanup:
 
 ```python
-from harp.device.core import WhoAmI
-from harp.device.client import Device
-from harp.serial import open_serial_device
+from harp import serial
+from harp.device import behavior, core
 
-with open_serial_device(Device, port="COM3", baudrate=1_000_000) as dev:
-    print(dev.read(WhoAmI).parsed)
+# Use "COMx" on Windows, "/dev/ttyUSBx" on Linux.
+with serial.open_serial_device(behavior, port="COM3") as device:
+    print(device.read(core.WhoAmI).parsed)         # a common register
+    print(device.read(behavior.AnalogData).parsed) # a device register
 ```
 
-Pass any `Device` subclass (e.g. a generated device class) instead of the base
-`Device` to talk to a specific device.
+Passing a device module validates the device identity on open. Pass a `Device` subclass instead to preserve its own type, or omit the argument entirely for schema-free access, which skips the identity check.
