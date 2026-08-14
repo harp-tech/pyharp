@@ -38,8 +38,8 @@ class Column:
     *codes* and ``categories`` the ordered labels, so a consumer can map codes
     to labels without copying.
 
-    ``eq=False`` keeps identity comparison — field-wise equality would hit
-    numpy's ambiguous-truth-value error on the ``data`` array.
+    ``eq=False`` keeps identity comparison, since field-wise equality would hit
+    the numpy ambiguous-truth-value error on the ``data`` array.
 
     ``name`` is ``None`` for an anonymous single value
     """
@@ -58,7 +58,7 @@ class _FieldSlot:
 
 
 def _mask_trailing_zeros(mask: int) -> int:
-    """Number of trailing zero bits in ``mask`` — the right-shift that aligns a
+    """Number of trailing zero bits in ``mask``, the right-shift that aligns a
     masked field to bit 0."""
     if mask == 0:
         return 0
@@ -66,7 +66,7 @@ def _mask_trailing_zeros(mask: int) -> int:
 
 
 # ---------------------------------------------------------------------------
-# Descriptors — scalar variants (return Python / 0-D types)
+# Descriptors, scalar variants returning Python or 0-D types
 # ---------------------------------------------------------------------------
 
 
@@ -75,18 +75,19 @@ class Field(Generic[T]):
 
     Two modes, selected by ``mask``:
 
-    * **Whole-element** (``mask=None``, the default) — the view reads
-      ``converter.dtype.itemsize`` bytes starting at ``offset`` (in base-element
-      units; see :class:`StructPayload`) and runs them through ``converter``. The
-      converter owns its own ``dtype`` (byte layout) and is independent of the
-      payload's base element type, so the same converter works under any register
-      width.
-    * **Masked sub-field** (``mask`` set) — the raw value is extracted as
-      ``(element & mask) >> shift`` from the payload's *base element* at ``offset``
-      and then run through ``converter`` (which dictates the output type). The
-      right-shift is derived from ``mask`` (its trailing-zero count). Several masked
-      fields at the same offset share the element slot automatically, and may share
-      it with a :class:`GroupMask` or :class:`BitMask` on the same word.
+    * **Whole-element**, with ``mask=None`` as the default. The view reads
+      ``converter.dtype.itemsize`` bytes starting at ``offset``, in base-element
+      units as described in :class:`StructPayload`, and runs them through
+      ``converter``. The converter owns its own ``dtype``, and so its own byte
+      layout, and is independent of the base element type of the payload, so the
+      same converter works under any register width.
+    * **Masked sub-field**, with ``mask`` set. The raw value is extracted as
+      ``(element & mask) >> shift`` from the *base element* of the payload at
+      ``offset`` and then run through ``converter``, which dictates the output
+      type. The right-shift is derived from the trailing-zero count of ``mask``.
+      Several masked fields at the same offset share the element slot
+      automatically, and may share it with a :class:`GroupMask` or
+      :class:`BitMask` on the same word.
 
     ``offset`` defaults to ``0``. Omitting it suits a payload with a single
     member; when a payload has several distinct slots, each must declare an
@@ -197,14 +198,14 @@ class GroupMask(Generic[E]):
     """Descriptor for a masked, shifted enum sub-field of a payload element.
 
     Syntactic sugar over a masked :class:`Field`: the raw value is extracted as
-    ``(element & mask) >> shift`` and mapped strictly to an ``enum.IntEnum`` member
-    (an unknown code raises). ``enum=`` is required; for masked *numeric* fields use
+    ``(element & mask) >> shift`` and mapped strictly to an ``enum.IntEnum`` member,
+    and an unknown code raises. ``enum=`` is required. For masked *numeric* fields use
     ``Field(converter=..., mask=...)`` instead.
 
-    The right-shift is always derived from ``mask`` (its trailing-zero count, so the
-    field aligns to bit 0); ``offset`` defaults to ``0``. The element width and
-    storage slot are derived from the payload's base element type, so several masked
-    fields at the same offset share storage automatically.
+    The right-shift is always derived from the trailing-zero count of ``mask``, so the
+    field aligns to bit 0, and ``offset`` defaults to ``0``. The element width and
+    storage slot are derived from the base element type of the payload, so several
+    masked fields at the same offset share storage automatically.
     """
 
     if TYPE_CHECKING:
@@ -239,8 +240,9 @@ class GroupMask(Generic[E]):
         self._lookup_safe = (mask >> self._shift) < len(self._code_lookup)
 
     def _decode_raw(self, raw: Any) -> Any:
-        """Map an extracted (masked + shifted) integer to its enum member, preserving an
-        undefined code as its raw int (permissive, like C#'s unchecked enum cast)."""
+        """Map an extracted masked and shifted integer to its enum member, preserving an
+        undefined code as its raw int. Decoding is permissive, like the unchecked enum
+        cast in C#."""
         value = int(raw)
         try:
             return self._enum(value)
@@ -278,13 +280,14 @@ class GroupMask(Generic[E]):
     def _columns(
         self, arr: "NDArray[Any]", name: "str | None", *, decode_enums: bool, demux_bit_masks: bool
     ) -> "list[Column]":
-        """One enum column: category codes + labels (``decode_enums``) or raw codes."""
+        """One enum column: category codes and labels under ``decode_enums``, or raw codes."""
         raw = (arr[self._slot] & self._mask) >> self._shift
         if not decode_enums:
             return [Column(name, raw)]
         lookup = self._code_lookup
-        # ``_lookup_safe`` (the field's raw range fits the table) skips the bounds guard;
-        # an in-range gap still maps to -1, so the undefined branch below runs regardless.
+        # ``_lookup_safe`` means the raw range of the field fits the table, so the bounds
+        # guard is skipped. An in-range gap still maps to -1, so the undefined branch
+        # below runs regardless.
         if self._lookup_safe:
             codes = lookup[raw]
         else:
@@ -292,8 +295,9 @@ class GroupMask(Generic[E]):
         undefined = codes < 0
         if not undefined.any():
             return [Column(name, codes, self._categories)]
-        # An undefined code (an in-range gap, or a value past the enum's range) is kept
-        # as its raw integer — an extra category — matching the scalar decode and C#'s
+        # An undefined code, either an in-range gap or a value past the range of the
+        # enum, is kept as its raw integer and becomes an extra category, matching the
+        # scalar decode and the unchecked cast in C#.
         codes = codes.astype(np.intp)
         extras = np.unique(raw[undefined])
         codes[undefined] = len(self._categories) + np.searchsorted(extras, raw[undefined])
@@ -304,17 +308,17 @@ class BitMask(Generic[F]):
     """Descriptor for a masked ``enum.IntFlag`` view of a payload element.
 
     The flag counterpart of :class:`GroupMask`: the raw value is extracted as
-    ``element & mask`` and mapped to an ``enum.IntFlag`` member (decoding is
-    *permissive* — combined flag values such as ``A | B`` are valid, matching the
-    C# generator's unchecked cast). ``enum=`` is required and must be an
+    ``element & mask`` and mapped to an ``enum.IntFlag`` member. Decoding is
+    *permissive*, so combined flag values such as ``A | B`` are valid, matching the
+    unchecked cast of the C# generator. ``enum=`` is required and must be an
     ``IntFlag`` subclass.
 
     Unlike :class:`GroupMask` there is **no shift**: ``IntFlag`` member values are
     absolute bit positions, so the flags are read and written in place. ``mask``
-    defaults to the full base element (the common whole-register bitMask case) and
+    defaults to the full base element, the common whole-register bitMask case, and
     may be narrowed to embed a flag set inside a wider element. The element width
-    and storage slot are derived from the payload's base element type, so several
-    masked fields at the same offset share storage automatically.
+    and storage slot are derived from the base element type of the payload, so
+    several masked fields at the same offset share storage automatically.
     """
 
     if TYPE_CHECKING:
@@ -396,7 +400,7 @@ class BitMask(Generic[F]):
 
 
 # ---------------------------------------------------------------------------
-# Descriptors — batch variants (return ndarray views)
+# Descriptors, batch variants returning ndarray views
 # These are mostly used for batch operations like `to_dataframe`
 # ---------------------------------------------------------------------------
 
@@ -500,8 +504,8 @@ class Batch(Protocol[_PT]):
     than a single record. At runtime, the value is the auto-derived
     ``P._PayloadBatchType`` sibling whose descriptors return ``NDArray`` views.
 
-    Per-field dtype precision is intentionally dropped — every declared
-    field reports ``NDArray[Any]`` — to keep ``RegisterBase[P]``
+    Per-field dtype precision is intentionally dropped, with every declared
+    field reporting ``NDArray[Any]``, to keep ``RegisterBase[P]``
     parameterized by a single TypeVar.
     """
 
@@ -517,16 +521,16 @@ class Batch(Protocol[_PT]):
     def __getattr__(self, name: str) -> "NDArray[Any]": ...  # type: ignore[empty-body]
 
 
-# Helpers for type checking using isinstance()
+# Descriptor type tuples used for isinstance checks over payload declarations.
 _SCALAR_DECLARATION_TYPES = (Field, GroupMask, BitMask)
 _BATCH_DECLARATION_TYPES = (_FieldBatch, _GroupMaskBatch, _BitMaskBatch)
 _DECLARATION_TYPES = _SCALAR_DECLARATION_TYPES + _BATCH_DECLARATION_TYPES
 
 
-#: Every member the payload classes own carries one of these prefixes, so a field name
-#: is barred from them rather than from a list of the members themselves. Dunders are
-#: exempt because ``__value__`` is how a single-slot payload declares its root field.
 _RESERVED_FIELD_PREFIXES = ("_", "payload_")
+"""Every member the payload classes own carries one of these prefixes, so a field name
+is barred from them rather than from a list of the members themselves. Dunders are
+exempt because ``__value__`` is how a single-slot payload declares its root field."""
 
 
 def _reserved_field_reason(name: str) -> "str | None":
@@ -554,7 +558,7 @@ def _batch_init_disabled(self: "PayloadBase", *args: object, **kwargs: object) -
 def _resolve_element_dtype(cls: type) -> np.dtype:
     """Resolve the base element dtype from the ``StructPayload[...]`` type arg.
 
-    Only used for offset→byte arithmetic and the masked-read integer width.
+    Only used for offset-to-byte arithmetic and the masked-read integer width.
     Defaults to uint8 (byte) when the payload is not parameterized, which makes
     byte-offset layouts of heterogeneous consecutive fields work out of the box.
     """
@@ -606,8 +610,8 @@ def _build_struct_dtype(
 ) -> np.dtype:
     """Build the numpy structured dtype from field declarations.
 
-    Each descriptor binds itself to its numpy slot via ``_bind_slot``; this
-    function resolves only cross-field layout — which masked fields share a slot,
+    Each descriptor binds itself to its numpy slot via ``_bind_slot``. This
+    function resolves only cross-field layout: which masked fields share a slot,
     plus offsets, overlap, and itemsize."""
     elem = cls._elem_dtype
     elem_size = elem.itemsize
@@ -616,15 +620,15 @@ def _build_struct_dtype(
 
     for attr_name, val in declarations:
         byte_offset = val._offset * elem_size
-        # A plain Field (no mask=) is the only whole-element view; everything else
-        # (GroupMask, BitMask, or a Field with mask=) is a masked sub-field. The
+        # A plain Field with no mask= is the only whole-element view. Everything else,
+        # a GroupMask, a BitMask, or a Field with mask=, is a masked sub-field. The
         # isinstance form lets the type checker narrow `val` to access ``_converter``.
-        if isinstance(val, Field) and val._mask is None:  # whole-element Field — own slot
+        if isinstance(val, Field) and val._mask is None:  # whole-element Field, own slot
             if attr_name in slots:
                 raise TypeError(f"{cls.__name__}: duplicate field name {attr_name!r}")
             val._bind_slot(attr_name, elem)
             slots[attr_name] = _FieldSlot(val._converter.dtype, byte_offset)
-        else:  # masked sub-field — shares the base-element slot at its offset
+        else:  # masked sub-field, shares the base-element slot at its offset
             owner = mask_slot_by_byte_offset.setdefault(byte_offset, attr_name)
             val._bind_slot(owner, elem)
             assert val._mask is not None  # _bind_slot ensures every masked field has a mask
@@ -666,7 +670,7 @@ class PayloadBase(Generic[NpStructT]):
     _scalar_cls: ClassVar["type[PayloadBase]"]
     # The batch twin of this class (identity until the Batch sibling is generated).
     _batch_cls: ClassVar["type[PayloadBase]"]
-    # Cached map of attribute name → default value for fields that declare one.
+    # Cached map of attribute name to default value for fields that declare one.
     _defaults: ClassVar[dict[str, Any]]
     # Auto-generated sibling class whose descriptors return NDArray views instead of scalars.
     _PayloadBatchType: ClassVar["type[PayloadBase]"]
@@ -704,8 +708,8 @@ class PayloadBase(Generic[NpStructT]):
         arr = np.zeros((), dtype=self.payload_dtype)
 
         # Route each kwarg by its descriptor kind, not by whether its name happens
-        # to match a numpy slot — masked descriptors may share a slot whose name
-        # collides with the first masked field's attribute name.
+        # to match a numpy slot, since masked descriptors may share a slot whose
+        # name collides with the attribute name of the first masked field.
         for attr_name, value in kwargs.items():
             desc = cls._mro_descriptor(attr_name)
             if isinstance(desc, Field) and desc._mask is None:  # whole-element Field
@@ -768,7 +772,7 @@ class PayloadBase(Generic[NpStructT]):
 
         if _batch_of is not None:
             # Auto-generated Batch sibling: borrow dtype/_repr_fields from its
-            # scalar twin and wire the scalar↔batch pointers.
+            # scalar twin and wire the pointers between scalar and batch.
             cls.payload_dtype = _batch_of.payload_dtype
             cls._repr_fields = _batch_of._repr_fields
             cls._elem_dtype = _batch_of._elem_dtype
@@ -841,12 +845,13 @@ class PayloadBase(Generic[NpStructT]):
     ) -> list[Column]:
         """Returns a list of Column where each member represents a field from a payload across multiple messages.
 
-        ``decode_enums`` controls whether ``GroupMask`` (enum) columns become
-        category codes + labels (True) or raw integer codes (False) — a
-        shape-preserving relabel. ``demux_bit_masks`` controls whether a
-        ``BitMask`` (flag) column is expanded into one boolean column per flag
-        member (True) or kept as a single raw-integer column (False) — a shape
-        change. The two are orthogonal and apply to different descriptor kinds.
+        ``decode_enums`` controls whether ``GroupMask`` enum columns become
+        category codes and labels when ``True``, or raw integer codes when
+        ``False``, which is a shape-preserving relabel. ``demux_bit_masks``
+        controls whether a ``BitMask`` flag column is expanded into one boolean
+        column per flag member when ``True``, or kept as a single raw-integer
+        column when ``False``, which is a shape change. The two are orthogonal
+        and apply to different descriptor kinds.
         """
         arr = np.atleast_1d(self._arr)
         # Each descriptor renders its own column(s); resolve via the scalar twin.
@@ -878,9 +883,9 @@ class PayloadBase(Generic[NpStructT]):
 
         Struct payloads always return a typed wrapper so descriptors like
         ``payload.Channel0`` work. Anonymous payloads override this to return the
-        raw numpy scalar/ndarray directly, or — for an ``AnonymousPayload`` root —
-        the unwrapped ``__value__`` (the single-member branch below, reached via
-        the override's ``super()`` call). A struct payload never auto-unwraps.
+        raw numpy scalar or ndarray directly, or, for an ``AnonymousPayload`` root,
+        the unwrapped ``__value__`` through the single-member branch below, reached
+        via the ``super()`` call of the override. A struct payload never auto-unwraps.
         """
         obj = cls._from_array(arr)
         if cls._single_member is not None and arr.ndim == 0:
@@ -889,7 +894,7 @@ class PayloadBase(Generic[NpStructT]):
 
 
 # ---------------------------------------------------------------------------
-# StructPayload — base for named-field (struct) register payloads
+# StructPayload, the base for named-field struct register payloads
 # ---------------------------------------------------------------------------
 
 
@@ -919,7 +924,7 @@ class StructPayload(PayloadBase[NpStructT]):
 
 
 # ---------------------------------------------------------------------------
-# AnonymousPayload — single unnamed slot, no user-facing descriptors
+# AnonymousPayload, a single unnamed slot with no user-facing descriptors
 # ---------------------------------------------------------------------------
 
 
@@ -932,7 +937,7 @@ class AnonymousPayload(PayloadBase[NpStructT]):
 
     Used for scalar/array Harp registers whose payload has no internal
     structure. ``RegisterBase.parse`` unwraps these to a raw numpy scalar
-    (for 0-D) or ndarray (for sub-array / batch) — there is no
+    for 0-D, or an ndarray for a sub-array or batch. There is no
     ``.value`` accessor and the slot name ``value`` is free for use by
     struct payloads.
 
@@ -954,7 +959,7 @@ class AnonymousPayload(PayloadBase[NpStructT]):
     The ``__value__`` field makes "this payload *is* one value" structural and
     explicit: exactly one field, named ``__value__``, unwrapped on ``parse`` and
     accessed as ``.__value__``. Declaring any other field is an error. Because the
-    value stays a descriptor, ``to_columns`` keeps full rendering — enum
+    value stays a descriptor, ``to_columns`` keeps full rendering, meaning enum
     categoricals and ``demux_bit_masks`` flag expansion. ``__value__`` is mutually
     exclusive with ``scalar_dtype=``.
 
@@ -964,7 +969,7 @@ class AnonymousPayload(PayloadBase[NpStructT]):
     counts). Defining none is a definition-time error.
     """
 
-    # The reserved field name for the single root view (cf. pydantic's __root__).
+    # The reserved field name for the single root view, as with __root__ in pydantic.
     _VALUE_FIELD: ClassVar[str] = "__value__"
     # True when in descriptor-root mode (the single view is the ``__value__`` field).
     _root: ClassVar[bool] = False
@@ -1030,8 +1035,8 @@ class AnonymousPayload(PayloadBase[NpStructT]):
     def _unwrap(cls, arr: "np.ndarray") -> Any:
         if cls._root:
             return super()._unwrap(arr)  # PayloadBase single-member unwrap (.__value__)
-        # 0-D → numpy scalar via item-like access (preserves dtype).
-        # 1-D / sub-array → return the ndarray as-is.
+        # 0-D becomes a numpy scalar via item-like access, preserving dtype.
+        # 1-D or sub-array returns the ndarray as-is.
         return arr if arr.ndim > 0 else arr[()]
 
     def _repr_kwargs(self) -> str:
@@ -1105,7 +1110,7 @@ class PayloadFloat(AnonymousPayload[np.float32], scalar_dtype=np.dtype("<f4")):
     pass
 
 
-# Array payload base classes — concrete sub-dtype is set by ``RegisterBase``
+# Array payload base classes, with the concrete sub-dtype set by ``RegisterBase``
 # array metaclass when a length is supplied (e.g. ``RegisterU16Array(0x28, length=3)``).
 @final
 class PayloadU8Array(AnonymousPayload[np.uint8], scalar_dtype=np.dtype("u1")):

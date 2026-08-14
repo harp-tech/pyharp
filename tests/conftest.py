@@ -1,4 +1,4 @@
-"""Pytest configuration — shared fixtures and helpers for all suites."""
+"""Pytest configuration, shared fixtures and helpers for all suites."""
 
 from pathlib import Path
 

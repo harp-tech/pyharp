@@ -16,8 +16,8 @@ RegisterKey = type[RegisterBase[Any]] | int
 
 FileNameResolver = Callable[[Path, str], Mapping[int, list[Path]]]
 
-#: Default filename of the device schema looked up inside a dataset folder.
 DEVICE_SCHEMA_FILENAME = "device.yml"
+"""Default filename of the device schema looked up inside a dataset folder."""
 
 
 def default_file_resolver(root: Path, name: str) -> dict[int, list[Path]]:
@@ -34,8 +34,8 @@ def default_file_resolver(root: Path, name: str) -> dict[int, list[Path]]:
 class DatasetReader:
     """Reader over a de-multiplexed Harp dataset folder.
 
-    Construct from a device module and a dataset folder, then read a register's
-    frames into a DataFrame by register class or by address::
+    Construct from a device module and a dataset folder, then read the
+    frames of a register into a DataFrame by register class or by address::
 
         reader = DatasetReader(behavior, "session.harp")
         df = reader.read(behavior.AnalogData)  # by register class
@@ -103,12 +103,12 @@ class DatasetReader:
         decode_enums: bool = True,
         demux_bit_masks: bool = False,
     ) -> pd.DataFrame:
-        """Read one register's data into a DataFrame.
+        """Read the data of one register into a DataFrame.
 
         ``register`` is a register class or an address. ``suffix`` selects a single
         ``<name>_<address>_<suffix>.bin`` chunk (default: concatenate every chunk
-        for the address). ``timestamp`` defaults to ``None`` — auto-detect from the
-        frame's payload-type bit; pass ``True``/``False`` to force. ``epoch`` makes
+        for the address). ``timestamp`` defaults to ``None``, auto-detecting from the
+        payload-type bit of the frame; pass ``True``/``False`` to force. ``epoch`` makes
         the ``"Time"`` index absolute (e.g. :data:`~harp.data.REFERENCE_EPOCH`). The
         remaining options match :func:`~harp.data.parse_to_dataframe`.
         """
@@ -137,7 +137,7 @@ class DatasetReader:
     ) -> dict[str, pd.DataFrame]:
         """Read every register that has a file present, keyed by register name.
 
-        Files whose address is not in the device's registers are skipped.
+        Files whose address is not among the device registers are skipped.
         Options are forwarded to :meth:`read`.
         """
         registers = self.registers
@@ -161,7 +161,7 @@ class DatasetReader:
             return register, register.address
         cls = self.registers.get(register)
         if cls is None:
-            raise KeyError(f"No register at address {register} in this device's map.")
+            raise KeyError(f"No register at address {register} in the map of this device.")
         return cls, register
 
     def _resolve_files(self, address: int, suffix: str | None) -> list[Path]:
@@ -206,8 +206,8 @@ def create_dataset_reader(
     ``schema`` points at the schema file explicitly when it isn't ``root/device.yml``.
     ``converters`` and ``strict`` are forwarded to :func:`~harp.device.schema.create_device_module`
     for custom ``interfaceType`` decoding; ``name`` and ``resolver`` are forwarded to
-    :class:`DatasetReader`. Use ``DatasetReader(device_module, root)`` directly when you
-    already have a (e.g. pre-generated) device module.
+    :class:`DatasetReader`. Use ``DatasetReader(device_module, root)`` directly given a
+    device module already in hand, for example a pre-generated one.
     """
     root_path = Path(root)
     schema_path = Path(schema) if schema is not None else root_path / DEVICE_SCHEMA_FILENAME

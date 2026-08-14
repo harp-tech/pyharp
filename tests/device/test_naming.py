@@ -1,6 +1,6 @@
 """The naming convention must match ``FirmwareNamingConvention`` in harp-tech/generators.
 
-Every pair below is taken from the generator's own committed expected output
+Every pair below is taken from the committed expected output of the generator
 (``tests/ExpectedOutput/{core,device}.py`` against ``tests/Metadata/{core,device}.yml``),
 so these lock the port to the C# behaviour rather than to a re-derivation of it.
 """
@@ -70,7 +70,7 @@ PAYLOAD_FIELDS = [
     ("DigitalOutput", "digital_output"),
     ("PulseWidth", "pulse_width"),
     ("PulseCount", "pulse_count"),
-    # core.yml — a trailing capital run collapses either way it is spelled.
+    # core.yml, where a trailing capital run collapses either way it is spelled.
     ("OperationMode", "operation_mode"),
     ("DumpRegisters", "dump_registers"),
     ("MuteReplies", "mute_replies"),
@@ -99,7 +99,7 @@ def test_both_conventions_share_one_casing_pass():
 
 
 def test_already_converted_names_are_stable():
-    # The generator's own output is a fixed point, so regenerating never drifts.
+    # The generator output is a fixed point, so regenerating never drifts.
     for _, generated in ENUM_MEMBERS:
         assert enum_member_name(generated) == generated
     for _, generated in PAYLOAD_FIELDS:

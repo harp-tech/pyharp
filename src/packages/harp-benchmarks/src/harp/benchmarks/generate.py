@@ -1,5 +1,4 @@
 import argparse
-import sys
 from pathlib import Path
 
 import numpy as np
@@ -18,8 +17,8 @@ def _frames(reg: BenchmarkedRegister, entries: int) -> np.ndarray:
     """Build ``entries`` frames of ``reg`` with a random per-frame payload.
 
     Bytes are held to the ASCII range (0..127) so every field varies while staying
-    valid for any ``StringConverter`` member and free of float NaN/inf — the corpus is
-    decoded (``to_columns`` / ``parse_to_dataframe``) during the benchmark. Timestamps,
+    valid for any ``StringConverter`` member and free of float NaN/inf, since the corpus is
+    decoded through ``to_columns`` and ``parse_to_dataframe`` during the benchmark. Timestamps,
     when present, are a monotonic ramp. Returns the flat uint8 wire buffer.
     """
     dtype = reg.register.payload_class.payload_dtype
@@ -45,7 +44,7 @@ def ensure_corpus(
 ) -> tuple[object, bool]:
     """Generate ``reg``'s corpus unless a matching cached file already exists.
 
-    The cache is honored only when the existing file's size matches ``entries``
+    The cache is honored only when the size of the existing file matches ``entries``
     exactly (stride * entries); a stale file (different entry count) is rebuilt.
     Returns (path, generated).
     """
@@ -56,15 +55,6 @@ def ensure_corpus(
             return path, False
     generate_one(reg, entries, data_dir)
     return path, True
-
-
-def _use_utf8_console() -> None:
-    """Best-effort: make console output UTF-8 (docstrings use non-ASCII glyphs)."""
-    for stream in (sys.stdout, sys.stderr):
-        try:
-            stream.reconfigure(encoding="utf-8")  # type: ignore[union-attr]
-        except (AttributeError, ValueError):
-            pass
 
 
 def _select(only):
@@ -95,7 +85,6 @@ def main() -> None:
         default=DATA_DIR,
         help=f"directory to write corpus files into (default: {DATA_DIR})",
     )
-    _use_utf8_console()
     args = parser.parse_args()
 
     selected = _select(args.only)

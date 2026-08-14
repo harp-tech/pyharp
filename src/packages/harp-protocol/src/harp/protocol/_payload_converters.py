@@ -41,7 +41,7 @@ class Converter(ABC, Generic[T]):
 
 
 class IdentityConverter(Converter[NpScalarT]):
-    """Pass-through converter — the raw numpy scalar is returned as-is."""
+    """Pass-through converter, returning the raw numpy scalar as-is."""
 
     def __init__(self, dtype: "np.dtype[NpScalarT] | str | type[NpScalarT]") -> None:
         self.dtype = np.dtype(dtype)
@@ -124,7 +124,7 @@ class FloatConverter(IdentityConverter[np.float32]):
 class BoolConverter(Converter[bool]):
     """Whole-element ``interfaceType: bool`` (or a single masked bit via ``Field(BoolConverter(), mask=...)``).
 
-    The element is non-zero → ``True``. Operates on a single base element.
+    A non-zero element becomes ``True``. Operates on a single base element.
     """
 
     def __init__(self, dtype: "np.dtype | str | type" = np.uint8) -> None:

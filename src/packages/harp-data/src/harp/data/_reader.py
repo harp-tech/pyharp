@@ -13,8 +13,8 @@ Source = Union[str, Path, bytes, bytearray, memoryview, BinaryIO]
 
 _MSG_NAMES = np.array(["_NONE", "Read", "Write", "Event"])
 
-#: Harp reference epoch — time zero of the Harp clock (UTC).
 REFERENCE_EPOCH = datetime(1904, 1, 1)
+"""Harp reference epoch, time zero of the Harp clock in UTC."""
 
 _TIME_INDEX_NAME = "Time"
 

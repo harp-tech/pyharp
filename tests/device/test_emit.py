@@ -27,8 +27,8 @@ def _device_registers():
 def _layout(dt):
     """Full structural signature: field name + element dtype + offset, and itemsize.
 
-    Name-exact — the emitter applies the same naming convention as the generator, so
-    the golden comparison covers identifiers as well as byte layout.
+    Name-exact, since the emitter applies the same naming convention as the generator,
+    so the reference comparison covers identifiers as well as byte layout.
     """
     if dt.names is None:
         return ("scalar", dt.str, dt.shape, dt.itemsize)
@@ -36,7 +36,7 @@ def _layout(dt):
 
 
 # ---------------------------------------------------------------------------
-# Device golden — layout/type parity with generator output
+# Device reference output, layout and type parity with generator output
 # ---------------------------------------------------------------------------
 
 
@@ -56,7 +56,7 @@ def test_device_emits_all_registers(device_registers):
 
 
 # ---------------------------------------------------------------------------
-# Naming — identical to the statically generated device package
+# Naming, identical to the statically generated device package
 # ---------------------------------------------------------------------------
 
 
@@ -113,7 +113,7 @@ def test_register_and_payload_class_names_stay_verbatim(device_registers):
 
 
 def test_enum_names_match_generator_for_every_enum(device_registers):
-    """Every enum the golden module declares has identical members in the emitter."""
+    """Every enum the reference module declares has identical members in the emitter."""
     for name, reg in _device_registers().items():
         payload = reg.payload_class
         if payload.payload_dtype.names is None:
@@ -131,7 +131,7 @@ def test_enum_names_match_generator_for_every_enum(device_registers):
 
 
 # ---------------------------------------------------------------------------
-# Core golden — from protocol common.yml
+# Core reference output, from protocol common.yml
 # ---------------------------------------------------------------------------
 
 
@@ -150,8 +150,8 @@ def test_core_register_structural(name, common_yml):
         == expected.payload_class.payload_dtype.itemsize
     )
     if name == "DeviceName":
-        # Generator enriches DeviceName to interfaceType: string; protocol's
-        # common.yml does not, so only the layout size matches here.
+        # Generator enriches DeviceName to interfaceType: string, while the
+        # common.yml of the protocol does not, so only the layout size matches here.
         return
     assert _layout(emitted.payload_class.payload_dtype) == _layout(
         expected.payload_class.payload_dtype
@@ -187,7 +187,7 @@ def test_struct_masked_members_roundtrip(device_registers):
     payload_cls = reg.payload_class
     pwm = payload_cls._mro_descriptor("digital_output")._enum
     # digital_output is a 2-bit field (mask 0xC00); only PWM0/PWM1 fit it. This
-    # matches the generator's output verbatim (GroupMask(enum=PwmPort, mask=0xC00)).
+    # matches the generator output verbatim, as GroupMask(enum=PwmPort, mask=0xC00).
     payload = payload_cls(digital_output=pwm["PWM1"], pulse_width=np.uint16(300))
     parsed = _roundtrip(reg, payload)
     assert parsed.digital_output == pwm["PWM1"]
@@ -232,8 +232,8 @@ def test_converter_factory_receives_dsl_context(device_yml):
         regs["CustomMemberConverter"].payload_class(header=np.uint8(1), data=42),
     )
     assert int(parsed.data) == 42
-    # The factory was handed the Data field's resolved DSL context, keyed by the
-    # verbatim yml name — the converter symbol derives from that, not from "data".
+    # The factory was handed the resolved DSL context of the Data field, keyed by the
+    # verbatim yml name, since the converter symbol derives from that, not from "data".
     assert seen == {"name": "Data", "span": 2, "interface_type": "int"}
 
 
@@ -250,7 +250,7 @@ _VISIBILITY_YML = (
 
 
 def test_exclude_private_drops_private_registers():
-    # Kept by default; a private register's class is underscore-prefixed, as the
+    # Kept by default. The class of a private register is underscore-prefixed, as the
     # generator emits it.
     assert set(create_registers(_VISIBILITY_YML)) == {"Pub", "_Priv"}
     assert set(create_registers(_VISIBILITY_YML, exclude_private=True)) == {"Pub"}
@@ -279,7 +279,7 @@ def test_private_payload_class_is_not_prefixed():
 
 
 # ---------------------------------------------------------------------------
-# Payload class sharing — a structured register with an interfaceType names its
+# Payload class sharing, where a structured register with an interfaceType names its
 # payload after that type, so registers sharing the type share one class.
 # ---------------------------------------------------------------------------
 
@@ -303,7 +303,7 @@ def test_structured_register_payload_named_after_interface_type():
         "      Foo: {offset: 0}\n"
     )
     assert regs["A"].payload_class.__name__ == "Shared"
-    # One class, reused — not two structurally identical copies.
+    # One class, reused, not two structurally identical copies.
     assert regs["A"].payload_class is regs["B"].payload_class
 
 
@@ -418,7 +418,7 @@ def test_field_name_renaming_to_keyword_raises(key):
 
 
 # ---------------------------------------------------------------------------
-# Golden bulk round-trip — the emitted register and the generator oracle are
+# Reference bulk round-trip, where the emitted register and the generator oracle are
 # wire- and dataframe-compatible for the same payload bytes (cross read/write).
 # ---------------------------------------------------------------------------
 
@@ -448,7 +448,7 @@ def test_emitted_register_bulk_matches_oracle(name, device_registers):
     assert buf == bytes(oracle.format_bulk(records))
 
     # Cross-read via harp.data: the shared bytes decode to equal frames through
-    # either class — including column names and decoded enum labels, which now agree.
+    # either class, including column names and decoded enum labels, which now agree.
     df_emitted = parse_to_dataframe(emitted, buf, timestamp=False)
     df_oracle = parse_to_dataframe(oracle, buf, timestamp=False)
     assert list(df_emitted.columns) == list(df_oracle.columns)

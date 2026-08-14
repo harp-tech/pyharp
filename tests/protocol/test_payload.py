@@ -65,7 +65,7 @@ def test_to_dataframe_override():
 def test_from_buffer_zero_copy():
     data = _make_simple_bytes(4)
     p = SimplePayload.payload_from_buffer(data)
-    # np.frombuffer returns a read-only view — writes should raise
+    # np.frombuffer returns a read-only view, so writes should raise
     with pytest.raises((ValueError, TypeError)):
         p.payload_array["x"][0] = 999
 
@@ -88,7 +88,7 @@ class _SparseModePayload(AnonymousPayload[np.uint8]):
 
 def test_groupmask_undefined_code_preserves_raw():
     # Codes: defined (0->Low, 2->High), an in-range gap (1), and out-of-range (90, 255).
-    # Every undefined code is preserved as its raw int (like C#'s unchecked cast) —
+    # Every undefined code is preserved as its raw int, like the unchecked cast in C#,
     batch = _SparseModePayload.payload_from_buffer(
         np.array([0, 2, 1, 90, 255], dtype=np.uint8).tobytes()
     )

@@ -53,7 +53,7 @@ def test_bad_checksum_skipped_recovery():
 
 def test_truncated_stream_returns_empty():
     frame = make_frame_from_raw(0x01, 8, 0xFF, 0x04, b"")
-    # Feed only the first 3 bytes — not enough for a complete frame.
+    # Only the first 3 bytes, not enough for a complete frame.
     msgs = HarpFramer.parse_bytes(frame[:3])
     assert msgs == []
 

@@ -42,7 +42,7 @@ class TimingStats:
 
 
 def _time(fn: Callable[[], object], *, runs: int, frames: int, file_bytes: int) -> TimingStats:
-    fn()  # warm-up (imports, caches, first-touch pages) — not measured
+    fn()  # warm-up for imports, caches and first-touch pages, not measured
     samples: list[float] = []
     for _ in range(runs):
         t0 = perf_counter()
@@ -99,9 +99,9 @@ def benchmark_register(reg: BenchmarkedRegister, path: Path, *, runs: int) -> Re
         frames=frames,
         file_bytes=file_bytes,
     )
-    # Decode only: pre-parse the bulk views once, then time payload_as_columns() alone —
-    # this is where every converter's decode_batch runs, with no file read and no
-    # pandas DataFrame construction. Matches parse_to_dataframe's decode options.
+    # Decode only: pre-parse the bulk views once, then time payload_as_columns() alone,
+    # this is where the decode_batch of every converter runs, with no file read and no
+    # pandas DataFrame construction. Matches the decode options of parse_to_dataframe.
     _, _, _, payload = register.parse_bulk(raw, parse_timestamp=True)
     cols = _time(
         lambda: payload.payload_as_columns(decode_enums=True, demux_bit_masks=False),
@@ -197,8 +197,8 @@ def build_report(results: list[RegisterResult], *, runs: int) -> str:
     _table(
         "`parse_bulk` (core zero-copy parse)",
         "`pre` = parse a pre-read buffer; `re` = re-read the file from disk each run. "
-        "Note `parse_bulk` only builds lazy strided views — it does **not** run "
-        "converters — so timings are near-uniform regardless of payload shape.",
+        "Note `parse_bulk` only builds lazy strided views and does **not** run "
+        "converters, so timings are near-uniform regardless of payload shape.",
         lambda r: (r.bulk_preread, r.bulk_reread),
     )
     _table(
@@ -207,14 +207,14 @@ def build_report(results: list[RegisterResult], *, runs: int) -> str:
         lambda r: (r.df_preread, r.df_reread),
     )
 
-    # Decode-only table (single mode): payload_as_columns() runs every field's
+    # Decode-only table (single mode): payload_as_columns() runs the converter of every field,
     # converter.decode_batch, with no file read and no pandas construction.
-    lines.append("## `payload_as_columns` (decode only — where converters run)\n")
+    lines.append("## `payload_as_columns`, decode only, where converters run\n")
     lines.append(
         "Isolates the decode step: `parse_bulk` views are built once up front, then "
-        "only `payload.payload_as_columns()` is timed. This is where each field's "
+        "only `payload.payload_as_columns()` is timed. This is where the "
         "`converter.decode_batch` executes. Registers whose converters loop in Python "
-        "(`HarpVersionConverter`, `StringConverter`, `BytesToIntConverter` → object "
+        "(`HarpVersionConverter`, `StringConverter`, `BytesToIntConverter` -> object "
         "dtype) dominate here; vectorized converters stay cheap.\n"
     )
     lines.append("| Register | Frames | mean (ms) | min (ms) | stdev (ms) | Mframes/s | MiB/s |")
@@ -227,11 +227,12 @@ def build_report(results: list[RegisterResult], *, runs: int) -> str:
         )
     lines.append("")
 
-    # Decomposition: parse_to_dataframe(pre) ≈ parse_bulk(pre) + payload_as_columns + pandas.
+    # Decomposition: parse_to_dataframe(pre) is about parse_bulk(pre) + payload_as_columns + pandas.
     lines.append("## Decomposition (pre-read means, ms)\n")
     lines.append(
-        "`parse_to_dataframe` ≈ `parse_bulk` (build views) + `payload_as_columns` (decode) + "
-        "pandas DataFrame construction. The residual column is `df − bulk − payload_as_columns`, "
+        "`parse_to_dataframe` is approximately `parse_bulk` to build views, plus "
+        "`payload_as_columns` to decode, plus "
+        "pandas DataFrame construction. The residual column is `df - bulk - payload_as_columns`, "
         "i.e. the pandas/column-assembly overhead. Note the three terms are timed in "
         "separate loops, so for converter-dominated registers (large mean, large stdev) "
         "the residual is within noise and can even go slightly negative.\n"
@@ -275,17 +276,7 @@ def _prepare_corpora(selected, *, entries: int, force: bool, data_dir: Path) -> 
     print()
 
 
-def _use_utf8_console() -> None:
-    """Best-effort: make console output UTF-8 (the docstrings/report use ≈, →, −)."""
-    for stream in (sys.stdout, sys.stderr):
-        try:
-            stream.reconfigure(encoding="utf-8")  # type: ignore[union-attr]
-        except (AttributeError, ValueError):
-            pass
-
-
 def main() -> None:
-    _use_utf8_console()
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--runs", type=int, default=10, help="repeats per measurement (default: 10)"
@@ -312,7 +303,7 @@ def main() -> None:
     parser.add_argument(
         "--head",
         action="store_true",
-        help="print head(5) of each register's DataFrame to stdout (not saved to the report)",
+        help="print head(5) of the DataFrame of each register to stdout (not saved to the report)",
     )
     args = parser.parse_args()
 

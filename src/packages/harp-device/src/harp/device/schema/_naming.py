@@ -7,9 +7,9 @@ generated device packages, so code written against either lines up name for name
 * payload fields -> :func:`field_name`        (``DutyCycle`` -> ``duty_cycle``)
 
 Type-level identifiers (register classes, enum classes, ``{Name}Payload``) are
-*not* transformed — the generator keeps those verbatim from the yml too.
+*not* transformed, and the generator keeps those verbatim from the yml too.
 
-See the upstream generator's package for more information:
+See the upstream generator package for more information:
 https://github.com/harp-tech/generators
 """
 
@@ -17,10 +17,12 @@ import re
 
 _SEPARATOR = "_"
 
-# The generator's regex: an uppercase letter, optionally preceded by a separator.
-# The separator is part of the match, so a match starting on ``_``/``-`` has its
-# index on the separator rather than on the letter (mirrored in ``_replace``).
 _BOUNDARY = re.compile(r"(?P<sep>[_\-])?(?P<char>[A-Z])")
+"""The generator regex: an uppercase letter, optionally preceded by a separator.
+
+The separator is part of the match, so a match starting on ``_`` or ``-`` has its
+index on the separator rather than on the letter, which ``_replace`` mirrors.
+"""
 
 
 def _screaming_snake(value: str) -> str:
@@ -53,8 +55,8 @@ def _screaming_snake(value: str) -> str:
         run = index - previous_match
         previous_match = index
         char = match.group("char").lower()
-        # Separate unless this capital continues a run of capitals — and a run's
-        # final capital still separates when it starts a new lowercase word.
+        # Separate unless this capital continues a run of capitals, though the final
+        # capital of a run still separates when it starts a new lowercase word.
         follower = index + 1
         separate = run != 1 or (follower < len(value) and value[follower].islower())
         return _SEPARATOR + char if separate else char
@@ -75,6 +77,6 @@ def enum_member_name(value: str) -> str:
 def field_name(value: str) -> str:
     """The Python payload field name for a yml ``payloadSpec`` key.
 
-    ``DutyCycle`` -> ``duty_cycle``. Matches the generator's ``GetPythonFieldName``.
+    ``DutyCycle`` -> ``duty_cycle``. Matches ``GetPythonFieldName`` in the generator.
     """
     return _screaming_snake(value).lower()

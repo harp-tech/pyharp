@@ -3,9 +3,9 @@ name = "harp-benchmarks"
 dynamic = ["version"]
 description = "Internal parsing-speed benchmarks for the Harp register/payload API."
 requires-python = ">=3.11"
-# INTERNAL ONLY — never published to PyPI. The "Private :: Do Not Upload" trove
-# classifier is rejected by PyPI (and twine/uv publish), so an accidental upload
-# of this distribution fails fast.
+# INTERNAL ONLY, never published to PyPI. The "Private :: Do Not Upload" trove
+# classifier is rejected by PyPI, and by twine and uv publish, so an accidental
+# upload of this distribution fails fast.
 classifiers = ["Private :: Do Not Upload"]
 dependencies = [
     "harp-protocol",

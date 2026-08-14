@@ -9,8 +9,9 @@ class MessageType(IntEnum):
     Event = 3
 
 
-# Bits 7,6,5,4,2 must be 0; bit 3 is error; bits 1:0 are type.
 _RESERVED_MASK = 0b11110100
+"""Bits 7, 6, 5, 4 and 2 must be 0. Bit 3 is error and bits 1:0 are the type."""
+
 _VALID_TYPES = frozenset(t.value for t in MessageType)
 
 
