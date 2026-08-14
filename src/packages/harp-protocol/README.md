@@ -4,7 +4,7 @@
 
 The Harp Protocol is a binary communication protocol created in order to facilitate and unify the interaction between different devices. It was designed with efficiency and ease of parsing in mind.
 
-For more detail please check Harp Tech's official documentation [here](https://harp-tech.org/protocol/BinaryProtocol-8bit.html).
+For more detail please check the [official Harp Tech documentation](https://harp-tech.org/protocol/BinaryProtocol-8bit.html).
 
 `harp-protocol` provides the building blocks: message framing and the typed register/payload DSL. Each register knows how to build (`format`) and decode (`parse`) its frames.
 
@@ -30,4 +30,4 @@ np.uint16(65535) + 1   # RuntimeWarning: overflow encountered in scalar add
 
 Numpy scalars behave like plain Python numbers in arithmetic, comparison and formatting. Use `int()` or `float()` where a built-in type is required.
 
-It carries no transport or device logic — see [`harp-device`](../harp-device) for the device layer.
+It carries no transport or device logic. See [`harp-device`](../harp-device) for the device layer.

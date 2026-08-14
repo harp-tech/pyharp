@@ -34,7 +34,7 @@ from harp.protocol import (
 
 
 class PortDigitalIOS(enum.IntFlag):
-    """device.yml bitMasks.PortDigitalIOS (bits up to 0x800 — see PortDIOSet)."""
+    """device.yml bitMasks.PortDigitalIOS, with bits up to 0x800. See PortDIOSet."""
 
     DIO0 = 0x1
     DIO1 = 0x2
@@ -63,7 +63,7 @@ class EncoderModeMask(enum.IntEnum):
 
 
 # ===========================================================================
-# Custom interfaceType converters — byte-based, register-element-agnostic.
+# Custom interfaceType converters, byte-based and register-element-agnostic.
 # ===========================================================================
 
 
@@ -101,7 +101,7 @@ class DigitalInputs(RegisterU8):
 
 
 # ===========================================================================
-# 33  AnalogData : Float[6], Event — named sub-views + a 3-float sub-array.
+# 33  AnalogData : Float[6], Event. Named sub-views plus a 3-float sub-array.
 # ===========================================================================
 
 
@@ -121,7 +121,7 @@ class AnalogData(RegisterBase[AnalogDataPayload]):
 
 
 # ===========================================================================
-# 34  ComplexConfiguration : U8[17], Write — byte gap at bytes 1..3.
+# 34  ComplexConfiguration : U8[17], Write. Byte gap at bytes 1..3.
 # ===========================================================================
 
 
@@ -140,7 +140,7 @@ class ComplexConfiguration(RegisterBase[ComplexConfigurationPayload]):
 
 
 # ===========================================================================
-# 35  Version : U8[32], Event — HarpVersion x3 (3-byte) + string + raw hash.
+# 35  Version : U8[32], Event. HarpVersion x3 (3-byte), string, and raw hash.
 # ===========================================================================
 
 
@@ -161,7 +161,7 @@ class Version(RegisterBase[VersionPayload]):
 
 
 # ===========================================================================
-# 36 / 37  CustomPayload / CustomRawPayload : U32[3] — register-level
+# 36 / 37  CustomPayload / CustomRawPayload : U32[3]. Register-level
 #          interfaceType HarpVersion. Single full-span member -> parse() unwraps.
 # ===========================================================================
 
@@ -187,7 +187,7 @@ class CustomRawPayload(RegisterBase[HarpVersion]):
 
 
 # ===========================================================================
-# 38  CustomMemberConverter : U8[3], Read — Header (uint8) + Data (2 bytes -> int).
+# 38  CustomMemberConverter : U8[3], Read. Header (uint8) and Data (2 bytes -> int).
 # ===========================================================================
 
 
@@ -203,7 +203,7 @@ class CustomMemberConverter(RegisterBase[CustomMemberConverterPayload]):
 
 
 # ===========================================================================
-# 39  BitmaskSplitter : U8, Write — Low (mask 0xF, int) + High (mask 0xF0, int).
+# 39  BitmaskSplitter : U8, Write. Low (mask 0xF, int) and High (mask 0xF0, int).
 # ===========================================================================
 
 
@@ -228,7 +228,7 @@ class Counter0(RegisterS32):
 
 
 # ===========================================================================
-# 41  PortDIOSet : U8, Write — bitMask PortDigitalIOS. A single BitMask over the
+# 41  PortDIOSet : U8, Write. bitMask PortDigitalIOS, a single BitMask over the
 #     whole byte; bits >= 0x100 can't fit a U8 so they are dropped. Single-member
 #     -> parse() unwraps to a bare PortDigitalIOS.
 # ===========================================================================
@@ -258,7 +258,7 @@ class PulseDO0(RegisterU16):
 
 
 # ===========================================================================
-# 100  StartPulse : U16, Write — two overlapping views of one word.
+# 100  StartPulse : U16, Write. Two overlapping views of one word.
 # ===========================================================================
 
 
@@ -274,7 +274,7 @@ class StartPulse(RegisterBase[StartPulsePayload]):
 
 
 # ===========================================================================
-# 101  StartPulseTrain : U16[2], Write — 4 masked members across two words.
+# 101  StartPulseTrain : U16[2], Write. 4 masked members across two words.
 # ===========================================================================
 
 
@@ -294,7 +294,7 @@ class StartPulseTrain(RegisterBase[StartPulseTrainPayload]):
 
 
 # ===========================================================================
-# 103  EncoderMode : U8, Write — whole-register groupMask.
+# 103  EncoderMode : U8, Write. Whole-register groupMask.
 # ===========================================================================
 
 

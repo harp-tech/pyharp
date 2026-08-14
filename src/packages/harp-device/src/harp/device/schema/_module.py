@@ -15,8 +15,8 @@ from harp.protocol import RegisterBase
 from harp.device.core import REGISTER_MAP as CORE_REGISTER_MAP
 from ._emit import ConverterValue, create_registers, parse_device_schema
 
-#: Module name used when the schema carries no ``device`` header.
 _DEFAULT_NAME = "Device"
+"""Module name used when the schema carries no ``device`` header."""
 
 
 @runtime_checkable
@@ -44,10 +44,11 @@ class DeviceModule(types.ModuleType):
     none of this, since its registers are written out.
     """
 
-    #: Address -> register class, the common Harp registers merged with the schema's.
     REGISTER_MAP: dict[int, type[RegisterBase[Any]]]
-    #: The device identity declared by the schema; ``0`` when absent.
+    """Address -> register class, the common Harp registers merged with those of the schema."""
+
     WHO_AM_I: int
+    """The device identity declared by the schema. ``0`` when absent."""
 
     def __getattr__(self, name: str) -> type[RegisterBase[Any]]:
         raise AttributeError(f"module {self.__name__!r} has no register named {name!r}")
@@ -69,14 +70,14 @@ def create_device_module(
 
     * ``REGISTER_MAP``, the device address space, so the common registers are
       present here even though the module does not name them;
-    * ``WHO_AM_I``, the schema's identity (``0`` for an unregistered device);
-    * ``__name__``, the schema's ``device`` name, or ``name`` when given
+    * ``WHO_AM_I``, the identity declared by the schema (``0`` for an unregistered device);
+    * ``__name__``, the ``device`` name of the schema, or ``name`` when given
       (``"Device"`` for a header-less register fragment).
 
     Because the names come from the schema at runtime they don't autocomplete, and
     each resolves as ``type[RegisterBase[Any]]`` rather than its own register type;
     a generated device package is a real module on disk and gives both. On an
-    address clash the device's register replaces the common one in ``REGISTER_MAP``.
+    address clash the device register replaces the common one in ``REGISTER_MAP``.
     ``exclude_private=True`` drops registers whose DSL ``visibility`` is ``private``.
 
     ``text`` is the schema itself rather than a path to it, matching

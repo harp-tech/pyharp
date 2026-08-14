@@ -168,7 +168,7 @@ def test_factory_different_addresses_are_independent():
     ],
 )
 def test_format_with_payload_instance(reg_cls, payload_cls, value):
-    """Passing a PayloadXxx instance to format() uses the instance's bytes directly."""
+    """Passing a PayloadXxx instance to format() uses the bytes of the instance directly."""
     reg = reg_cls(0x08)
     payload = payload_cls(value)
     frame = reg.format(payload)
@@ -441,7 +441,7 @@ def test_parse_returns_numpy_scalar():
 
 def test_parse_does_not_overrun_buffer():
     """parse() reads exactly one record even if the buffer is larger."""
-    # Two-record buffer in raw form (no Harp header — exercise raw-bytes path).
+    # Two-record buffer in raw form, with no Harp header, exercising the raw-bytes path.
     raw = np.array([42, 99], dtype=np.dtype("<u4")).tobytes()
     parsed = TimestampSecond.parse(raw)
     assert parsed == 42
@@ -473,12 +473,12 @@ def test_struct_payload_field_descriptors_codegen_style():
     p = GeneratedAnalogPayload._from_array(
         np.array((1, 2, 3), dtype=GeneratedAnalogPayload.payload_dtype)
     )
-    # 0-D _arr → numpy scalar per field.
+    # 0-D _arr gives a numpy scalar per field.
     assert int(p.a) == 1
     assert int(p.b) == 2
     assert int(p.c) == 3
 
-    # 1-D _arr → ndarray columns. Same descriptor handles both.
+    # 1-D _arr gives ndarray columns. The same descriptor handles both.
     batch_arr = np.array([(1, 2, 3), (4, 5, 6)], dtype=GeneratedAnalogPayload.payload_dtype)
     batch = GeneratedAnalogPayload.payload_from_buffer(batch_arr.tobytes())
     np.testing.assert_array_equal(batch.a, [1, 4])

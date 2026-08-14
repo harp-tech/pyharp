@@ -23,14 +23,14 @@ P = TypeVar("P")
 
 _logger = logging.getLogger(__name__)
 
-#: A callback receiving a typed, parsed event for a specific register.
 EventHandler = Callable[[ParsedHarpMessage[P]], None]
+"""A callback receiving a typed, parsed event for a specific register."""
 
-#: Message types a subscription reacts to, as a single type or an iterable.
 MessageTypeFilter = MessageType | Iterable[MessageType]
+"""Message types a subscription reacts to, as a single type or an iterable."""
 
-#: Default filter for :meth:`Device.subscribe`: unsolicited events only.
 _DEFAULT_MESSAGE_TYPES: frozenset[MessageType] = frozenset({MessageType.Event})
+"""Default filter for :meth:`Device.subscribe`: unsolicited events only."""
 
 
 def _normalize_message_types(message_types: MessageTypeFilter) -> frozenset[MessageType]:
@@ -157,7 +157,7 @@ class Device(Generic[M]):
         return self
 
     def _validate_whoami(self) -> None:
-        """Check the device's ``WhoAmI`` against the module (skipped if no module or ``WHO_AM_I == 0x0``)."""
+        """Check the reported ``WhoAmI`` against the module (skipped if no module or ``WHO_AM_I == 0x0``)."""
         module = self._device_module
         if module is None:
             return
@@ -250,7 +250,7 @@ class Device(Generic[M]):
         because that thread is shared, handlers are invoked **sequentially, in
         subscription order, one message at a time**: a slow handler delays every
         other subscriber and backs up later messages. Keep handlers quick, and
-        offload heavy work to your own thread or queue.
+        offload heavy work to a separate thread or queue.
 
         Returns a :class:`Subscription`; call :meth:`Subscription.unsubscribe` to
         stop.

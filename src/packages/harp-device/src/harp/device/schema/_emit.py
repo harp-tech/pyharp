@@ -44,7 +44,6 @@ from harp.protocol import PayloadType as ProtoPayloadType
 from ._model import DeviceModel, PayloadMember, PayloadType, Register, Registers, Visibility
 from ._naming import enum_member_name, field_name
 
-# Register base element: schema PayloadType -> numpy scalar type (byte size via np.dtype).
 _ELEMENT: dict[PayloadType, type[np.generic]] = {
     PayloadType.U8: np.uint8,
     PayloadType.S8: np.int8,
@@ -56,6 +55,8 @@ _ELEMENT: dict[PayloadType, type[np.generic]] = {
     PayloadType.S64: np.int64,
     PayloadType.Float: np.float32,
 }
+"""Register base element: schema PayloadType to numpy scalar type, byte size via np.dtype."""
+
 _SCALAR_REGISTER: dict[PayloadType, Any] = {
     PayloadType.U8: RegisterU8,
     PayloadType.S8: RegisterS8,
@@ -67,6 +68,7 @@ _SCALAR_REGISTER: dict[PayloadType, Any] = {
     PayloadType.S64: RegisterS64,
     PayloadType.Float: RegisterFloat,
 }
+
 _ARRAY_REGISTER: dict[PayloadType, Any] = {
     PayloadType.U8: RegisterU8Array,
     PayloadType.S8: RegisterS8Array,
@@ -82,10 +84,10 @@ _ARRAY_REGISTER: dict[PayloadType, Any] = {
 
 @dataclass(frozen=True)
 class ConverterContext:
-    """A payload value's schema definition, resolved against its register context.
+    """The schema definition of a payload value, resolved against its register context.
 
     Handed to every converter factory so it can construct the converter with the
-    right arguments — e.g. ``StringConverter(span)``, ``HarpVersionConverter(element)``,
+    right arguments, for example ``StringConverter(span)``, ``HarpVersionConverter(element)``,
     or ``IdentityConverter(dtype)``.
     """
 
@@ -93,8 +95,8 @@ class ConverterContext:
     interface_type: Optional[str]  # the DSL interfaceType (None = raw/native)
     mask: Optional[int]  # bit mask, when the value is bit-packed
     length: int  # element count this value spans (0 = unset -> scalar)
-    element: np.dtype  # the register's base element dtype (from PayloadType)
-    element_size: int  # the register's base element byte size
+    element: np.dtype  # base element dtype of the register, from PayloadType
+    element_size: int  # base element byte size of the register
 
     @property
     def span(self) -> int:
@@ -103,7 +105,7 @@ class ConverterContext:
 
     @property
     def member_dtype(self) -> np.dtype:
-        """The value's own numpy dtype — a native primitive interfaceType overrides the element."""
+        """The numpy dtype of the value itself. A native primitive interfaceType overrides the element."""
         if self.interface_type is not None:
             entry = _INTERFACES.get(self.interface_type)
             if entry is not None and entry.native_dtype is not None:
@@ -112,21 +114,24 @@ class ConverterContext:
 
     @property
     def raw_dtype(self) -> np.dtype:
-        """Native passthrough dtype — a sub-array when the value spans >1 element."""
+        """Native passthrough dtype, a sub-array when the value spans more than one element."""
         if self.length > 1:
             return np.dtype((self.element.type, (self.length,)))
         return self.element
 
 
-# A converter factory builds a converter from a field's DSL context.
 ConverterFactory = Callable[[ConverterContext], Converter[Any]]
-# A user-supplied converter: a ready instance, or a factory that builds one from context.
+"""A converter factory builds a converter from the DSL context of a field."""
+
 ConverterValue = Union[Converter[Any], ConverterFactory]
-# Internal built-in factory — may decline (return None) when the DSL type doesn't
-# actually fit (e.g. a primitive whose declared byte span isn't its native size).
+"""A user-supplied converter: a ready instance, or a factory that builds one from context."""
+
 _InterfaceFactory = Callable[[ConverterContext], Optional[Converter[Any]]]
-# Coerces a field's yml numeric default into its typed value (``_NO_DEFAULT`` = skip).
+"""Internal built-in factory, which may decline by returning None when the DSL type does
+not actually fit, for example a primitive whose declared byte span is not its native size."""
+
 _DefaultCoercer = Callable[[float, ConverterContext], Any]
+"""Coerces a yml numeric default into its typed value, where ``_NO_DEFAULT`` skips."""
 
 _NO_DEFAULT = Sentinel("_NO_DEFAULT")  # this interface has no numeric default representation
 
@@ -165,10 +170,6 @@ class _Interface:
     native_dtype: Optional[type[np.generic]] = None
 
 
-# Every interfaceType the library handles natively, in one uniform table: the
-# fixed-width primitives (identity passthrough, carrying their numpy scalar as
-# ``native_dtype``) beside string/bool/HarpVersion. Custom interfaceTypes are
-# supplied by the caller (see ``converters=``).
 _INTERFACES: dict[str, _Interface] = {
     "byte": _Interface(_native(np.uint8), _numpy_default, np.uint8),
     "sbyte": _Interface(_native(np.int8), _numpy_default, np.int8),
@@ -183,6 +184,12 @@ _INTERFACES: dict[str, _Interface] = {
     "bool": _Interface(lambda ctx: BoolConverter(), _bool_default),
     "HarpVersion": _Interface(lambda ctx: HarpVersionConverter(ctx.element), _skip_default),
 }
+"""Every interfaceType the library handles natively, in one uniform table.
+
+The fixed-width primitives are identity passthroughs carrying their numpy scalar as
+``native_dtype``, beside string, bool and HarpVersion. Custom interfaceTypes are
+supplied by the caller through ``converters=``.
+"""
 
 
 def _materialize(value: ConverterValue, ctx: ConverterContext) -> Converter[Any]:
@@ -198,7 +205,7 @@ class NameCollisionError(ValueError):
     """Two schema identifiers collapse to one Python name, or one shadows a reserved name.
 
     Casing is not significant to the generator naming convention, so distinct yml
-    keys (``DIO0`` / ``Dio0``) can converge — which would silently alias an enum
+    keys such as ``DIO0`` and ``Dio0`` can converge, which would silently alias an enum
     member or drop a payload field.
     """
 
@@ -233,7 +240,7 @@ class _Emitter:
         self.bit_masks = device.bitMasks or {}
         self.enums = self._build_enums()
         # Payload classes are cached by name so registers sharing an ``interfaceType``
-        # share one class, as the generator's module-level payload list does.
+        # share one class, as the module-level payload list of the generator does.
         self.payloads: dict[str, type] = {}
 
     # -- naming -----------------------------------------------------------
@@ -273,7 +280,7 @@ class _Emitter:
 
     # -- enums ------------------------------------------------------------
     def _build_enums(self) -> dict[str, Any]:
-        # Enum type names stay verbatim; members take the generator's SCREAMING_SNAKE.
+        # Enum type names stay verbatim; members take the SCREAMING_SNAKE of the generator.
         enums: dict[str, Any] = {}
         for name, spec in self.bit_masks.items():
             # IntFlag has no zero-valued member; drop it if present.
@@ -317,7 +324,7 @@ class _Emitter:
 
     # -- defaults ---------------------------------------------------------
     def _default(self, member: PayloadMember, type_name: str, ctx: ConverterContext) -> Any:
-        """The field's typed default value, or ``_NO_DEFAULT`` when it has none."""
+        """The typed default value of the field, or ``_NO_DEFAULT`` when it has none."""
         _default_value = member.defaultValue if member.defaultValue is not None else member.minValue
         if _default_value is None or (member.length or 0) > 1:
             return _NO_DEFAULT
@@ -428,7 +435,7 @@ class _Emitter:
 
     # -- registers --------------------------------------------------------
     def _class_name(self, name: str, reg: Register) -> str:
-        """A private register's class is underscore-prefixed; its payload class is not."""
+        """The class of a private register is underscore-prefixed; its payload class is not."""
         return f"_{name}" if reg.visibility is Visibility.private else name
 
     def _build_register(self, name: str, class_name: str, reg: Register) -> type[RegisterBase[Any]]:
@@ -474,7 +481,7 @@ def parse_device_schema(text: str | bytes) -> DeviceModel:
     """Parse a Harp ``device.yml`` (or a header-less fragment) into a :class:`DeviceModel`.
 
     A header-less fragment (just ``registers`` / ``bitMasks`` / ``groupMasks``)
-    parses fine — the identity fields (``device`` / ``whoAmI`` / ...) are simply
+    parses fine, and the identity fields such as ``device`` and ``whoAmI`` are simply
     ``None``. Read files yourself, e.g.
     ``parse_device_schema(Path("device.yml").read_bytes())``. Prefer reading bytes:
     a YAML stream declares its own encoding, so the parser decodes it, whereas
@@ -502,11 +509,11 @@ def create_registers(
     ``SCREAMING_SNAKE_CASE``. ``converters`` supplies custom converters keyed by
     symbol name (e.g. ``{"DataConverter": ...}``); a value is either a ready
     :class:`~harp.protocol.Converter` instance or a factory
-    ``(ctx: ConverterContext) -> Converter`` that builds one from the field's DSL
+    ``(ctx: ConverterContext) -> Converter`` that builds one from the DSL
     context. A custom type with no matching converter raises
     ``UnknownConverterError`` when ``strict`` (the default); ``strict=False``
     decodes it as its native element type instead. ``exclude_private=True`` drops
-    registers whose DSL ``visibility`` is ``private``; when kept, a private register's
+    registers whose DSL ``visibility`` is ``private``; when kept, a private register
     class is underscore-prefixed (``_Reserved0``). Note that the converter symbol for a
     payload field derives from its *verbatim* yml key, not the renamed field.
     """

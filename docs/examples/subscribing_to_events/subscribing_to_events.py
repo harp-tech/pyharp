@@ -1,17 +1,10 @@
 import numpy as np
-from harp.device.core import (
-    EnableFlag,
-    OperationControl,
-    OperationControlPayload,
-    OperationMode,
-    REGISTER_MAP,
-    TimestampSeconds,
-)
-from harp.device.client import Device
-from harp.protocol import HarpMessage, ParsedHarpMessage
-from harp.serial import open_serial_device
 
-SERIAL_PORT = "/dev/ttyUSB0"  # or "COMx" in Windows ("x" is the number of the serial port)
+from harp import serial
+from harp.device import client, core
+from harp.protocol import HarpMessage, ParsedHarpMessage
+
+SERIAL_PORT = "/dev/ttyUSB0"  # or "COMx" in Windows, where "x" is the serial port number
 
 
 def print_timestamp(msg: ParsedHarpMessage[np.uint32]) -> None:
@@ -19,27 +12,27 @@ def print_timestamp(msg: ParsedHarpMessage[np.uint32]) -> None:
 
 
 def print_any_event(msg: HarpMessage) -> None:
-    register = REGISTER_MAP.get(msg.address, None)
+    register = core.REGISTER_MAP.get(msg.address, None)
     value = register.parse(msg) if register is not None else msg.payload.hex()
     print(f"[{msg.address}] {msg.timestamp:.6f}  {msg.message_type.name:<5s}  {value}")
 
 
-with open_serial_device(Device, port=SERIAL_PORT) as device:
+with serial.open_serial_device(client.Device, port=SERIAL_PORT) as device:
     # Subscribe to a single, typed register: the handler receives a parsed payload.
-    timestamp_subscription = device.subscribe(TimestampSeconds, print_timestamp)
+    timestamp_subscription = device.subscribe(core.TimestampSeconds, print_timestamp)
 
     # Subscribe to every register at once: the handler receives the raw message.
     device.subscribe_all(print_any_event)
 
     device.write(
-        OperationControl,
-        OperationControlPayload(
-            operation_mode=OperationMode.ACTIVE,
+        core.OperationControl,
+        core.OperationControlPayload(
+            operation_mode=core.OperationMode.ACTIVE,
             dump_registers=True,
-            heartbeat=EnableFlag.ENABLED,
+            heartbeat=core.EnableFlag.ENABLED,
             mute_replies=False,
-            operation_led=EnableFlag.ENABLED,
-            visual_indicators=EnableFlag.ENABLED,
+            operation_led=core.EnableFlag.ENABLED,
+            visual_indicators=core.EnableFlag.ENABLED,
         ),
     )
 

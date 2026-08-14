@@ -2,7 +2,7 @@
 
 Covers:
 * IdentityConverter via auto-generated _Field (parity with previous _Field).
-* StringConverter (sub-array uint8 ↔ str).
+* StringConverter, sub-array uint8 to str and back.
 * EnumConverter (full-byte enum decoding).
 * Declarations-build-dtype direction (no _dtype on the subclass).
 * Reserved-name collision check.
@@ -39,7 +39,7 @@ class _Flag(enum.IntFlag):
 
 
 # ---------------------------------------------------------------------------
-# IdentityConverter — pass-through field
+# IdentityConverter, pass-through field
 # ---------------------------------------------------------------------------
 
 
@@ -127,7 +127,7 @@ def test_string_converter_to_dataframe():
     rec2 = _NamedPayload(name="bye", delta=2).payload_array.tobytes()
     batch = _NamedPayload.payload_from_buffer(rec1 + rec2)
     df = payload_to_dataframe(batch)
-    # Non-identity converter produces one column per field — no sub-array
+    # Non-identity converter produces one column per field, with no sub-array
     # expansion for the string field.
     assert list(df.columns) == ["name", "delta"]
     assert df["name"].tolist() == ["hi", "bye"]
@@ -174,7 +174,7 @@ def test_reserved_field_name_raises():
 
 
 def test_value_field_name_allowed():
-    # ``value`` is intentionally overridable — the descriptor wins via MRO.
+    # ``value`` is intentionally overridable, since the descriptor wins via MRO.
     class _Single(PayloadBase):
         value = Field(converter=_StringConverter(4))
 
@@ -200,7 +200,7 @@ def test_bitfield_payloads_ndim_aware():
     assert scalar.flag is _Flag.A
     assert scalar.group is _Color.Green
 
-    # 1-D batch — Batch sibling, ndarray-typed accessors.
+    # 1-D batch, the Batch sibling with ndarray-typed accessors.
     batch = _Flags.payload_from_buffer(bytes([0x01, 0x02]))
     assert type(batch) is _Flags._PayloadBatchType
     assert isinstance(batch, _Flags)

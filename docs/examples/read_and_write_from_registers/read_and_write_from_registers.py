@@ -1,35 +1,28 @@
-from harp.device.core import (
-    EnableFlag,
-    OperationControl,
-    OperationControlPayload,
-    OperationMode,
-    WhoAmI,
-)
-from harp.device.client import Device
-from harp.serial import open_serial_device
+from harp import serial
+from harp.device import client, core
 
-SERIAL_PORT = "/dev/ttyUSB0"  # or "COMx" in Windows ("x" is the number of the serial port)
+SERIAL_PORT = "/dev/ttyUSB0"  # or "COMx" in Windows, where "x" is the serial port number
 
-with open_serial_device(Device, port=SERIAL_PORT) as device:
+with serial.open_serial_device(client.Device, port=SERIAL_PORT) as device:
     # Read a scalar register.
-    print("WhoAmI:", device.read(WhoAmI).parsed)
+    print("WhoAmI:", device.read(core.WhoAmI).parsed)
 
     # Read a structured register and inspect a field.
-    control = device.read(OperationControl).parsed
+    control = device.read(core.OperationControl).parsed
     print("operation_mode before:", control.operation_mode)
 
     # Write the register, then read it back to confirm the change. A struct payload
     # is built whole, so every field is given a value.
     device.write(
-        OperationControl,
-        OperationControlPayload(
-            operation_mode=OperationMode.ACTIVE,
+        core.OperationControl,
+        core.OperationControlPayload(
+            operation_mode=core.OperationMode.ACTIVE,
             dump_registers=False,
             mute_replies=False,
-            visual_indicators=EnableFlag.ENABLED,
-            operation_led=EnableFlag.ENABLED,
-            heartbeat=EnableFlag.DISABLED,
+            visual_indicators=core.EnableFlag.ENABLED,
+            operation_led=core.EnableFlag.ENABLED,
+            heartbeat=core.EnableFlag.DISABLED,
         ),
     )
-    control = device.read(OperationControl).parsed
+    control = device.read(core.OperationControl).parsed
     print("operation_mode after:", control.operation_mode)

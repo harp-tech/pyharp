@@ -54,7 +54,7 @@ _ARRAY_REGISTER: dict[PayloadType, Any] = {
 
 
 def _infer_native_register(raw: bytes) -> type[RegisterBase[Any]]:
-    """Build a native register class from the first frame's header.
+    """Build a native register class from the header of the first frame.
 
     Reads the payload-type byte, the length byte and the timestamp flag to derive
     the element type and element count, then returns the matching scalar or array
@@ -79,7 +79,7 @@ def read(
     timestamp: bool = True,
     message_type: bool = False,
 ) -> pd.DataFrame:
-    """Read a single register's binary data, inferring its native layout.
+    """Read the binary data of a single register, inferring its native layout.
 
     ``source`` may be a file path, raw bytes, or an open binary file. The element
     type, length and timestamp presence are read from the first frame; values

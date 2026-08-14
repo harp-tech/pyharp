@@ -66,11 +66,11 @@ _AR = TypeVar("_AR", bound="RegisterBase[Any]")
 class _LazyTimestamps:
     """Seconds + microseconds timestamp views, combined into float64 on first use.
 
-    Combining the raw views costs an O(n) pass over every frame (two ``astype``
-    casts plus a multiply-add), independent of the register's payload — so eagerly
+    Combining the raw views costs an O(n) pass over every frame, two ``astype``
+    casts plus a multiply-add, independent of the register payload, so eagerly
     computing it in ``parse_bulk`` taxes every call even when the caller never
     reads the timestamps. Deferring the combine until the array is actually
-    accessed (and caching the result) avoids that cost in the common case where
+    accessed, and caching the result, avoids that cost in the common case where
     only the payload is needed.
     """
 
@@ -118,17 +118,17 @@ class _RegisterMeta(ABCMeta):
 class RegisterBase(ABC, Generic[U]):
     """Abstract base for all typed Harp registers.
 
-    The generic parameter ``U`` is the static return type of :meth:`parse` — the
-    user-facing value, *not* necessarily ``payload_class`` (that is the wire
-    encoding). The two coincide only for multi-member struct payloads:
+    The generic parameter ``U`` is the static return type of :meth:`parse`, the
+    user-facing value, *not* necessarily ``payload_class``, which is the wire
+    encoding. The two coincide only for multi-member struct payloads:
 
-    * scalar registers → a numpy scalar (e.g. ``np.uint16``);
-    * array registers  → ``NDArray[…]`` of fixed length;
-    * multi-member struct registers → the payload class itself;
-    * single-member registers that unwrap on parse → the inner value type, e.g.
-      ``RegisterBase[str]`` (DeviceName), ``RegisterBase[HarpVersion]``, or
-      ``RegisterBase[ClockConfigurationFlags]`` for a whole-register ``BitMask``
-      / ``GroupMask`` — even though each still has a ``payload_class``.
+    * scalar registers -> a numpy scalar, for example ``np.uint16``;
+    * array registers  -> ``NDArray[...]`` of fixed length;
+    * multi-member struct registers -> the payload class itself;
+    * single-member registers that unwrap on parse -> the inner value type, for
+      example ``RegisterBase[str]`` for DeviceName, ``RegisterBase[HarpVersion]``,
+      or ``RegisterBase[ClockConfigurationFlags]`` for a whole-register
+      ``BitMask`` or ``GroupMask``, even though each still has a ``payload_class``.
 
     Subclasses must define ``address``, ``payload_type``, and
     ``payload_class`` as ``ClassVar``s.
@@ -207,14 +207,15 @@ class RegisterBase(ABC, Generic[U]):
         message_type: MessageType | ArrayLike = MessageType.Event,
         port: int = _DEFAULT_PORT,
     ) -> NDArray[np.uint8]:
-        """Build a flat buffer of N frames of this register type — the inverse of
+        """Build a flat buffer of N frames of this register type, the inverse of
         :meth:`parse_bulk`.
 
-        ``values`` is a payload (scalar or :class:`Batch`) or an ndarray of the
-        register's ``payload_class.payload_dtype``. ``timestamps`` (a length-N array of
-        seconds) makes every frame timestamped. ``message_type`` is one
-        :class:`MessageType` for all frames, or a length-N array of message-type
-        bytes / values (e.g. the ``msgtype`` view returned by ``parse_bulk``).
+        ``values`` is a payload, either scalar or :class:`Batch`, or an ndarray of
+        the ``payload_class.payload_dtype`` of the register. ``timestamps``, a
+        length-N array of seconds, makes every frame timestamped. ``message_type``
+        is one :class:`MessageType` for all frames, or a length-N array of
+        message-type bytes or values, for example the ``msgtype`` view returned by
+        ``parse_bulk``.
         """
         payload_cls = cls.payload_class
         itemsize = payload_cls.payload_dtype.itemsize
@@ -300,7 +301,7 @@ class RegisterBase(ABC, Generic[U]):
         timestamp: float | None = None,
         port: int = _DEFAULT_PORT,
     ) -> bytes:
-        """Build a Harp frame for this register. No value → Read; with value → Write."""
+        """Build a Harp frame for this register. No value gives a Read, a value gives a Write."""
         if value is _MISSING:
             mt = MessageType.Read if message_type is None else message_type
             return build_message_frame(

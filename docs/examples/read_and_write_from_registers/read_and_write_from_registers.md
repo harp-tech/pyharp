@@ -1,9 +1,8 @@
 # Read and Write from Registers
 
-This example demonstrates how to read and write from registers, using the core registers exposed by `harp.device`. Device-specific registers (e.g. a [Harp Behavior](https://harp-tech.org/api/Harp.Behavior.html)'s digital I/O) are used the same way — pass that device's register classes to `read`/`write`.
+This example demonstrates how to read and write from registers, using the core registers exposed by `harp.device.core`. Device-specific registers, for example the digital I/O of a Harp Behavior device, are used the same way. Pass the register classes of that device to `read` and `write`.
 
-!!! warning
-    Don't forget to change the `SERIAL_PORT` to the one that corresponds to your device! The `SERIAL_PORT` must be denoted as `/dev/ttyUSBx` in Linux and `COMx` in Windows, where `x` is the number of the serial port.
+{% include-markdown "includes/serial-port.md" %}
 
 <!--codeinclude-->
 ```python

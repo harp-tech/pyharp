@@ -13,7 +13,7 @@ class HarpFramer:
     sources (e.g. serial ports) where data arrives in chunks.
 
     Recovery: on checksum or PayloadType failure, the framer skips exactly the
-    bad MessageType byte and retries from the next byte — matching the C#
+    bad MessageType byte and retries from the next byte, matching the C#
     StreamTransport resynchronisation strategy.
     """
 
@@ -39,7 +39,7 @@ class HarpFramer:
         pos = self._pos
 
         while pos < len(buf):
-            # ── State 1: Seek ──────────────────────────────────────────────
+            # --- State 1: Seek ----------------------------------------------
             # Find a byte that looks like a valid MessageType.
             try:
                 _validate_message_type(buf[pos])
@@ -49,7 +49,7 @@ class HarpFramer:
 
             msg_type_pos = pos
 
-            # ── State 2: ReadLength ────────────────────────────────────────
+            # --- State 2: ReadLength ---------------------------------------
             if pos + 1 >= len(buf):
                 break  # need more data
 
@@ -59,7 +59,7 @@ class HarpFramer:
                 pos += 1
                 continue
 
-            # ── State 3: ReadBody ──────────────────────────────────────────
+            # --- State 3: ReadBody -----------------------------------------
             frame_end = pos + 2 + length
             if frame_end > len(buf):
                 break  # frame not yet complete

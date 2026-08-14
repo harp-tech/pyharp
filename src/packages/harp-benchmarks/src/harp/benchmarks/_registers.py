@@ -4,7 +4,7 @@ paired with whether its frames carry a timestamp.
 Both ``generate.py`` (writes the .bin corpora) and ``benchmark.py`` (times parsing)
 import :data:`BENCHMARK_REGISTERS` from here so the two stay in lock-step. Payloads
 are synthesized as random bytes per frame at generation time (see ``generate.py``),
-so no sample values live here — only the register class and its frame shape.
+so no sample values live here, only the register class and its frame shape.
 
 All generated artifacts live under ``./benchmark`` in the current working directory.
 """
@@ -53,7 +53,7 @@ class BenchmarkedRegister(NamedTuple):
 
 
 def _base_registers() -> list[BenchmarkedRegister]:
-    """One (timestamped) fixture per register — :func:`_build` derives the untimestamped twin.
+    """One timestamped fixture per register, from which :func:`_build` derives the untimestamped twin.
 
     The set spans the full spread of payload shapes the Harp protocol allows: trivial
     scalars, struct payloads with byte gaps, masked sub-fields, custom converters, and

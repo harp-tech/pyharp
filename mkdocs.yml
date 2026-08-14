@@ -3,6 +3,9 @@ repo_url: https://github.com/harp-tech/pyharp
 repo_name: "harp-tech/pyharp"
 copyright: Copyright (c) harp-tech and Contributors
 
+exclude_docs: |
+  includes/
+
 plugins:
   - search
   - autorefs
@@ -22,16 +25,12 @@ plugins:
 
 
 markdown_extensions:
-  - abbr
   - attr_list
   - admonition
-  - pymdownx.details
   - pymdownx.highlight:
       anchor_linenums: true
       line_spans: __span
       pygments_lang_class: true
-  - pymdownx.inlinehilite
-  - pymdownx.snippets
   - pymdownx.superfences
   - toc:
       permalink: "#"
