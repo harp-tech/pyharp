@@ -7,7 +7,7 @@ TODO: hand-maintained for now. Auto-generating it from the upstream
 from enum import Enum
 from typing import Annotated, Dict, List, Optional, Union
 
-from pydantic import BaseModel, ConfigDict, Field, RootModel
+from pydantic import BaseModel, ConfigDict, Field, RootModel, model_validator
 
 
 class PayloadType(str, Enum):
@@ -224,6 +224,25 @@ class Registers(BaseModel):
             "The collection of group masks available to be used with the different registers."
         ),
     )
+
+    @model_validator(mode="after")
+    def _names_are_distinct(self) -> "Registers":
+        """Every generator target renders registers and masks into one namespace."""
+        declared = (
+            ("register", self.registers),
+            ("bit mask", self.bitMasks or {}),
+            ("group mask", self.groupMasks or {}),
+        )
+        seen: Dict[str, str] = {}
+        for kind, names in declared:
+            for name in names:
+                if name in seen:
+                    raise ValueError(
+                        f"{name!r} is declared as both a {seen[name]} and a {kind}; "
+                        f"rename one of them"
+                    )
+                seen[name] = kind
+        return self
 
 
 class DeviceModel(Registers):

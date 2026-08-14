@@ -6,6 +6,7 @@ import pytest
 from harp.device.core import REGISTER_MAP as CORE_REGISTER_MAP
 from harp.device.core import WhoAmI
 from harp.device.schema import DeviceModule, DeviceModuleLike, create_device_module
+from harp.protocol import RegisterBase
 
 from . import expected_device
 from .converters import DataConverter
@@ -67,14 +68,15 @@ def test_core_registers_are_not_named_by_module(test_module):
     assert test_module.REGISTER_MAP[0] is WhoAmI
 
 
-def test_module_names_exactly_schema_registers(test_module):
+def test_module_names_schema_declarations(test_module):
+    # The module names what the schema declares, registers beside the enums and payload
+    # classes they are built from, matching what a generated device package holds.
     named = {n for n in vars(test_module) if not n.startswith("_") and n not in MODULE_CONSTANTS}
+    registers = {n for n in named if issubclass(getattr(test_module, n), RegisterBase)}
     addresses = {cls.address for cls in test_module.REGISTER_MAP.values()}
-    # Everything the module names is in the address space, and the map carries the
-    # common registers on top, which is the whole difference between the two.
-    assert all(getattr(test_module, n).address in addresses for n in named)
+    assert all(getattr(test_module, n).address in addresses for n in registers)
+    assert {"EncoderModeMask", "AnalogDataPayload"} <= named - registers
     assert {c.__name__ for c in CORE_REGISTER_MAP.values()}.isdisjoint(named)
-    assert len(test_module.REGISTER_MAP) > len(named)
 
 
 def test_emitted_module_matches_device_protocol(test_module):
@@ -98,7 +100,7 @@ def test_common_registers_are_not_device_module():
 def test_unknown_name_raises_attribute_error(test_module):
     # The message names the module and the register, since a schema-built module
     # cannot offer the name in an editor.
-    with pytest.raises(AttributeError, match="'Tests' has no register named 'Nonexistent'"):
+    with pytest.raises(AttributeError, match="'Tests' has no declaration named 'Nonexistent'"):
         _ = test_module.Nonexistent
 
 
@@ -129,13 +131,14 @@ def test_headerless_fragment_builds_default_module():
     assert mod.Foo.address == 40
 
 
-def test_all_covers_registers_and_module_constants(test_module):
+def test_all_covers_declarations_and_module_constants(test_module):
     exported = set(test_module.__all__)
     assert {"REGISTER_MAP", "WHO_AM_I"} <= exported
     assert {"AnalogData", "EncoderMode"} <= exported
+    assert {"EncoderModeMask", "AnalogDataPayload"} <= exported
     assert "WhoAmI" not in exported  # a common register is not re-exported
     assert exported - MODULE_CONSTANTS == {
-        cls.__name__ for cls in test_module.REGISTER_MAP.values() if cls.address >= 32
+        n for n in vars(test_module) if not n.startswith("_") and n not in MODULE_CONSTANTS
     }
 
 
