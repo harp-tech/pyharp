@@ -12,7 +12,7 @@ from . import expected_device
 from .converters import DataConverter
 
 CONVERTERS = {"DataConverter": DataConverter()}
-MODULE_CONSTANTS = {"REGISTER_MAP", "WHO_AM_I"}
+MODULE_CONSTANTS = {"DEVICE_NAME", "REGISTER_MAP", "WHO_AM_I"}
 
 
 @pytest.fixture
@@ -29,6 +29,11 @@ def test_returns_device_module(test_module):
     # The subclass is what declares REGISTER_MAP, WHO_AM_I and the register names,
     # so a linter can resolve them on a module built at runtime.
     assert isinstance(test_module, DeviceModule)
+
+
+def test_device_name_from_schema(test_module):
+    # Recordings are written under this name, so a reader can match files by it.
+    assert test_module.DEVICE_NAME == "Tests"
 
 
 def test_whoami_defaults_to_zero_when_absent(test_module):
@@ -121,13 +126,16 @@ def test_device_register_overrides_core_on_clash():
     assert mod.Shadow.address == 0
 
 
-def test_headerless_fragment_builds_default_module():
-    # A register-only fragment is a valid (nameless) device; name falls back to "Device".
+def test_headerless_fragment_builds_nameless_device():
+    # A register-only fragment declares no device, so it is nameless and unregistered.
+    # The empty DEVICE_NAME is what sends a reader to the folder for a prefix, while
+    # "Device" only keeps the module itself from being anonymous.
     mod = create_device_module("registers:\n  Foo: {address: 40, type: U16, access: Read}\n")
-    assert mod.__name__ == "Device"
+    assert mod.DEVICE_NAME == ""
     assert mod.WHO_AM_I == 0
     assert mod.REGISTER_MAP[40].__name__ == "Foo"
     assert mod.Foo.address == 40
+    assert mod.__name__ == "Device"
 
 
 def test_all_covers_declarations_and_module_constants(test_module):

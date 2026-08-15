@@ -22,6 +22,14 @@ DEVICE_SCHEMA_FILENAME = "device.yml"
 """Default filename of the device schema looked up inside a dataset folder."""
 
 
+_FILE_STEM = re.compile(r"^(?P<name>.+?)_(?P<address>\d+)(?:_.*)?$")
+
+
+def _discover_device_names(root: Path) -> set[str]:
+    stems = (_FILE_STEM.match(path.stem) for path in root.glob("*.bin"))
+    return {match.group("name") for match in stems if match is not None}
+
+
 def default_file_resolver(root: Path, name: str) -> dict[int, list[Path]]:
     """Harp file format resolver: map address -> sorted ``<name>_<address>...`` files."""
     pattern = re.compile(rf"^{re.escape(name)}_(\d+)(?:_.*)?$")
@@ -45,9 +53,12 @@ class DatasetReader(Generic[M]):
         everything = reader.read_all()         # {register_name: DataFrame}
 
     ``device_module`` is a device module -- a generated device package, or one built from a
-    schema with :func:`~harp.device.schema.create_device_module`. Its ``REGISTER_MAP`` and
-    ``__name__`` are read on demand. ``name`` overrides the ``<DeviceName>`` file
-    prefix, which defaults to the module name.
+    schema with :func:`~harp.device.schema.create_device_module`. Its ``REGISTER_MAP`` is
+    read on demand.
+
+    The files are matched by a ``<DeviceName>`` prefix, taken from the ``DEVICE_NAME``
+    the module declares, or read off the folder when it declares none. Pass ``name`` to
+    override that, either deliberately or to read a folder the rule cannot resolve.
 
     The reader is typed on the module it was given, so registers stay reachable through
     :attr:`device_module` at whatever precision that module offers.
@@ -70,7 +81,8 @@ class DatasetReader(Generic[M]):
         self._root = Path(root)
         self._name_override = name
         self._resolver = resolver
-        self._files = dict(self._resolver(self._root, self.name))
+        self._name = self._resolve_name()
+        self._files = dict(self._resolver(self._root, self._name))
 
     @property
     def root(self) -> Path:
@@ -90,7 +102,23 @@ class DatasetReader(Generic[M]):
     @property
     def name(self) -> str:
         """The ``<DeviceName>`` prefix used to match binary files."""
-        return self._name_override or self._device_module.__name__
+        return self._name
+
+    def _resolve_name(self) -> str:
+        if self._name_override is not None:
+            return self._name_override
+        declared = getattr(self._device_module, "DEVICE_NAME", "")
+        if declared:
+            return declared
+        found = _discover_device_names(self._root)
+        if len(found) == 1:
+            return found.pop()
+        raise ValueError(
+            f"The device module declares no DEVICE_NAME, so the file prefix has to come "
+            f"from {self._root}, which holds "
+            + (f"data for {sorted(found)}" if found else "no Harp data files")
+            + ". Pass name= with the prefix to read."
+        )
 
     @property
     def registers(self) -> Mapping[int, type[RegisterBase[Any]]]:

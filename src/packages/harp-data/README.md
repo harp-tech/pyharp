@@ -25,24 +25,25 @@ Reading is based on a [device module](../harp-device) that describes how to deco
 from harp import data
 
 reader = data.create_dataset_reader("session.harp")
-df = reader.read(AnalogData)      # by register class
-df = reader.read(44)              # by address
-everything = reader.read_all()    # {register_name: DataFrame}
+behavior = reader.device_module
+df = reader.read(behavior.AnalogData)  # by register class
+df = reader.read(44)                   # by address
+everything = reader.read_all()         # {register_name: DataFrame}
 ```
 
 Given a device module already in hand, either a pre-generated package or one built with `create_device_module`, pass it to `DatasetReader` directly:
 
 ```python
-from pathlib import Path
-
 from harp import data
-from harp.device import schema
+from harp.device import behavior
 
-behavior = schema.create_device_module((Path("session.harp") / "device.yml").read_bytes())
 reader = data.DatasetReader(behavior, "session.harp")
+df = reader.read(behavior.AnalogData)
 ```
 
-Timestamps are auto-detected per register and placed on the DataFrame index named `"Time"`: float seconds by default, or an absolute `DatetimeIndex` when `epoch=REFERENCE_EPOCH` is passed. Multi-chunk registers logged as `<DeviceName>_<address>_<suffix>.bin` are concatenated in filename order; pass a `resolver` to support an alternative on-disk layout, or `name=` to override the file prefix.
+Timestamps are auto-detected per register and placed on the DataFrame index named `"Time"`: float seconds by default, or an absolute `DatetimeIndex` when `epoch=REFERENCE_EPOCH` is passed. Multi-chunk registers logged as `<DeviceName>_<address>_<suffix>.bin` are concatenated in filename order; pass a `resolver` to support an alternative on-disk layout.
+
+The `<DeviceName>` prefix comes from the `DEVICE_NAME` the device module declares. When there is no declared name, the prefix is read off the folder instead. Pass `name=` to override it, either deliberately or to fix a folder the rule cannot resolve.
 
 ## Read a single register file
 

@@ -31,6 +31,7 @@ from .converters import (
 
 
 __all__ = [
+    "DEVICE_NAME",
     "WHO_AM_I",
     "PortDigitalIOS",
     "PwmPort",
@@ -64,6 +65,7 @@ __all__ = [
     "REGISTER_MAP",
 ]
 
+DEVICE_NAME: str = "Tests"
 WHO_AM_I: int = 0
 
 

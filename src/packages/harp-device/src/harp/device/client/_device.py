@@ -167,7 +167,7 @@ class Device(Generic[M]):
         actual = int(self.read(WhoAmI).parsed)
         if actual != expected:
             raise RuntimeError(
-                f"WhoAmI mismatch: {module.__name__} expects 0x{expected:04x} "
+                f"WhoAmI mismatch: {module.DEVICE_NAME} expects 0x{expected:04x} "
                 f"but the device reported 0x{actual:04x}."
             )
 

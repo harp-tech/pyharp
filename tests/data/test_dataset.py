@@ -152,6 +152,66 @@ def test_explicit_name_overrides(dataset):
     assert reader.name == name
 
 
+def test_name_from_device_name_not_module_name(dataset):
+    # The prefix follows DEVICE_NAME rather than __name__, so rebinding the module
+    # does not change which files are read.
+    mod, name, root, _specs = dataset
+    mod.__name__ = "not_the_device_name"
+    assert DatasetReader(mod, root).name == name
+
+
+def test_name_discovered_without_device_name(dataset):
+    # A device package published before DEVICE_NAME existed declares no name, so the
+    # folder is the only remaining source.
+    mod, name, root, _specs = dataset
+    del mod.DEVICE_NAME
+    assert DatasetReader(mod, root).name == name
+
+
+def test_ambiguous_folder_raises(dataset):
+    mod, name, root, specs = dataset
+    del mod.DEVICE_NAME
+    address = next(iter(specs))
+    (root / f"Other_{address}.bin").write_bytes(b"")
+    with pytest.raises(ValueError, match="Pass name=") as excinfo:
+        DatasetReader(mod, root)
+    # The message names what it found, so the caller knows what to choose between.
+    assert name in str(excinfo.value)
+    assert "Other" in str(excinfo.value)
+    assert DatasetReader(mod, root, name=name).name == name
+
+
+def test_empty_dataset_reads_empty(emitted_module, tmp_path):
+    # A session that logged nothing is a dataset with no data, not a failure.
+    reader = DatasetReader(emitted_module, tmp_path)
+    assert reader.name == emitted_module.DEVICE_NAME
+    assert reader.files == {}
+    assert reader.read_all() == {}
+
+
+def test_unresolvable_prefix_raises(emitted_module, tmp_path):
+    # Nothing declares a name and nothing on disk suggests one, so no prefix can be
+    # determined. This is the reader failing to be set up, not an empty dataset.
+    del emitted_module.DEVICE_NAME
+    with pytest.raises(ValueError, match="Pass name="):
+        DatasetReader(emitted_module, tmp_path)
+
+
+def test_chunked_files_discover_single_name(emitted_module, tmp_path):
+    # A stem splits at its first address, so the chunk suffix of a multi-chunk register
+    # stays out of the device name and one device is not discovered as several.
+    mod = emitted_module
+    name = mod.DEVICE_NAME
+    address = next(a for a in sorted(mod.REGISTER_MAP) if a >= 32)
+    cls = mod.REGISTER_MAP[address]
+    for chunk in range(2):
+        buf = bytes(cls.format_bulk(_records(cls, 2, seed=chunk)))
+        (tmp_path / f"{name}_{address}_{chunk}.bin").write_bytes(buf)
+
+    del mod.DEVICE_NAME
+    assert DatasetReader(mod, tmp_path).name == name
+
+
 def test_missing_register_file_raises(dataset):
     mod, _name, root, _specs = dataset
     reader = DatasetReader(mod, root)

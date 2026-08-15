@@ -114,13 +114,15 @@ def open_serial_device_prefers_the_subclass_overload() -> None:
     """A Device subclass is matched as a subclass even when it looks like a module.
 
     type[D] is narrower than the structural module overload, so it has to come first:
-    a class carrying REGISTER_MAP and WHO_AM_I satisfies DeviceModuleLike too, and the
-    module overload would otherwise win and return Device[type[Hybrid]].
+    a class carrying the members of DeviceModuleLike satisfies it too, and the module
+    overload would otherwise win and return Device[type[Hybrid]]. The class has to
+    carry every member for this to test the ordering rather than the match.
     """
 
     class Hybrid(Device[None]):
-        REGISTER_MAP: ClassVar[dict[int, type[RegisterBase[Any]]]] = {}
+        DEVICE_NAME: ClassVar[str] = "Hybrid"
         WHO_AM_I: ClassVar[int] = 1216
+        REGISTER_MAP: ClassVar[dict[int, type[RegisterBase[Any]]]] = {}
 
     device = open_serial_device(Hybrid, port="COM3")
     assert_type(device, Hybrid)

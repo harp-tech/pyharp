@@ -16,6 +16,7 @@ class _NullTransport:
 
 def _module(name: str, **attrs: object) -> types.ModuleType:
     mod = types.ModuleType(name)
+    mod.DEVICE_NAME = name
     for key, value in attrs.items():
         setattr(mod, key, value)
     return mod
