@@ -64,7 +64,6 @@ def create_device_module(
     name: Optional[str] = None,
     converters: Optional[Mapping[str, ConverterValue]] = None,
     strict: bool = True,
-    exclude_private: bool = True,
 ) -> DeviceModule:
     """Emit a module of register classes from ``device.yml`` text.
 
@@ -86,7 +85,6 @@ def create_device_module(
     each resolves as ``type[Any]`` rather than its own type;
     a generated device package is a real module on disk and gives both. On an
     address clash the device register replaces the common one in ``REGISTER_MAP``.
-    ``exclude_private=True`` drops registers whose DSL ``visibility`` is ``private``.
 
     ``text`` is the schema itself rather than a path to it, matching
     :func:`parse_device_schema`, so read the file first. The module is **not**
@@ -97,7 +95,7 @@ def create_device_module(
         behavior.AnalogData
     """
     device = parse_device_schema(text)
-    emitter = _Emitter(device, converters, strict, exclude_private)
+    emitter = _Emitter(device, converters, strict)
     registers = emitter.emit()
     module_name = name or device.device or _DEFAULT_NAME
 

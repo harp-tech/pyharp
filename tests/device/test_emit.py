@@ -317,11 +317,10 @@ _VISIBILITY_YML = (
 )
 
 
-def test_exclude_private_drops_private_registers():
-    # Kept by default. The class of a private register is underscore-prefixed, as the
-    # generator emits it.
+def test_private_registers_are_emitted():
+    # A private register stays in the address space, as it does in a generated package,
+    # since the device can still send it.
     assert set(create_registers(_VISIBILITY_YML)) == {"Pub", "_Priv"}
-    assert set(create_registers(_VISIBILITY_YML, exclude_private=True)) == {"Pub"}
 
 
 def test_private_register_class_is_underscore_prefixed():

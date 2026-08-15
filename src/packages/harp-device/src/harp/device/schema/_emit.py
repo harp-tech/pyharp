@@ -239,12 +239,10 @@ class _Emitter:
         device: Union[DeviceModel, Registers],
         converters: Optional[Mapping[str, ConverterValue]],
         strict: bool,
-        exclude_private: bool,
     ) -> None:
         self.device = device
         self.converters = dict(converters or {})
         self.strict = strict
-        self.exclude_private = exclude_private
         self.group_masks = device.groupMasks or {}
         self.bit_masks = device.bitMasks or {}
         self.enums = self._build_enums()
@@ -484,8 +482,6 @@ class _Emitter:
     def emit(self) -> dict[str, type[RegisterBase[Any]]]:
         emitted: dict[str, type[RegisterBase[Any]]] = {}
         for name, reg in self.device.registers.items():
-            if self.exclude_private and reg.visibility is Visibility.private:
-                continue
             class_name = self._class_name(name, reg)
             emitted[class_name] = self._build_register(name, class_name, reg)
         return emitted
@@ -512,7 +508,6 @@ def create_registers(
     *,
     converters: Optional[Mapping[str, ConverterValue]] = None,
     strict: bool = True,
-    exclude_private: bool = False,
 ) -> dict[str, type[RegisterBase[Any]]]:
     """Emit runtime register classes from a device schema.
 
@@ -526,10 +521,10 @@ def create_registers(
     ``(ctx: ConverterContext) -> Converter`` that builds one from the DSL
     context. A custom type with no matching converter raises
     ``UnknownConverterError`` when ``strict`` (the default); ``strict=False``
-    decodes it as its native element type instead. ``exclude_private=True`` drops
-    registers whose DSL ``visibility`` is ``private``; when kept, a private register
-    class is underscore-prefixed (``_Reserved0``). Note that the converter symbol for a
-    payload field derives from its *verbatim* yml key, not the renamed field.
+    decodes it as its native element type instead. A register whose DSL ``visibility``
+    is ``private`` is emitted with an underscore-prefixed class (``_Reserved0``), as the
+    generator emits it. Note that the converter symbol for a payload field derives from
+    its *verbatim* yml key, not the renamed field.
     """
     device = source if isinstance(source, Registers) else parse_device_schema(source)
-    return _Emitter(device, converters, strict, exclude_private).emit()
+    return _Emitter(device, converters, strict).emit()
