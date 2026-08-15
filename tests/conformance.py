@@ -20,7 +20,7 @@ def schema_built_registers(yml: str) -> None:
     """A module built from a schema types its registers collectively."""
     behavior = create_device_module(yml)
     assert_type(behavior, DeviceModule)
-    assert_type(behavior.AnalogData, type[RegisterBase[Any]])
+    assert_type(behavior.AnalogData, Any)
     assert_type(behavior.REGISTER_MAP, dict[int, type[RegisterBase[Any]]])
     assert_type(behavior.WHO_AM_I, int)
 

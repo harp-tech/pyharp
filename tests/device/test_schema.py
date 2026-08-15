@@ -1,3 +1,6 @@
+import pytest
+from pydantic import ValidationError
+
 from harp.device.schema import parse_device_schema
 from harp.device.schema._model import DeviceModel, PayloadType
 
@@ -12,6 +15,22 @@ def test_parse_full_device(device_yml):
     assert ad.type is PayloadType.Float
     assert ad.length == 6
     assert list(ad.payloadSpec) == ["Analog0", "Analog1", "Analog2", "Accelerometer"]
+
+
+def test_colliding_declaration_names_are_rejected():
+    # Registers and masks are rendered into one namespace, so a name describing two of
+    # them would leave whichever came last and silently lose the other.
+    schema = (
+        "device: Clash\n"
+        "registers:\n"
+        "  Mode: {address: 32, type: U8, access: Read, maskType: Mode}\n"
+        "groupMasks:\n"
+        "  Mode:\n"
+        "    values:\n"
+        "      Idle: {value: 0}\n"
+    )
+    with pytest.raises(ValidationError, match="both a register and a group mask"):
+        parse_device_schema(schema)
 
 
 def test_parse_fragment_yields_null_device():

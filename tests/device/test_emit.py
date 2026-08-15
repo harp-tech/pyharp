@@ -3,9 +3,15 @@ import zlib
 import numpy as np
 import pytest
 from harp.data import parse_to_dataframe
-from harp.protocol import HarpMessage
+from harp.protocol import GroupMask, HarpMessage
 
-from harp.device.schema._emit import NameCollisionError, UnknownConverterError, create_registers
+from harp.device import core
+from harp.device.schema._emit import (
+    NameCollisionError,
+    UnknownConverterError,
+    UnknownMaskError,
+    create_registers,
+)
 
 from . import expected_core, expected_device
 from .converters import DataConverter
@@ -203,6 +209,89 @@ def test_custom_converter_roundtrip(device_registers):
 
 
 # ---------------------------------------------------------------------------
+# Core masks reused by a schema that does not declare them
+# ---------------------------------------------------------------------------
+
+CORE_MASKS_YML = (
+    "device: CoreMasks\n"
+    "registers:\n"
+    "  EnableFlow: {address: 32, type: U8, access: Write, maskType: EnableFlag}\n"
+    "  ResetFlow: {address: 33, type: U8, access: Write, maskType: ResetFlags}\n"
+    "  FlowConfiguration:\n"
+    "    address: 34\n"
+    "    type: U8\n"
+    "    access: Write\n"
+    "    payloadSpec:\n"
+    "      Indicators: {maskType: EnableFlag, mask: 0x1, defaultValue: 1}\n"
+)
+
+
+def _value_enum(reg):
+    return reg.payload_class._mro_descriptor("__value__")._enum
+
+
+def test_undeclared_group_mask_resolves_to_core():
+    # Published devices reference EnableFlag without declaring it, so the emitter has
+    # to reuse the core definition rather than fail to type the register.
+    regs = create_registers(CORE_MASKS_YML)
+    assert _value_enum(regs["EnableFlow"]) is core.EnableFlag
+
+
+def test_undeclared_bit_mask_resolves_to_core():
+    regs = create_registers(CORE_MASKS_YML)
+    assert _value_enum(regs["ResetFlow"]) is core.ResetFlags
+
+
+def test_reused_core_mask_roundtrips_as_the_core_type():
+    # Identity matters more than equal members: a value read through a runtime module
+    # must satisfy isinstance against the same enum a generated package would use.
+    regs = create_registers(CORE_MASKS_YML)
+    value = core.ResetFlags.SAVE | core.ResetFlags.RESTORE_NAME
+    parsed = _roundtrip(regs["ResetFlow"], value)
+    assert isinstance(parsed, core.ResetFlags)
+    assert parsed == value
+
+
+def test_reused_core_mask_resolves_on_payload_member():
+    regs = create_registers(CORE_MASKS_YML)
+    descriptor = regs["FlowConfiguration"].payload_class._mro_descriptor("indicators")
+    assert isinstance(descriptor, GroupMask)
+    assert descriptor._enum is core.EnableFlag
+    assert descriptor._default is core.EnableFlag.ENABLED
+
+
+def test_unresolvable_mask_type_is_rejected():
+    # Naming the mask matters: the register does declare a maskType, so reporting that
+    # one is missing would send the reader looking in the wrong place.
+    with pytest.raises(UnknownMaskError, match="'EnableFlg' is neither declared"):
+        create_registers(
+            "registers:\n  R: {address: 32, type: U8, access: Read, maskType: EnableFlg}\n"
+        )
+
+
+def test_register_with_nothing_to_decode_is_rejected():
+    with pytest.raises(ValueError, match="declares no payloadSpec, maskType, or interfaceType"):
+        create_registers(
+            "registers:\n  R: {address: 32, type: U8, access: Read, converter: Payload}\n"
+        )
+
+
+def test_declared_mask_shadows_core_definition():
+    regs = create_registers(
+        "registers:\n"
+        "  Flow: {address: 32, type: U8, access: Read, maskType: EnableFlag}\n"
+        "groupMasks:\n"
+        "  EnableFlag:\n"
+        "    values:\n"
+        "      Closed: {value: 0}\n"
+        "      Open: {value: 1}\n"
+    )
+    emitted = _value_enum(regs["Flow"])
+    assert emitted is not core.EnableFlag
+    assert list(emitted.__members__) == ["CLOSED", "OPEN"]
+
+
+# ---------------------------------------------------------------------------
 # Converter registry
 # ---------------------------------------------------------------------------
 
@@ -249,11 +338,10 @@ _VISIBILITY_YML = (
 )
 
 
-def test_exclude_private_drops_private_registers():
-    # Kept by default. The class of a private register is underscore-prefixed, as the
-    # generator emits it.
+def test_private_registers_are_emitted():
+    # A private register stays in the address space, as it does in a generated package,
+    # since the device can still send it.
     assert set(create_registers(_VISIBILITY_YML)) == {"Pub", "_Priv"}
-    assert set(create_registers(_VISIBILITY_YML, exclude_private=True)) == {"Pub"}
 
 
 def test_private_register_class_is_underscore_prefixed():

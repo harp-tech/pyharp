@@ -41,8 +41,17 @@ from harp.protocol import (
 from harp.protocol._payload import _reserved_field_reason
 from harp.protocol import PayloadType as ProtoPayloadType
 
+from harp.device import core
+
 from ._model import DeviceModel, PayloadMember, PayloadType, Register, Registers, Visibility
 from ._naming import enum_member_name, field_name
+
+
+_CORE_MASKS: dict[str, Any] = {
+    name: declaration
+    for name, declaration in vars(core).items()
+    if name in core.__all__ and isinstance(declaration, type) and issubclass(declaration, enum.Enum)
+}
 
 _ELEMENT: dict[PayloadType, type[np.generic]] = {
     PayloadType.U8: np.uint8,
@@ -201,6 +210,10 @@ class UnknownConverterError(ValueError):
     """A custom ``interfaceType`` needs a converter not found in ``converters=``."""
 
 
+class UnknownMaskError(ValueError):
+    """A ``maskType`` names neither a mask the schema declares nor a core mask."""
+
+
 class NameCollisionError(ValueError):
     """Two schema identifiers collapse to one Python name, or one shadows a reserved name.
 
@@ -230,18 +243,19 @@ class _Emitter:
         device: Union[DeviceModel, Registers],
         converters: Optional[Mapping[str, ConverterValue]],
         strict: bool,
-        exclude_private: bool,
     ) -> None:
         self.device = device
         self.converters = dict(converters or {})
         self.strict = strict
-        self.exclude_private = exclude_private
         self.group_masks = device.groupMasks or {}
         self.bit_masks = device.bitMasks or {}
         self.enums = self._build_enums()
         # Payload classes are cached by name so registers sharing an ``interfaceType``
         # share one class, as the module-level payload list of the generator does.
         self.payloads: dict[str, type] = {}
+
+    def _find_mask(self, name: str) -> Any:
+        return self.enums.get(name) or _CORE_MASKS.get(name)
 
     # -- naming -----------------------------------------------------------
     def _rename(
@@ -329,12 +343,12 @@ class _Emitter:
         if _default_value is None or (member.length or 0) > 1:
             return _NO_DEFAULT
         value = float(_default_value.root)
-        if type_name in self.group_masks:
-            e = self.enums[type_name]
-            for mv in self.group_masks[type_name].values.values():
-                if int(mv) == int(value):
-                    return e(int(value))
-            return int(value)
+        group_mask = self._find_mask(type_name)
+        if group_mask is not None and issubclass(group_mask, enum.IntEnum):
+            try:
+                return group_mask(int(value))
+            except ValueError:
+                return int(value)
         if member.converter is not None:
             return _NO_DEFAULT  # a custom converter owns its own decoding; no numeric default
         it = ctx.interface_type
@@ -367,10 +381,11 @@ class _Emitter:
         default_kwarg = {} if default is _NO_DEFAULT else {"default": default}
 
         # A group mask is an enum sub-field descriptor, not a Field(converter).
-        if type_name in self.group_masks:
+        group_mask = self._find_mask(type_name)
+        if group_mask is not None and issubclass(group_mask, enum.IntEnum):
             full = (1 << (elem_size * 8)) - 1
             mask = member.mask if member.mask is not None else full
-            return GroupMask(enum=self.enums[type_name], mask=mask, offset=offset, **default_kwarg)
+            return GroupMask(enum=group_mask, mask=mask, offset=offset, **default_kwarg)
 
         field_kwargs: dict[str, Any] = {"offset": offset, **default_kwarg}
         if member.mask is not None:
@@ -413,15 +428,22 @@ class _Emitter:
         # anonymous single-value payload
         mt = reg.maskType.root if reg.maskType else None
         it = reg.interfaceType.root if reg.interfaceType else None
-        if mt in self.group_masks:
+        mask = self._find_mask(mt) if mt else None
+        if mask is not None and issubclass(mask, enum.IntFlag):
+            descriptor: Any = BitMask(enum=mask)
+        elif mask is not None:
             full = (1 << (elem_size * 8)) - 1
-            descriptor: Any = GroupMask(enum=self.enums[mt], mask=full)
-        elif mt in self.bit_masks:
-            descriptor = BitMask(enum=self.enums[mt])
-        else:
-            assert it is not None, (
-                f"{owner}: register needs a payloadSpec, maskType, or interfaceType"
+            descriptor = GroupMask(enum=mask, mask=full)
+        elif mt is not None:
+            raise UnknownMaskError(
+                f"{owner}: maskType {mt!r} is neither declared by the schema nor a core "
+                f"mask; declare it or use one of {sorted(_CORE_MASKS)}"
             )
+        elif it is None:
+            raise ValueError(
+                f"{owner}: register declares no payloadSpec, maskType, or interfaceType"
+            )
+        else:
             ctx = ConverterContext(
                 name="__value__",
                 interface_type=it,
@@ -470,8 +492,6 @@ class _Emitter:
     def emit(self) -> dict[str, type[RegisterBase[Any]]]:
         emitted: dict[str, type[RegisterBase[Any]]] = {}
         for name, reg in self.device.registers.items():
-            if self.exclude_private and reg.visibility is Visibility.private:
-                continue
             class_name = self._class_name(name, reg)
             emitted[class_name] = self._build_register(name, class_name, reg)
         return emitted
@@ -498,7 +518,6 @@ def create_registers(
     *,
     converters: Optional[Mapping[str, ConverterValue]] = None,
     strict: bool = True,
-    exclude_private: bool = False,
 ) -> dict[str, type[RegisterBase[Any]]]:
     """Emit runtime register classes from a device schema.
 
@@ -512,10 +531,10 @@ def create_registers(
     ``(ctx: ConverterContext) -> Converter`` that builds one from the DSL
     context. A custom type with no matching converter raises
     ``UnknownConverterError`` when ``strict`` (the default); ``strict=False``
-    decodes it as its native element type instead. ``exclude_private=True`` drops
-    registers whose DSL ``visibility`` is ``private``; when kept, a private register
-    class is underscore-prefixed (``_Reserved0``). Note that the converter symbol for a
-    payload field derives from its *verbatim* yml key, not the renamed field.
+    decodes it as its native element type instead. A register whose DSL ``visibility``
+    is ``private`` is emitted with an underscore-prefixed class (``_Reserved0``), as the
+    generator emits it. Note that the converter symbol for a payload field derives from
+    its *verbatim* yml key, not the renamed field.
     """
     device = source if isinstance(source, Registers) else parse_device_schema(source)
-    return _Emitter(device, converters, strict, exclude_private).emit()
+    return _Emitter(device, converters, strict).emit()

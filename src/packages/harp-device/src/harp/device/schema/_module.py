@@ -13,7 +13,7 @@ from typing import Any, Mapping, Optional, Protocol, runtime_checkable
 from harp.protocol import RegisterBase
 
 from harp.device.core import REGISTER_MAP as CORE_REGISTER_MAP
-from ._emit import ConverterValue, create_registers, parse_device_schema
+from ._emit import ConverterValue, _Emitter, parse_device_schema
 
 _DEFAULT_NAME = "Device"
 """Module name used when the schema carries no ``device`` header."""
@@ -35,13 +35,11 @@ class DeviceModuleLike(Protocol):
 
 
 class DeviceModule(types.ModuleType):
-    """The module :func:`create_device_module` returns, describing what a device module holds.
+    """The type of the module returned by :func:`create_device_module`.
 
-    Declaring the members is what lets a linter resolve them. Register names come
-    from the schema, so they can only be described collectively, through
-    :meth:`__getattr__`; ``REGISTER_MAP`` and ``WHO_AM_I`` are named and keep their
-    own types. A statically generated device package is a plain module and needs
-    none of this, since its registers are written out.
+    The declarations of the schema are reached by name and typed ``Any``, since they
+    exist only at runtime. ``REGISTER_MAP``, ``WHO_AM_I`` and ``__all__`` are declared
+    here and carry their own types.
     """
 
     REGISTER_MAP: dict[int, type[RegisterBase[Any]]]
@@ -50,8 +48,8 @@ class DeviceModule(types.ModuleType):
     WHO_AM_I: int
     """The device identity declared by the schema. ``0`` when absent."""
 
-    def __getattr__(self, name: str) -> type[RegisterBase[Any]]:
-        raise AttributeError(f"module {self.__name__!r} has no register named {name!r}")
+    __all__: list[str]
+    """The declarations of the schema, beside ``REGISTER_MAP`` and ``WHO_AM_I``."""
 
 
 def create_device_module(
@@ -60,13 +58,16 @@ def create_device_module(
     name: Optional[str] = None,
     converters: Optional[Mapping[str, ConverterValue]] = None,
     strict: bool = True,
-    exclude_private: bool = True,
 ) -> DeviceModule:
     """Emit a module of register classes from ``device.yml`` text.
 
-    The module names the registers the schema declares, so ``behavior.AnalogData``
-    resolves while a common register such as ``WhoAmI`` is imported from
-    :mod:`harp.device`, keeping one definition of each. Beside them it holds:
+    The module names what the schema declares, its registers beside the enums and
+    payload classes they are built from, so ``behavior.AnalogData``,
+    ``behavior.AnalogDataPayload`` and ``behavior.EncoderModeMask`` all resolve while a
+    common register such as ``WhoAmI`` is imported from :mod:`harp.device.core`, keeping
+    one definition of each. This is the same set a generated device package holds. A
+    name describing two declarations is rejected rather than shadowed. Beside them
+    it holds:
 
     * ``REGISTER_MAP``, the device address space, so the common registers are
       present here even though the module does not name them;
@@ -75,10 +76,9 @@ def create_device_module(
       (``"Device"`` for a header-less register fragment).
 
     Because the names come from the schema at runtime they don't autocomplete, and
-    each resolves as ``type[RegisterBase[Any]]`` rather than its own register type;
-    a generated device package is a real module on disk and gives both. On an
-    address clash the device register replaces the common one in ``REGISTER_MAP``.
-    ``exclude_private=True`` drops registers whose DSL ``visibility`` is ``private``.
+    each resolves as ``Any`` rather than its own type. A generated device package is
+    a real module on disk and gives both. On an address clash the device register
+    replaces the common one in ``REGISTER_MAP``.
 
     ``text`` is the schema itself rather than a path to it, matching
     :func:`parse_device_schema`, so read the file first. The module is **not**
@@ -89,17 +89,16 @@ def create_device_module(
         behavior.AnalogData
     """
     device = parse_device_schema(text)
-    registers = create_registers(
-        device, converters=converters, strict=strict, exclude_private=exclude_private
-    )
+    emitter = _Emitter(device, converters, strict)
+    registers = emitter.emit()
     module_name = name or device.device or _DEFAULT_NAME
 
-    contents: dict[str, type[RegisterBase[Any]]] = dict(registers)
+    contents: dict[str, Any] = {**emitter.enums, **emitter.payloads, **registers}
     register_map = {cls.address: cls for cls in CORE_REGISTER_MAP.values()}
     register_map.update({cls.address: cls for cls in registers.values()})
 
-    for register in registers.values():
-        register.__module__ = module_name
+    for declaration in contents.values():
+        declaration.__module__ = module_name
 
     module = DeviceModule(module_name, f"Harp registers for {module_name}, from a schema.")
     vars(module).update(
