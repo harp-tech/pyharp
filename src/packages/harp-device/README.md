@@ -27,7 +27,7 @@ REGISTER_MAP = {**_CORE_REGISTER_MAP, 32: DigitalInputState, ...}
 
 This is the same structure `create_device_module` builds from a schema, so a device reads the same way whether it was generated ahead of time or compiled at runtime. A `WHO_AM_I` of `0` marks an unregistered device, used while a device is in development or outside the official registry, and identity checks are skipped for it.
 
-A device module names only the registers its schema declares, so `REGISTER_MAP` is the device address space while the module namespace is what the device adds to it. The common registers have a single definition, in `harp.device.core`, and are not a device, so the core register set carries no `WHO_AM_I`.
+A device module names only what its schema declares, the registers beside the enums and payload classes they are built from, so `REGISTER_MAP` is the device address space while the module namespace is what the device adds to it. The common registers and any core mask the schema reuses have a single definition, in `harp.device.core`, and are reached from there rather than through the device module. The core register set is not a device, so it carries no `WHO_AM_I`.
 
 Pass the module to `Device`, or to `open_serial_device`, to validate identity on open:
 
@@ -45,7 +45,7 @@ A new transport is just an object implementing the `ITransport` protocol, with `
 
 ## Generating registers from a `device.yml`
 
-Without a pre-generated device package, `create_device_module` builds the same structure at runtime from Harp `device.yml` text: register classes at module level, a `REGISTER_MAP` beside them, and the identity declared by the schema as `WHO_AM_I`. Identifiers match a generated package name for name: register, enum, and payload class names come from the yml verbatim, payload fields are `snake_case`, and enum members are `SCREAMING_SNAKE_CASE`.
+Without a pre-generated device package, `create_device_module` builds the same structure at runtime from Harp `device.yml` text: register, enum and payload classes at module level, a `REGISTER_MAP` beside them, and the identity declared by the schema as `WHO_AM_I`. Identifiers match a generated package name for name: register, enum, and payload class names come from the yml verbatim, payload fields are `snake_case`, and enum members are `SCREAMING_SNAKE_CASE`. A `maskType` the schema does not declare resolves against the core masks, and a register marked `private` is emitted with an underscore-prefixed name.
 
 ```python
 from pathlib import Path
