@@ -142,6 +142,12 @@ def test_all_covers_declarations_and_module_constants(test_module):
     }
 
 
+def test_all_matches_the_generated_package(test_module):
+    # expected_device is generator output for the same schema, so this pins that both
+    # paths publish exactly the same surface, not merely equivalent registers.
+    assert set(test_module.__all__) == set(expected_device.__all__)
+
+
 def test_reused_core_masks_are_not_named_by_module():
     # A reused mask has one definition, in harp.device.core, so a device module resolves
     # registers against it without naming it, as it does for the common registers.
