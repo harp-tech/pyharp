@@ -6,7 +6,12 @@ from harp.data import parse_to_dataframe
 from harp.protocol import GroupMask, HarpMessage
 
 from harp.device import core
-from harp.device.schema._emit import NameCollisionError, UnknownConverterError, create_registers
+from harp.device.schema._emit import (
+    NameCollisionError,
+    UnknownConverterError,
+    UnknownMaskError,
+    create_registers,
+)
 
 from . import expected_core, expected_device
 from .converters import DataConverter
@@ -253,6 +258,22 @@ def test_reused_core_mask_resolves_on_payload_member():
     assert isinstance(descriptor, GroupMask)
     assert descriptor._enum is core.EnableFlag
     assert descriptor._default is core.EnableFlag.ENABLED
+
+
+def test_unresolvable_mask_type_is_rejected():
+    # Naming the mask matters: the register does declare a maskType, so reporting that
+    # one is missing would send the reader looking in the wrong place.
+    with pytest.raises(UnknownMaskError, match="'EnableFlg' is neither declared"):
+        create_registers(
+            "registers:\n  R: {address: 32, type: U8, access: Read, maskType: EnableFlg}\n"
+        )
+
+
+def test_register_with_nothing_to_decode_is_rejected():
+    with pytest.raises(ValueError, match="declares no payloadSpec, maskType, or interfaceType"):
+        create_registers(
+            "registers:\n  R: {address: 32, type: U8, access: Read, converter: Payload}\n"
+        )
 
 
 def test_declared_mask_shadows_core_definition():

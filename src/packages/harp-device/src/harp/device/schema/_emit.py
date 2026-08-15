@@ -210,6 +210,10 @@ class UnknownConverterError(ValueError):
     """A custom ``interfaceType`` needs a converter not found in ``converters=``."""
 
 
+class UnknownMaskError(ValueError):
+    """A ``maskType`` names neither a mask the schema declares nor a core mask."""
+
+
 class NameCollisionError(ValueError):
     """Two schema identifiers collapse to one Python name, or one shadows a reserved name.
 
@@ -430,10 +434,16 @@ class _Emitter:
         elif mask is not None:
             full = (1 << (elem_size * 8)) - 1
             descriptor = GroupMask(enum=mask, mask=full)
-        else:
-            assert it is not None, (
-                f"{owner}: register needs a payloadSpec, maskType, or interfaceType"
+        elif mt is not None:
+            raise UnknownMaskError(
+                f"{owner}: maskType {mt!r} is neither declared by the schema nor a core "
+                f"mask; declare it or use one of {sorted(_CORE_MASKS)}"
             )
+        elif it is None:
+            raise ValueError(
+                f"{owner}: register declares no payloadSpec, maskType, or interfaceType"
+            )
+        else:
             ctx = ConverterContext(
                 name="__value__",
                 interface_type=it,
