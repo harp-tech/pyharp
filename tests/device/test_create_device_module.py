@@ -98,9 +98,8 @@ def test_common_registers_are_not_device_module():
 
 
 def test_unknown_name_raises_attribute_error(test_module):
-    # The message names the module and the register, since a schema-built module
-    # cannot offer the name in an editor.
-    with pytest.raises(AttributeError, match="'Tests' has no declaration named 'Nonexistent'"):
+    # A name not declared by the schema must raise rather than silently resolve.
+    with pytest.raises(AttributeError, match="Nonexistent"):
         _ = test_module.Nonexistent
 
 

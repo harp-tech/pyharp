@@ -35,14 +35,11 @@ class DeviceModuleLike(Protocol):
 
 
 class DeviceModule(types.ModuleType):
-    """The module :func:`create_device_module` returns, describing what a device module holds.
+    """The type of the module returned by :func:`create_device_module`.
 
-    Declaring the members is what lets a linter resolve them. Declaration names come
-    from the schema, so they can only be described collectively, through
-    :meth:`__getattr__`; ``REGISTER_MAP`` and ``WHO_AM_I`` are named and keep their
-    own types. The module holds registers, enums and payload classes alike, so the
-    only type they share is being a class. A statically generated device package is a
-    plain module and needs none of this, since its declarations are written out.
+    The declarations of the schema are reached by name and typed ``Any``, since they
+    exist only at runtime. ``REGISTER_MAP``, ``WHO_AM_I`` and ``__all__`` are declared
+    here and carry their own types.
     """
 
     REGISTER_MAP: dict[int, type[RegisterBase[Any]]]
@@ -53,9 +50,6 @@ class DeviceModule(types.ModuleType):
 
     __all__: list[str]
     """The declarations of the schema, beside ``REGISTER_MAP`` and ``WHO_AM_I``."""
-
-    def __getattr__(self, name: str) -> type[Any]:
-        raise AttributeError(f"module {self.__name__!r} has no declaration named {name!r}")
 
 
 def create_device_module(
@@ -82,9 +76,9 @@ def create_device_module(
       (``"Device"`` for a header-less register fragment).
 
     Because the names come from the schema at runtime they don't autocomplete, and
-    each resolves as ``type[Any]`` rather than its own type;
-    a generated device package is a real module on disk and gives both. On an
-    address clash the device register replaces the common one in ``REGISTER_MAP``.
+    each resolves as ``Any`` rather than its own type. A generated device package is
+    a real module on disk and gives both. On an address clash the device register
+    replaces the common one in ``REGISTER_MAP``.
 
     ``text`` is the schema itself rather than a path to it, matching
     :func:`parse_device_schema`, so read the file first. The module is **not**
