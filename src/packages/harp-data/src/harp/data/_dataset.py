@@ -3,14 +3,16 @@ from collections.abc import Callable, Mapping
 from datetime import datetime
 from os import PathLike
 from pathlib import Path
-from typing import Any
+from typing import Any, Generic, TypeVar
 
 import pandas as pd
-from harp.device.schema import DeviceModuleLike, create_device_module
+from harp.device.schema import DeviceModule, DeviceModuleLike, create_device_module
 from harp.protocol import RegisterBase
 from harp.protocol._constants import _TIMESTAMP_FLAG
 
 from ._reader import parse_to_dataframe
+
+M = TypeVar("M", bound=DeviceModuleLike)
 
 RegisterKey = type[RegisterBase[Any]] | int
 
@@ -31,7 +33,7 @@ def default_file_resolver(root: Path, name: str) -> dict[int, list[Path]]:
     return files
 
 
-class DatasetReader:
+class DatasetReader(Generic[M]):
     """Reader over a de-multiplexed Harp dataset folder.
 
     Construct from a device module and a dataset folder, then read the
@@ -47,6 +49,9 @@ class DatasetReader:
     ``__name__`` are read on demand. ``name`` overrides the ``<DeviceName>`` file
     prefix, which defaults to the module name.
 
+    The reader is typed on the module it was given, so registers stay reachable through
+    :attr:`device_module` at whatever precision that module offers.
+
     File resolution defaults to the Harp file format: ``<name>_<address>.bin`` and,
     when a register was logged as several ``<name>_<address>_<suffix>.bin`` chunks,
     they are concatenated in filename order. Pass ``resolver`` (a :data:`FileResolver`)
@@ -55,7 +60,7 @@ class DatasetReader:
 
     def __init__(
         self,
-        device_module: DeviceModuleLike,
+        device_module: M,
         root: str | PathLike[str],
         *,
         name: str | None = None,
@@ -73,8 +78,13 @@ class DatasetReader:
         return self._root
 
     @property
-    def device_module(self) -> DeviceModuleLike:
-        """The device module this reader parses against."""
+    def device_module(self) -> M:
+        """The device module this reader parses against, as the type it was given.
+
+        A generated package resolves each register to its own class; one built by
+        :func:`~harp.device.schema.create_device_module` resolves them collectively,
+        the same ceiling as reaching it directly.
+        """
         return self._device_module
 
     @property
@@ -193,7 +203,7 @@ def create_dataset_reader(
     resolver: FileNameResolver = default_file_resolver,
     converters: Mapping[str, Any] | None = None,
     strict: bool = True,
-) -> DatasetReader:
+) -> DatasetReader[DeviceModule]:
     """Build a :class:`DatasetReader` for a dataset folder, device and all.
 
     Convenience wrapper that finds the device schema inside ``root`` (``device.yml``
