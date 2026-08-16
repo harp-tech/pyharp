@@ -168,7 +168,7 @@ def test_name_discovered_without_device_name(dataset):
     assert DatasetReader(mod, root).name == name
 
 
-def test_ambiguous_folder_raises(dataset):
+def test_ambiguous_folder_raises_until_named(dataset):
     mod, name, root, specs = dataset
     del mod.DEVICE_NAME
     address = next(iter(specs))
@@ -189,7 +189,7 @@ def test_empty_dataset_reads_empty(emitted_module, tmp_path):
     assert reader.read_all() == {}
 
 
-def test_unresolvable_prefix_raises(emitted_module, tmp_path):
+def test_unresolvable_prefix_raises_on_construction(emitted_module, tmp_path):
     # Nothing declares a name and nothing on disk suggests one, so no prefix can be
     # determined. This is the reader failing to be set up, not an empty dataset.
     del emitted_module.DEVICE_NAME
@@ -312,6 +312,93 @@ def test_create_dataset_reader_accepts_explicit_schema_path(dataset, device_yml,
     reader = create_dataset_reader(root, schema=schema_path, require_converters=False)
     address = next(iter(specs))
     assert not reader.read(address).empty
+
+
+def _with_whoami(device_yml: str, who_am_i: int) -> str:
+    return f"whoAmI: {who_am_i}\n{device_yml}"
+
+
+def test_whoami_mismatch_raises_on_construction(dataset, device_yml, tmp_path):
+    # A folder whose schema declares a different device is rejected.
+    _mod, name, root, specs = dataset
+    (root / "device.yml").write_text(_with_whoami(device_yml, 1216))
+    other = create_device_module(_with_whoami(device_yml, 1216), require_converters=False)
+
+    elsewhere = tmp_path / "other_session"
+    elsewhere.mkdir()
+    for address in specs:
+        (elsewhere / f"{name}_{address}.bin").write_bytes(b"")
+    (elsewhere / "device.yml").write_text(_with_whoami(device_yml, 1234))
+
+    with pytest.raises(ValueError, match="WhoAmI mismatch"):
+        DatasetReader(other, elsewhere)
+
+
+def test_matching_whoami_does_not_block_read(dataset, device_yml):
+    _mod, _name, root, specs = dataset
+    (root / "device.yml").write_text(_with_whoami(device_yml, 1216))
+    mod = create_device_module(_with_whoami(device_yml, 1216), require_converters=False)
+    assert not DatasetReader(mod, root).read(next(iter(specs))).empty
+
+
+def test_unregistered_module_skips_whoami_check(dataset, device_yml):
+    # WHO_AM_I of 0 marks an unregistered device, so there is nothing to check against.
+    mod, _name, root, _specs = dataset
+    (root / "device.yml").write_text(_with_whoami(device_yml, 1234))
+    assert mod.WHO_AM_I == 0
+    assert isinstance(DatasetReader(mod, root), DatasetReader)
+
+
+def test_folder_without_schema_skips_whoami_check(dataset, device_yml):
+    _mod, _name, root, _specs = dataset  # no device.yml written into the folder
+    mod = create_device_module(_with_whoami(device_yml, 1216), require_converters=False)
+    assert isinstance(DatasetReader(mod, root), DatasetReader)
+
+
+def test_schema_without_whoami_skips_check(dataset, device_yml):
+    _mod, _name, root, _specs = dataset
+    (root / "device.yml").write_text(device_yml)  # the fixture declares no whoAmI
+    mod = create_device_module(_with_whoami(device_yml, 1216), require_converters=False)
+    assert isinstance(DatasetReader(mod, root), DatasetReader)
+
+
+def test_unmodellable_schema_skips_check(dataset, device_yml):
+    # Well-formed YAML that pyharp cannot describe, such as a newer or older revision,
+    # must not stop a module that works from decoding the binaries beside it.
+    _mod, _name, root, specs = dataset
+    (root / "device.yml").write_text("registers: [this is not a register map]\n")
+    mod = create_device_module(_with_whoami(device_yml, 1216), require_converters=False)
+    assert not DatasetReader(mod, root).read(next(iter(specs))).empty
+
+
+def test_validate_false_reads_corrupt_schema(dataset, device_yml):
+    # The escape hatch: a damaged sidecar must not make a folder unreadable when the
+    # module decoding it came from elsewhere.
+    _mod, _name, root, specs = dataset
+    (root / "device.yml").write_text("registers: {unbalanced\n")
+    mod = create_device_module(_with_whoami(device_yml, 1216), require_converters=False)
+    reader = DatasetReader(mod, root, validate=False)
+    assert not reader.read(next(iter(specs))).empty
+
+
+def test_validate_false_skips_mismatch(dataset, device_yml, tmp_path):
+    _mod, name, root, specs = dataset
+    (root / "device.yml").write_text(_with_whoami(device_yml, 1234))
+    mod = create_device_module(_with_whoami(device_yml, 1216), require_converters=False)
+    assert DatasetReader(mod, root, validate=False).name == name
+
+
+def test_corrupt_schema_is_not_skipped(dataset, device_yml):
+    # A schema that is not well-formed is a broken dataset rather than one this
+    # version cannot describe, so it surfaces instead of being skipped.
+    _mod, _name, root, _specs = dataset
+    (root / "device.yml").write_text("registers: {unbalanced\n")
+    mod = create_device_module(_with_whoami(device_yml, 1216), require_converters=False)
+    with pytest.raises(Exception) as excinfo:
+        DatasetReader(mod, root)
+    # Pinning the property rather than the parser: anything deriving from ValueError
+    # would have been swallowed by the skip, so this must not.
+    assert not isinstance(excinfo.value, ValueError)
 
 
 def test_create_dataset_reader_missing_schema_raises(dataset):

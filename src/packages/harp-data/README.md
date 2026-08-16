@@ -45,6 +45,8 @@ Timestamps are auto-detected per register and placed on the DataFrame index name
 
 The `<DeviceName>` prefix comes from the `DEVICE_NAME` the device module declares. When there is no declared name, the prefix is read off the folder instead. Pass `name=` to override it, either deliberately or to fix a folder the rule cannot resolve.
 
+When the folder carries a `device.yml` and the module declares an identity, their `whoAmI` values are checked against each other. Reusing a module across sessions and reaching the wrong folder then fails on construction rather than decoding the files against the wrong register map. Pass `validate=False` to turn off every check the reader performs, so a folder whose `device.yml` is damaged can be read with a module obtained elsewhere.
+
 ## Read a single register file
 
 `parse_to_dataframe` takes a register and a source, either a path, bytes, or an open binary file, and returns one row per frame:

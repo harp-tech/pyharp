@@ -6,7 +6,12 @@ from pathlib import Path
 from typing import Any, Generic, TypeVar
 
 import pandas as pd
-from harp.device.schema import DeviceModule, DeviceModuleLike, create_device_module
+from harp.device.schema import (
+    DeviceModule,
+    DeviceModuleLike,
+    create_device_module,
+    parse_device_schema,
+)
 from harp.protocol import RegisterBase
 from harp.protocol._constants import _TIMESTAMP_FLAG
 
@@ -60,6 +65,12 @@ class DatasetReader(Generic[M]):
     the module declares, or read off the folder when it declares none. Pass ``name`` to
     override that, either deliberately or to read a folder the rule cannot resolve.
 
+    When the folder carries a ``device.yml`` and the module declares an identity, their
+    ``whoAmI`` values are checked against each other. A module paired with the wrong
+    folder then fails here rather than decoding the files against the wrong register
+    map. ``validate`` turns off every check the reader performs, so a folder whose
+    ``device.yml`` is damaged can be read with a module obtained elsewhere.
+
     The reader is typed on the module it was given, so registers stay reachable through
     :attr:`device_module` at whatever precision that module offers.
 
@@ -76,6 +87,7 @@ class DatasetReader(Generic[M]):
         *,
         name: str | None = None,
         resolver: FileNameResolver = default_file_resolver,
+        validate: bool = True,
     ) -> None:
         self._device_module = device_module
         self._root = Path(root)
@@ -83,6 +95,8 @@ class DatasetReader(Generic[M]):
         self._resolver = resolver
         self._name = self._resolve_name()
         self._files = dict(self._resolver(self._root, self._name))
+        if validate:
+            self._validate_whoami()
 
     @property
     def root(self) -> Path:
@@ -103,6 +117,24 @@ class DatasetReader(Generic[M]):
     def name(self) -> str:
         """The ``<DeviceName>`` prefix used to match binary files."""
         return self._name
+
+    def _validate_whoami(self) -> None:
+        expected = getattr(self._device_module, "WHO_AM_I", 0)
+        if expected == 0:
+            return
+        schema_path = self._root / DEVICE_SCHEMA_FILENAME
+        if not schema_path.is_file():
+            return
+        try:
+            actual = parse_device_schema(schema_path.read_bytes()).whoAmI
+        except ValueError:
+            return
+        if actual is None or int(actual) == expected:
+            return
+        raise ValueError(
+            f"WhoAmI mismatch: {self._name} expects 0x{expected:04x} but the schema in "
+            f"{self._root} declares 0x{int(actual):04x}."
+        )
 
     def _resolve_name(self) -> str:
         if self._name_override is not None:
@@ -231,6 +263,7 @@ def create_dataset_reader(
     resolver: FileNameResolver = default_file_resolver,
     converters: Mapping[str, Any] | None = None,
     require_converters: bool = True,
+    validate: bool = True,
 ) -> DatasetReader[DeviceModule]:
     """Build a :class:`DatasetReader` for a dataset folder, device and all.
 
@@ -244,9 +277,13 @@ def create_dataset_reader(
     ``schema`` points at the schema file explicitly when it isn't ``root/device.yml``.
     ``converters`` and ``require_converters`` are forwarded to
     :func:`~harp.device.schema.create_device_module` for custom ``interfaceType``
-    decoding; ``name`` and ``resolver`` are forwarded to
+    decoding; ``name``, ``resolver`` and ``validate`` are forwarded to
     :class:`DatasetReader`. Use ``DatasetReader(device_module, root)`` directly given a
     device module already in hand, for example a pre-generated one.
+
+    Note ``validate`` cannot rescue a damaged ``device.yml`` here, since the module is
+    built from that same file and fails before the reader exists. Reading such a folder
+    means supplying a module obtained elsewhere.
     """
     root_path = Path(root)
     schema_path = Path(schema) if schema is not None else root_path / DEVICE_SCHEMA_FILENAME
@@ -258,4 +295,4 @@ def create_dataset_reader(
     device_module = create_device_module(
         schema_path.read_text(), converters=converters, require_converters=require_converters
     )
-    return DatasetReader(device_module, root_path, name=name, resolver=resolver)
+    return DatasetReader(device_module, root_path, name=name, resolver=resolver, validate=validate)
