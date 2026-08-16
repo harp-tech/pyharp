@@ -22,9 +22,9 @@ def _records(cls, n, seed):
 
 @pytest.fixture
 def emitted_module(device_yml):
-    # strict=False: the test device.yml uses a custom DataConverter we don't inject
+    # require_converters=False: the test device.yml uses a custom DataConverter we don't inject
     # here; native decoding is enough to exercise file resolution and parsing.
-    return create_device_module(device_yml, strict=False)
+    return create_device_module(device_yml, require_converters=False)
 
 
 @pytest.fixture
@@ -295,8 +295,9 @@ def test_reader_derives_name_and_registers_from_module(dataset):
 def test_create_dataset_reader_builds_module_from_device_yml(dataset, device_yml):
     mod, _name, root, specs = dataset
     (root / "device.yml").write_text(device_yml)
-    # strict=False mirrors the emitted_module fixture (custom DataConverter not injected).
-    reader = create_dataset_reader(root, strict=False)
+    # require_converters=False mirrors the emitted_module fixture, which does not
+    # inject the custom DataConverter either.
+    reader = create_dataset_reader(root, require_converters=False)
     assert isinstance(reader, DatasetReader)
     # Reads match a reader built from an explicitly-generated module.
     reference = DatasetReader(mod, root)
@@ -308,7 +309,7 @@ def test_create_dataset_reader_accepts_explicit_schema_path(dataset, device_yml,
     _mod, _name, root, specs = dataset
     schema_path = tmp_path / "elsewhere.yml"  # not inside the dataset folder
     schema_path.write_text(device_yml)
-    reader = create_dataset_reader(root, schema=schema_path, strict=False)
+    reader = create_dataset_reader(root, schema=schema_path, require_converters=False)
     address = next(iter(specs))
     assert not reader.read(address).empty
 

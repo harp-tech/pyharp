@@ -64,7 +64,7 @@ def create_device_module(
     *,
     name: Optional[str] = None,
     converters: Optional[Mapping[str, ConverterValue]] = None,
-    strict: bool = True,
+    require_converters: bool = True,
 ) -> DeviceModule:
     """Emit a module of register classes from ``device.yml`` text.
 
@@ -100,7 +100,7 @@ def create_device_module(
         behavior.AnalogData
     """
     device = parse_device_schema(text)
-    emitter = _Emitter(device, converters, strict)
+    emitter = _Emitter(device, converters, require_converters)
     registers = emitter.emit()
     device_name = name or device.device or ""
     module_name = device_name or _DEFAULT_NAME

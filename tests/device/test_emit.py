@@ -302,7 +302,7 @@ def test_unknown_converter_raises(device_yml):
 
 
 def test_non_strict_falls_back_to_native(device_yml):
-    regs = create_registers(device_yml, strict=False)
+    regs = create_registers(device_yml, require_converters=False)
     # Data decodes as the raw native element (u8[2]) rather than the custom int.
     reg = regs["CustomMemberConverter"]
     assert reg.payload_class.payload_dtype.itemsize == 3

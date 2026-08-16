@@ -230,7 +230,7 @@ def create_dataset_reader(
     name: str | None = None,
     resolver: FileNameResolver = default_file_resolver,
     converters: Mapping[str, Any] | None = None,
-    strict: bool = True,
+    require_converters: bool = True,
 ) -> DatasetReader[DeviceModule]:
     """Build a :class:`DatasetReader` for a dataset folder, device and all.
 
@@ -242,8 +242,9 @@ def create_dataset_reader(
         df = reader.read(44)
 
     ``schema`` points at the schema file explicitly when it isn't ``root/device.yml``.
-    ``converters`` and ``strict`` are forwarded to :func:`~harp.device.schema.create_device_module`
-    for custom ``interfaceType`` decoding; ``name`` and ``resolver`` are forwarded to
+    ``converters`` and ``require_converters`` are forwarded to
+    :func:`~harp.device.schema.create_device_module` for custom ``interfaceType``
+    decoding; ``name`` and ``resolver`` are forwarded to
     :class:`DatasetReader`. Use ``DatasetReader(device_module, root)`` directly given a
     device module already in hand, for example a pre-generated one.
     """
@@ -255,6 +256,6 @@ def create_dataset_reader(
             f"or build the device module yourself and use DatasetReader(device_module, root)."
         )
     device_module = create_device_module(
-        schema_path.read_text(), converters=converters, strict=strict
+        schema_path.read_text(), converters=converters, require_converters=require_converters
     )
     return DatasetReader(device_module, root_path, name=name, resolver=resolver)
