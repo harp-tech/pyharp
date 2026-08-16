@@ -26,10 +26,6 @@ df = reader.read(core.OperationControl)
 df = reader.read(44)
 print(df.head())
 
-# Read every register that has a file on disk at once, keyed by register name.
-everything = reader.read_all()
-print(list(everything))
-
 # Pass an epoch to turn the "Time" index into an absolute `DatetimeIndex` instead
 # of float seconds. `REFERENCE_EPOCH` is time zero of the Harp clock in UTC.
 absolute = reader.read(44, epoch=data.REFERENCE_EPOCH)

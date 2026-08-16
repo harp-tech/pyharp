@@ -28,7 +28,6 @@ reader = data.create_dataset_reader("session.harp")
 behavior = reader.device_module
 df = reader.read(behavior.AnalogData)  # by register class
 df = reader.read(44)                   # by address
-everything = reader.read_all()         # {register_name: DataFrame}
 ```
 
 Given a device module already in hand, either a pre-generated package or one built with `create_device_module`, pass it to `DatasetReader` directly:

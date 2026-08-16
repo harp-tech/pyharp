@@ -74,10 +74,13 @@ def test_reads_common_registers_not_named_by_module(emitted_module, tmp_path):
         (tmp_path / f"{mod.DEVICE_NAME}_{cls.address}.bin").write_bytes(buf)
 
     reader = DatasetReader(mod, tmp_path)
-    # By address, and by the class imported from harp.device, and in read_all.
+    # By address, and by the class imported from harp.device.
     assert len(reader.read(WhoAmI.address)) == 4
     assert reader.read(WhoAmI).equals(reader.read(WhoAmI.address))
-    assert set(reader.read_all()) == {"WhoAmI", "TimestampSeconds"}
+    assert {reader.registers[a].__name__ for a in reader.files} == {
+        "WhoAmI",
+        "TimestampSeconds",
+    }
 
 
 def test_timestamp_is_auto_detected(dataset):
@@ -108,15 +111,6 @@ def test_epoch_gives_absolute_datetime_index(dataset):
     # Harp seconds are measured from the reference epoch (timestamps were arange(5)).
     assert df.index[0] == pd.Timestamp(REFERENCE_EPOCH)
     assert df.index[2] == pd.Timestamp(REFERENCE_EPOCH) + pd.Timedelta(seconds=2)
-
-
-def test_read_all_keyed_by_register_name(dataset):
-    mod, _name, root, specs = dataset
-    reader = DatasetReader(mod, root)
-    frames = reader.read_all()
-    assert set(frames) == {cls.__name__ for cls, _ts, _buf in specs.values()}
-    for cls, _timestamped, _buf in specs.values():
-        assert frames[cls.__name__].equals(reader.read(cls.address))
 
 
 def test_suffix_chunks_are_concatenated(emitted_module, tmp_path):
@@ -170,7 +164,6 @@ def test_empty_dataset_reads_empty(emitted_module, tmp_path):
     reader = DatasetReader(emitted_module, tmp_path)
     assert reader.name == emitted_module.DEVICE_NAME
     assert reader.files == {}
-    assert reader.read_all() == {}
 
 
 def test_nameless_module_raises_on_construction(dataset):
@@ -219,10 +212,8 @@ def test_custom_file_resolver_supports_alternative_layout(emitted_module, tmp_pa
 
     reader = DatasetReader(mod, tmp_path, resolver=resolver)
     assert set(reader.files) == set(addresses)
-    frames = reader.read_all()
-    assert set(frames) == set(expected)
-    for register_name, df in frames.items():
-        assert df.equals(expected[register_name])
+    for address in addresses:
+        assert reader.read(address).equals(expected[mod.REGISTER_MAP[address].__name__])
 
 
 def test_files_property_lists_discovered_bins(dataset):
@@ -231,7 +222,7 @@ def test_files_property_lists_discovered_bins(dataset):
     assert set(reader.files) == set(specs)
 
 
-def test_read_all_registers_of_mock_device(emitted_module, tmp_path):
+def test_every_register_round_trips(emitted_module, tmp_path):
     """Write one .bin per register of the device.yml device, then read them all back."""
     mod = emitted_module
     name = mod.DEVICE_NAME
@@ -246,14 +237,12 @@ def test_read_all_registers_of_mock_device(emitted_module, tmp_path):
         expected[cls.__name__] = parse_to_dataframe(cls, buf, timestamp=timestamped)
 
     reader = DatasetReader(mod, tmp_path)
-    frames = reader.read_all()
 
     assert set(reader.files) == set(mod.REGISTER_MAP)
-    assert set(frames) == set(expected)
-    assert len(frames) == len(mod.REGISTER_MAP)
-    for register_name, df in frames.items():
+    for address, cls in mod.REGISTER_MAP.items():
+        df = reader.read(address)
         assert len(df) == 4
-        assert df.equals(expected[register_name])
+        assert df.equals(expected[cls.__name__])
 
 
 def test_reader_derives_name_and_registers_from_module(dataset):

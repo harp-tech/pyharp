@@ -47,7 +47,6 @@ class DatasetReader(Generic[M]):
         reader = DatasetReader(behavior, "session.harp")
         df = reader.read(behavior.AnalogData)  # by register class
         df = reader.read(44)                   # by address
-        everything = reader.read_all()         # {register_name: DataFrame}
 
     ``device_module`` is a device module -- a generated device package, or one built from a
     schema with :func:`~harp.device.schema.create_device_module`. Its ``REGISTER_MAP`` is
@@ -182,36 +181,6 @@ class DatasetReader(Generic[M]):
             decode_enums=decode_enums,
             demux_bit_masks=demux_bit_masks,
         )
-
-    def read_all(
-        self,
-        *,
-        timestamp: bool | None = None,
-        epoch: datetime | None = None,
-        message_type: bool = False,
-        decode_enums: bool = True,
-        demux_bit_masks: bool = False,
-    ) -> dict[str, pd.DataFrame]:
-        """Read every register that has a file present, keyed by register name.
-
-        Files whose address is not among the device registers are skipped.
-        Options are forwarded to :meth:`read`.
-        """
-        registers = self.registers
-        out: dict[str, pd.DataFrame] = {}
-        for address in sorted(self._files):
-            cls = registers.get(address)
-            if cls is None:
-                continue
-            out[cls.__name__] = self.read(
-                address,
-                timestamp=timestamp,
-                epoch=epoch,
-                message_type=message_type,
-                decode_enums=decode_enums,
-                demux_bit_masks=demux_bit_masks,
-            )
-        return out
 
     def _resolve(self, register: RegisterKey) -> tuple[type[RegisterBase[Any]], int]:
         if isinstance(register, type):
