@@ -31,7 +31,7 @@ def emitted_module(device_yml):
 def dataset(emitted_module, tmp_path):
     """A dataset folder with three app registers; the first is timestamped."""
     mod = emitted_module
-    name = mod.__name__
+    name = mod.DEVICE_NAME
     addresses = [a for a in sorted(mod.REGISTER_MAP) if a >= 32][:3]
     specs = {}
     for i, address in enumerate(addresses):
@@ -71,7 +71,7 @@ def test_reads_common_registers_not_named_by_module(emitted_module, tmp_path):
     for cls in (WhoAmI, TimestampSeconds):
         records = _records(cls, 4, seed=cls.address)
         buf = bytes(cls.format_bulk(records))
-        (tmp_path / f"{mod.__name__}_{cls.address}.bin").write_bytes(buf)
+        (tmp_path / f"{mod.DEVICE_NAME}_{cls.address}.bin").write_bytes(buf)
 
     reader = DatasetReader(mod, tmp_path)
     # By address, and by the class imported from harp.device, and in read_all.
@@ -120,27 +120,32 @@ def test_read_all_keyed_by_register_name(dataset):
 
 
 def test_suffix_chunks_are_concatenated(emitted_module, tmp_path):
+    # Chunk suffixes in this test are ISO 8601 UTC timestamps in basic format, so
+    # filename order is chronological order. Written newest first to test the sorting.
     mod = emitted_module
-    name = mod.__name__
+    name = mod.DEVICE_NAME
     address = next(a for a in sorted(mod.REGISTER_MAP) if a >= 32)
     cls = mod.REGISTER_MAP[address]
-    chunk0 = bytes(cls.format_bulk(_records(cls, 3, seed=1)))
-    chunk1 = bytes(cls.format_bulk(_records(cls, 2, seed=2)))
-    (tmp_path / f"{name}_{address}_0.bin").write_bytes(chunk0)
-    (tmp_path / f"{name}_{address}_1.bin").write_bytes(chunk1)
+    chunks = {
+        "20260816T090000Z": bytes(cls.format_bulk(_records(cls, 3, seed=1))),
+        "20260816T100000Z": bytes(cls.format_bulk(_records(cls, 2, seed=2))),
+    }
+    for suffix in reversed(list(chunks)):
+        (tmp_path / f"{name}_{address}_{suffix}.bin").write_bytes(chunks[suffix])
 
     reader = DatasetReader(mod, tmp_path)
-    combined = parse_to_dataframe(cls, chunk0 + chunk1, timestamp=False)
+    combined = parse_to_dataframe(cls, b"".join(chunks.values()), timestamp=False)
     assert reader.read(cls).reset_index(drop=True).equals(combined)
     # A specific chunk can still be selected by suffix.
-    only0 = parse_to_dataframe(cls, chunk0, timestamp=False)
-    assert reader.read(cls, suffix="0").equals(only0)
+    earliest = parse_to_dataframe(cls, chunks["20260816T090000Z"], timestamp=False)
+    assert reader.read(cls, suffix="20260816T090000Z").equals(earliest)
 
 
 def test_non_module_raises_on_register_access(dataset):
-    _mod, _name, root, _specs = dataset
+    _mod, name, root, _specs = dataset
     # Registers are derived lazily; anything without a REGISTER_MAP fails on access.
-    reader = DatasetReader(object, root)
+    # name and validate keep construction from reading the module at all.
+    reader = DatasetReader(object, root, name=name, validate=False)
     with pytest.raises(AttributeError, match="REGISTER_MAP"):
         _ = reader.registers
 
@@ -160,27 +165,6 @@ def test_name_from_device_name_not_module_name(dataset):
     assert DatasetReader(mod, root).name == name
 
 
-def test_name_discovered_without_device_name(dataset):
-    # A device package published before DEVICE_NAME existed declares no name, so the
-    # folder is the only remaining source.
-    mod, name, root, _specs = dataset
-    del mod.DEVICE_NAME
-    assert DatasetReader(mod, root).name == name
-
-
-def test_ambiguous_folder_raises_until_named(dataset):
-    mod, name, root, specs = dataset
-    del mod.DEVICE_NAME
-    address = next(iter(specs))
-    (root / f"Other_{address}.bin").write_bytes(b"")
-    with pytest.raises(ValueError, match="Pass name=") as excinfo:
-        DatasetReader(mod, root)
-    # The message names what it found, so the caller knows what to choose between.
-    assert name in str(excinfo.value)
-    assert "Other" in str(excinfo.value)
-    assert DatasetReader(mod, root, name=name).name == name
-
-
 def test_empty_dataset_reads_empty(emitted_module, tmp_path):
     # A session that logged nothing is a dataset with no data, not a failure.
     reader = DatasetReader(emitted_module, tmp_path)
@@ -189,27 +173,15 @@ def test_empty_dataset_reads_empty(emitted_module, tmp_path):
     assert reader.read_all() == {}
 
 
-def test_unresolvable_prefix_raises_on_construction(emitted_module, tmp_path):
-    # Nothing declares a name and nothing on disk suggests one, so no prefix can be
-    # determined. This is the reader failing to be set up, not an empty dataset.
-    del emitted_module.DEVICE_NAME
+def test_nameless_module_raises_on_construction(dataset):
+    # A header-less schema declares no device, so its module names nothing and file
+    # names are not consulted. This is the reader failing to be set up, not empty data.
+    _mod, name, root, _specs = dataset
+    nameless = create_device_module("registers:\n  Foo: {address: 40, type: U16, access: Read}\n")
+    assert nameless.DEVICE_NAME == ""
     with pytest.raises(ValueError, match="Pass name="):
-        DatasetReader(emitted_module, tmp_path)
-
-
-def test_chunked_files_discover_single_name(emitted_module, tmp_path):
-    # A stem splits at its first address, so the chunk suffix of a multi-chunk register
-    # stays out of the device name and one device is not discovered as several.
-    mod = emitted_module
-    name = mod.DEVICE_NAME
-    address = next(a for a in sorted(mod.REGISTER_MAP) if a >= 32)
-    cls = mod.REGISTER_MAP[address]
-    for chunk in range(2):
-        buf = bytes(cls.format_bulk(_records(cls, 2, seed=chunk)))
-        (tmp_path / f"{name}_{address}_{chunk}.bin").write_bytes(buf)
-
-    del mod.DEVICE_NAME
-    assert DatasetReader(mod, tmp_path).name == name
+        DatasetReader(nameless, root)
+    assert DatasetReader(nameless, root, name=name).name == name
 
 
 def test_missing_register_file_raises(dataset):
@@ -262,7 +234,7 @@ def test_files_property_lists_discovered_bins(dataset):
 def test_read_all_registers_of_mock_device(emitted_module, tmp_path):
     """Write one .bin per register of the device.yml device, then read them all back."""
     mod = emitted_module
-    name = mod.__name__
+    name = mod.DEVICE_NAME
     expected = {}
     for address, cls in mod.REGISTER_MAP.items():
         records = _records(cls, 4, seed=address)

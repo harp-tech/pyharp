@@ -27,14 +27,6 @@ DEVICE_SCHEMA_FILENAME = "device.yml"
 """Default filename of the device schema looked up inside a dataset folder."""
 
 
-_FILE_STEM = re.compile(r"^(?P<name>.+?)_(?P<address>\d+)(?:_.*)?$")
-
-
-def _discover_device_names(root: Path) -> set[str]:
-    stems = (_FILE_STEM.match(path.stem) for path in root.glob("*.bin"))
-    return {match.group("name") for match in stems if match is not None}
-
-
 def default_file_resolver(root: Path, name: str) -> dict[int, list[Path]]:
     """Harp file format resolver: map address -> sorted ``<name>_<address>...`` files."""
     pattern = re.compile(rf"^{re.escape(name)}_(\d+)(?:_.*)?$")
@@ -62,8 +54,8 @@ class DatasetReader(Generic[M]):
     read on demand.
 
     The files are matched by a ``<DeviceName>`` prefix, taken from the ``DEVICE_NAME``
-    the module declares, or read off the folder when it declares none. Pass ``name`` to
-    override that, either deliberately or to read a folder the rule cannot resolve.
+    declared by the module. Pass ``name`` to override it, or to supply one when the module
+    declares an empty name.
 
     When the folder carries a ``device.yml`` and the module declares an identity, their
     ``whoAmI`` values are checked against each other. A module paired with the wrong
@@ -119,14 +111,14 @@ class DatasetReader(Generic[M]):
         return self._name
 
     def _validate_whoami(self) -> None:
-        expected = getattr(self._device_module, "WHO_AM_I", 0)
+        expected = self._device_module.WHO_AM_I
         if expected == 0:
             return
-        schema_path = self._root / DEVICE_SCHEMA_FILENAME
-        if not schema_path.is_file():
+        path = self._root / DEVICE_SCHEMA_FILENAME
+        if not path.is_file():
             return
         try:
-            actual = parse_device_schema(schema_path.read_bytes()).whoAmI
+            actual = parse_device_schema(path.read_bytes()).whoAmI
         except ValueError:
             return
         if actual is None or int(actual) == expected:
@@ -139,17 +131,12 @@ class DatasetReader(Generic[M]):
     def _resolve_name(self) -> str:
         if self._name_override is not None:
             return self._name_override
-        declared = getattr(self._device_module, "DEVICE_NAME", "")
+        declared = self._device_module.DEVICE_NAME
         if declared:
             return declared
-        found = _discover_device_names(self._root)
-        if len(found) == 1:
-            return found.pop()
         raise ValueError(
-            f"The device module declares no DEVICE_NAME, so the file prefix has to come "
-            f"from {self._root}, which holds "
-            + (f"data for {sorted(found)}" if found else "no Harp data files")
-            + ". Pass name= with the prefix to read."
+            f"The device module declares an empty DEVICE_NAME, so it cannot name the "
+            f"files under {self._root}. Pass name= with the file prefix to read."
         )
 
     @property

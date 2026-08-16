@@ -43,7 +43,7 @@ df = reader.read(behavior.AnalogData)
 
 Timestamps are auto-detected per register and placed on the DataFrame index named `"Time"`: float seconds by default, or an absolute `DatetimeIndex` when `epoch=REFERENCE_EPOCH` is passed. Multi-chunk registers logged as `<DeviceName>_<address>_<suffix>.bin` are concatenated in filename order; pass a `resolver` to support an alternative on-disk layout.
 
-The `<DeviceName>` prefix comes from the `DEVICE_NAME` the device module declares. When there is no declared name, the prefix is read off the folder instead. Pass `name=` to override it, either deliberately or to fix a folder the rule cannot resolve.
+The `<DeviceName>` prefix comes from the `DEVICE_NAME` declared by the device module. Pass `name=` to override it, or to supply one when the module declares an empty name.
 
 When the folder carries a `device.yml` and the module declares an identity, their `whoAmI` values are checked against each other. Reusing a module across sessions and reaching the wrong folder then fails on construction rather than decoding the files against the wrong register map. Pass `validate=False` to turn off every check the reader performs, so a folder whose `device.yml` is damaged can be read with a module obtained elsewhere.
 
