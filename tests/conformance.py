@@ -8,7 +8,7 @@ type fails the build rather than being noticed downstream.
 from typing import Any, ClassVar, assert_type
 
 import numpy as np
-from harp.data import DatasetReader
+from harp.data import DatasetReader, create_dataset_reader
 from harp.device.client import Device, ITransport
 from harp.device.core import OperationControl, OperationControlPayload, WhoAmI
 from harp.device.schema import DeviceModule, DeviceModuleLike, create_device_module
@@ -85,17 +85,44 @@ def dataset_reader_accepts_either_module(
     reader.read(44)
 
 
+def dataset_reader_keeps_module_type(
+    schema_built: DeviceModule, generated: DeviceModuleLike
+) -> None:
+    """The reader is typed on the module it was given, not on the contract.
+
+    Reading it back as ``DeviceModuleLike`` would leave only the three declarations of
+    the contract, so every register reached through the reader would fail to resolve.
+    """
+    assert_type(DatasetReader(schema_built, "session.harp").device_module, DeviceModule)
+    assert_type(DatasetReader(generated, "session.harp").device_module, DeviceModuleLike)
+
+
+def dataset_reader_registers_resolve_through_the_module() -> None:
+    """A register stays reachable through the reader, at the precision of its module.
+
+    A schema-built module resolves collectively, as it does when reached directly, so
+    the ceiling here is the one :func:`create_device_module` documents. A generated
+    package carries its own declarations and resolves each to its own class.
+    """
+    reader = create_dataset_reader("session.harp")
+    assert_type(reader, DatasetReader[DeviceModule])
+    assert_type(reader.device_module.AnalogData, Any)
+    reader.read(reader.device_module.AnalogData)
+
+
 def open_serial_device_prefers_the_subclass_overload() -> None:
     """A Device subclass is matched as a subclass even when it looks like a module.
 
     type[D] is narrower than the structural module overload, so it has to come first:
-    a class carrying REGISTER_MAP and WHO_AM_I satisfies DeviceModuleLike too, and the
-    module overload would otherwise win and return Device[type[Hybrid]].
+    a class carrying the members of DeviceModuleLike satisfies it too, and the module
+    overload would otherwise win and return Device[type[Hybrid]]. The class has to
+    carry every member for this to test the ordering rather than the match.
     """
 
     class Hybrid(Device[None]):
-        REGISTER_MAP: ClassVar[dict[int, type[RegisterBase[Any]]]] = {}
+        DEVICE_NAME: ClassVar[str] = "Hybrid"
         WHO_AM_I: ClassVar[int] = 1216
+        REGISTER_MAP: ClassVar[dict[int, type[RegisterBase[Any]]]] = {}
 
     device = open_serial_device(Hybrid, port="COM3")
     assert_type(device, Hybrid)

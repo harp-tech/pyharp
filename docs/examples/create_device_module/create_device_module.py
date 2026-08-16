@@ -35,7 +35,7 @@ print(df.head())
 #
 #   behavior = schema.create_device_module(yml_text, converters={"DataConverter": DataConverter()})
 #
-# An unresolved custom type raises `UnknownConverterError`. Pass `strict=False` to
+# An unresolved custom type raises `UnknownConverterError`. Pass `require_converters=False` to
 # decode it natively instead. A register marked `private` in the schema is emitted
 # with an underscore-prefixed name. For the parsed schema model rather than a module,
 # `parse_device_schema(yml_text)` returns that directly.

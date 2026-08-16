@@ -22,16 +22,16 @@ def _records(cls, n, seed):
 
 @pytest.fixture
 def emitted_module(device_yml):
-    # strict=False: the test device.yml uses a custom DataConverter we don't inject
+    # require_converters=False: the test device.yml uses a custom DataConverter we don't inject
     # here; native decoding is enough to exercise file resolution and parsing.
-    return create_device_module(device_yml, strict=False)
+    return create_device_module(device_yml, require_converters=False)
 
 
 @pytest.fixture
 def dataset(emitted_module, tmp_path):
     """A dataset folder with three app registers; the first is timestamped."""
     mod = emitted_module
-    name = mod.__name__
+    name = mod.DEVICE_NAME
     addresses = [a for a in sorted(mod.REGISTER_MAP) if a >= 32][:3]
     specs = {}
     for i, address in enumerate(addresses):
@@ -71,7 +71,7 @@ def test_reads_common_registers_not_named_by_module(emitted_module, tmp_path):
     for cls in (WhoAmI, TimestampSeconds):
         records = _records(cls, 4, seed=cls.address)
         buf = bytes(cls.format_bulk(records))
-        (tmp_path / f"{mod.__name__}_{cls.address}.bin").write_bytes(buf)
+        (tmp_path / f"{mod.DEVICE_NAME}_{cls.address}.bin").write_bytes(buf)
 
     reader = DatasetReader(mod, tmp_path)
     # By address, and by the class imported from harp.device, and in read_all.
@@ -120,27 +120,32 @@ def test_read_all_keyed_by_register_name(dataset):
 
 
 def test_suffix_chunks_are_concatenated(emitted_module, tmp_path):
+    # Chunk suffixes in this test are ISO 8601 UTC timestamps in basic format, so
+    # filename order is chronological order. Written newest first to test the sorting.
     mod = emitted_module
-    name = mod.__name__
+    name = mod.DEVICE_NAME
     address = next(a for a in sorted(mod.REGISTER_MAP) if a >= 32)
     cls = mod.REGISTER_MAP[address]
-    chunk0 = bytes(cls.format_bulk(_records(cls, 3, seed=1)))
-    chunk1 = bytes(cls.format_bulk(_records(cls, 2, seed=2)))
-    (tmp_path / f"{name}_{address}_0.bin").write_bytes(chunk0)
-    (tmp_path / f"{name}_{address}_1.bin").write_bytes(chunk1)
+    chunks = {
+        "20260816T090000Z": bytes(cls.format_bulk(_records(cls, 3, seed=1))),
+        "20260816T100000Z": bytes(cls.format_bulk(_records(cls, 2, seed=2))),
+    }
+    for suffix in reversed(list(chunks)):
+        (tmp_path / f"{name}_{address}_{suffix}.bin").write_bytes(chunks[suffix])
 
     reader = DatasetReader(mod, tmp_path)
-    combined = parse_to_dataframe(cls, chunk0 + chunk1, timestamp=False)
+    combined = parse_to_dataframe(cls, b"".join(chunks.values()), timestamp=False)
     assert reader.read(cls).reset_index(drop=True).equals(combined)
     # A specific chunk can still be selected by suffix.
-    only0 = parse_to_dataframe(cls, chunk0, timestamp=False)
-    assert reader.read(cls, suffix="0").equals(only0)
+    earliest = parse_to_dataframe(cls, chunks["20260816T090000Z"], timestamp=False)
+    assert reader.read(cls, suffix="20260816T090000Z").equals(earliest)
 
 
 def test_non_module_raises_on_register_access(dataset):
-    _mod, _name, root, _specs = dataset
+    _mod, name, root, _specs = dataset
     # Registers are derived lazily; anything without a REGISTER_MAP fails on access.
-    reader = DatasetReader(object, root)
+    # name and validate keep construction from reading the module at all.
+    reader = DatasetReader(object, root, name=name, validate=False)
     with pytest.raises(AttributeError, match="REGISTER_MAP"):
         _ = reader.registers
 
@@ -150,6 +155,33 @@ def test_explicit_name_overrides(dataset):
     reader = DatasetReader(mod, root, name=name)
     assert isinstance(reader, DatasetReader)
     assert reader.name == name
+
+
+def test_name_from_device_name_not_module_name(dataset):
+    # The prefix follows DEVICE_NAME rather than __name__, so rebinding the module
+    # does not change which files are read.
+    mod, name, root, _specs = dataset
+    mod.__name__ = "not_the_device_name"
+    assert DatasetReader(mod, root).name == name
+
+
+def test_empty_dataset_reads_empty(emitted_module, tmp_path):
+    # A session that logged nothing is a dataset with no data, not a failure.
+    reader = DatasetReader(emitted_module, tmp_path)
+    assert reader.name == emitted_module.DEVICE_NAME
+    assert reader.files == {}
+    assert reader.read_all() == {}
+
+
+def test_nameless_module_raises_on_construction(dataset):
+    # A header-less schema declares no device, so its module names nothing and file
+    # names are not consulted. This is the reader failing to be set up, not empty data.
+    _mod, name, root, _specs = dataset
+    nameless = create_device_module("registers:\n  Foo: {address: 40, type: U16, access: Read}\n")
+    assert nameless.DEVICE_NAME == ""
+    with pytest.raises(ValueError, match="Pass name="):
+        DatasetReader(nameless, root)
+    assert DatasetReader(nameless, root, name=name).name == name
 
 
 def test_missing_register_file_raises(dataset):
@@ -202,7 +234,7 @@ def test_files_property_lists_discovered_bins(dataset):
 def test_read_all_registers_of_mock_device(emitted_module, tmp_path):
     """Write one .bin per register of the device.yml device, then read them all back."""
     mod = emitted_module
-    name = mod.__name__
+    name = mod.DEVICE_NAME
     expected = {}
     for address, cls in mod.REGISTER_MAP.items():
         records = _records(cls, 4, seed=address)
@@ -235,8 +267,9 @@ def test_reader_derives_name_and_registers_from_module(dataset):
 def test_create_dataset_reader_builds_module_from_device_yml(dataset, device_yml):
     mod, _name, root, specs = dataset
     (root / "device.yml").write_text(device_yml)
-    # strict=False mirrors the emitted_module fixture (custom DataConverter not injected).
-    reader = create_dataset_reader(root, strict=False)
+    # require_converters=False mirrors the emitted_module fixture, which does not
+    # inject the custom DataConverter either.
+    reader = create_dataset_reader(root, require_converters=False)
     assert isinstance(reader, DatasetReader)
     # Reads match a reader built from an explicitly-generated module.
     reference = DatasetReader(mod, root)
@@ -248,9 +281,96 @@ def test_create_dataset_reader_accepts_explicit_schema_path(dataset, device_yml,
     _mod, _name, root, specs = dataset
     schema_path = tmp_path / "elsewhere.yml"  # not inside the dataset folder
     schema_path.write_text(device_yml)
-    reader = create_dataset_reader(root, schema=schema_path, strict=False)
+    reader = create_dataset_reader(root, schema=schema_path, require_converters=False)
     address = next(iter(specs))
     assert not reader.read(address).empty
+
+
+def _with_whoami(device_yml: str, who_am_i: int) -> str:
+    return f"whoAmI: {who_am_i}\n{device_yml}"
+
+
+def test_whoami_mismatch_raises_on_construction(dataset, device_yml, tmp_path):
+    # A folder whose schema declares a different device is rejected.
+    _mod, name, root, specs = dataset
+    (root / "device.yml").write_text(_with_whoami(device_yml, 1216))
+    other = create_device_module(_with_whoami(device_yml, 1216), require_converters=False)
+
+    elsewhere = tmp_path / "other_session"
+    elsewhere.mkdir()
+    for address in specs:
+        (elsewhere / f"{name}_{address}.bin").write_bytes(b"")
+    (elsewhere / "device.yml").write_text(_with_whoami(device_yml, 1234))
+
+    with pytest.raises(ValueError, match="WhoAmI mismatch"):
+        DatasetReader(other, elsewhere)
+
+
+def test_matching_whoami_does_not_block_read(dataset, device_yml):
+    _mod, _name, root, specs = dataset
+    (root / "device.yml").write_text(_with_whoami(device_yml, 1216))
+    mod = create_device_module(_with_whoami(device_yml, 1216), require_converters=False)
+    assert not DatasetReader(mod, root).read(next(iter(specs))).empty
+
+
+def test_unregistered_module_skips_whoami_check(dataset, device_yml):
+    # WHO_AM_I of 0 marks an unregistered device, so there is nothing to check against.
+    mod, _name, root, _specs = dataset
+    (root / "device.yml").write_text(_with_whoami(device_yml, 1234))
+    assert mod.WHO_AM_I == 0
+    assert isinstance(DatasetReader(mod, root), DatasetReader)
+
+
+def test_folder_without_schema_skips_whoami_check(dataset, device_yml):
+    _mod, _name, root, _specs = dataset  # no device.yml written into the folder
+    mod = create_device_module(_with_whoami(device_yml, 1216), require_converters=False)
+    assert isinstance(DatasetReader(mod, root), DatasetReader)
+
+
+def test_schema_without_whoami_skips_check(dataset, device_yml):
+    _mod, _name, root, _specs = dataset
+    (root / "device.yml").write_text(device_yml)  # the fixture declares no whoAmI
+    mod = create_device_module(_with_whoami(device_yml, 1216), require_converters=False)
+    assert isinstance(DatasetReader(mod, root), DatasetReader)
+
+
+def test_unmodellable_schema_skips_check(dataset, device_yml):
+    # Well-formed YAML that pyharp cannot describe, such as a newer or older revision,
+    # must not stop a module that works from decoding the binaries beside it.
+    _mod, _name, root, specs = dataset
+    (root / "device.yml").write_text("registers: [this is not a register map]\n")
+    mod = create_device_module(_with_whoami(device_yml, 1216), require_converters=False)
+    assert not DatasetReader(mod, root).read(next(iter(specs))).empty
+
+
+def test_validate_false_reads_corrupt_schema(dataset, device_yml):
+    # The escape hatch: a damaged sidecar must not make a folder unreadable when the
+    # module decoding it came from elsewhere.
+    _mod, _name, root, specs = dataset
+    (root / "device.yml").write_text("registers: {unbalanced\n")
+    mod = create_device_module(_with_whoami(device_yml, 1216), require_converters=False)
+    reader = DatasetReader(mod, root, validate=False)
+    assert not reader.read(next(iter(specs))).empty
+
+
+def test_validate_false_skips_mismatch(dataset, device_yml, tmp_path):
+    _mod, name, root, specs = dataset
+    (root / "device.yml").write_text(_with_whoami(device_yml, 1234))
+    mod = create_device_module(_with_whoami(device_yml, 1216), require_converters=False)
+    assert DatasetReader(mod, root, validate=False).name == name
+
+
+def test_corrupt_schema_is_not_skipped(dataset, device_yml):
+    # A schema that is not well-formed is a broken dataset rather than one this
+    # version cannot describe, so it surfaces instead of being skipped.
+    _mod, _name, root, _specs = dataset
+    (root / "device.yml").write_text("registers: {unbalanced\n")
+    mod = create_device_module(_with_whoami(device_yml, 1216), require_converters=False)
+    with pytest.raises(Exception) as excinfo:
+        DatasetReader(mod, root)
+    # Pinning the property rather than the parser: anything deriving from ValueError
+    # would have been swallowed by the skip, so this must not.
+    assert not isinstance(excinfo.value, ValueError)
 
 
 def test_create_dataset_reader_missing_schema_raises(dataset):

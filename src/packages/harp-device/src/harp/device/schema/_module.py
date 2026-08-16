@@ -27,26 +27,33 @@ class DeviceModuleLike(Protocol):
     what identifies it is describing a device. Matching structurally accepts both it
     and :class:`DeviceModule`, and rejects the common register set, which carries
     registers but is not a device.
+
+    ``DEVICE_NAME`` is required rather than optional, so a generated package always
+    states the name used for its recordings. A schema declaring none still
+    builds, since :class:`DeviceModule` declares the member and leaves it empty.
     """
 
-    __name__: str
-    REGISTER_MAP: dict[int, type[RegisterBase[Any]]]
+    DEVICE_NAME: str
     WHO_AM_I: int
+    REGISTER_MAP: dict[int, type[RegisterBase[Any]]]
 
 
 class DeviceModule(types.ModuleType):
     """The type of the module returned by :func:`create_device_module`.
 
     The declarations of the schema are reached by name and typed ``Any``, since they
-    exist only at runtime. ``REGISTER_MAP``, ``WHO_AM_I`` and ``__all__`` are declared
-    here and carry their own types.
+    exist only at runtime. ``DEVICE_NAME``, ``REGISTER_MAP``, ``WHO_AM_I`` and
+    ``__all__`` are declared here and carry their own types.
     """
 
-    REGISTER_MAP: dict[int, type[RegisterBase[Any]]]
-    """Address -> register class, the common Harp registers merged with those of the schema."""
+    DEVICE_NAME: str
+    """The device name declared by the schema. Empty when absent."""
 
     WHO_AM_I: int
     """The device identity declared by the schema. ``0`` when absent."""
+
+    REGISTER_MAP: dict[int, type[RegisterBase[Any]]]
+    """Address -> register class, the common Harp registers merged with those of the schema."""
 
     __all__: list[str]
     """The declarations of the schema, beside ``REGISTER_MAP`` and ``WHO_AM_I``."""
@@ -57,7 +64,7 @@ def create_device_module(
     *,
     name: Optional[str] = None,
     converters: Optional[Mapping[str, ConverterValue]] = None,
-    strict: bool = True,
+    require_converters: bool = True,
 ) -> DeviceModule:
     """Emit a module of register classes from ``device.yml`` text.
 
@@ -72,8 +79,12 @@ def create_device_module(
     * ``REGISTER_MAP``, the device address space, so the common registers are
       present here even though the module does not name them;
     * ``WHO_AM_I``, the identity declared by the schema (``0`` for an unregistered device);
-    * ``__name__``, the ``device`` name of the schema, or ``name`` when given
-      (``"Device"`` for a header-less register fragment).
+    * ``DEVICE_NAME``, the ``device`` name of the schema, or ``name`` when given, and
+      empty for a header-less register fragment. Recordings are written under this
+      name, so :class:`~harp.data.DatasetReader` matches files by it;
+    * ``__name__``, the same name, falling back to ``"Device"`` so the module is never
+      anonymous. This names the module rather than the device, and is not part of what
+      a device module promises.
 
     Because the names come from the schema at runtime they don't autocomplete, and
     each resolves as ``Any`` rather than its own type. A generated device package is
@@ -89,9 +100,10 @@ def create_device_module(
         behavior.AnalogData
     """
     device = parse_device_schema(text)
-    emitter = _Emitter(device, converters, strict)
+    emitter = _Emitter(device, converters, require_converters)
     registers = emitter.emit()
-    module_name = name or device.device or _DEFAULT_NAME
+    device_name = name or device.device or ""
+    module_name = device_name or _DEFAULT_NAME
 
     contents: dict[str, Any] = {**emitter.enums, **emitter.payloads, **registers}
     register_map = {cls.address: cls for cls in CORE_REGISTER_MAP.values()}
@@ -103,8 +115,9 @@ def create_device_module(
     module = DeviceModule(module_name, f"Harp registers for {module_name}, from a schema.")
     vars(module).update(
         contents,
+        DEVICE_NAME=device_name,
         REGISTER_MAP=register_map,
         WHO_AM_I=int(device.whoAmI or 0),
-        __all__=[*sorted(contents), "REGISTER_MAP", "WHO_AM_I"],
+        __all__=[*sorted(contents), "DEVICE_NAME", "REGISTER_MAP", "WHO_AM_I"],
     )
     return module

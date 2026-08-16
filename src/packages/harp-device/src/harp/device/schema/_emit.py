@@ -242,11 +242,11 @@ class _Emitter:
         self,
         device: Union[DeviceModel, Registers],
         converters: Optional[Mapping[str, ConverterValue]],
-        strict: bool,
+        require_converters: bool,
     ) -> None:
         self.device = device
         self.converters = dict(converters or {})
-        self.strict = strict
+        self.require_converters = require_converters
         self.group_masks = device.groupMasks or {}
         self.bit_masks = device.bitMasks or {}
         self.enums = self._build_enums()
@@ -328,12 +328,12 @@ class _Emitter:
         value = self.converters.get(symbol)
         if value is not None:
             return _materialize(value, ctx)
-        if not self.strict:
+        if not self.require_converters:
             return IdentityConverter(ctx.element)
         raise UnknownConverterError(
             f"no converter {symbol!r} in converters=; pass "
             f"converters={{{symbol!r}: <Converter or (ctx) -> Converter>}} "
-            f"or strict=False to decode as the native type"
+            f"or require_converters=False to decode as the native type"
         )
 
     # -- defaults ---------------------------------------------------------
@@ -517,7 +517,7 @@ def create_registers(
     source: str | bytes | DeviceModel | Registers,
     *,
     converters: Optional[Mapping[str, ConverterValue]] = None,
-    strict: bool = True,
+    require_converters: bool = True,
 ) -> dict[str, type[RegisterBase[Any]]]:
     """Emit runtime register classes from a device schema.
 
@@ -530,11 +530,11 @@ def create_registers(
     :class:`~harp.protocol.Converter` instance or a factory
     ``(ctx: ConverterContext) -> Converter`` that builds one from the DSL
     context. A custom type with no matching converter raises
-    ``UnknownConverterError`` when ``strict`` (the default); ``strict=False``
-    decodes it as its native element type instead. A register whose DSL ``visibility``
-    is ``private`` is emitted with an underscore-prefixed class (``_Reserved0``), as the
-    generator emits it. Note that the converter symbol for a payload field derives from
-    its *verbatim* yml key, not the renamed field.
+    ``UnknownConverterError``. Pass ``require_converters=False`` to decode it as its
+    native element type instead. A register whose DSL ``visibility`` is ``private`` is
+    emitted with an underscore-prefixed class (``_Reserved0``), as the generator emits
+    it. Note that the converter symbol for a payload field derives from its *verbatim*
+    yml key, not the renamed field.
     """
     device = source if isinstance(source, Registers) else parse_device_schema(source)
-    return _Emitter(device, converters, strict).emit()
+    return _Emitter(device, converters, require_converters).emit()

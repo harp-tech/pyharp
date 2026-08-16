@@ -59,7 +59,7 @@ reg = behavior.REGISTER_MAP[44]    # or by address
 
 The module is not registered in `sys.modules`, so it has to be bound rather than imported. Names come from the schema at runtime, so they don't autocomplete and aren't statically checked. A generated package on disk gives both.
 
-For a custom `interfaceType`, pass its converter via `converters=`, keyed by `{InterfaceType}Converter` or `{MemberName}Converter`. An unresolved custom type raises `UnknownConverterError`, or pass `strict=False` to decode it natively:
+For a custom `interfaceType`, pass its converter via `converters=`, keyed by `{InterfaceType}Converter` or `{MemberName}Converter`. An unresolved custom type raises `UnknownConverterError`, or pass `require_converters=False` to decode it natively:
 
 ```python
 schema.create_device_module(yml_text, converters={"DataConverter": DataConverter()})
