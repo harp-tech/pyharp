@@ -157,6 +157,25 @@ def test_factory_different_addresses_are_independent():
     assert r1 is not r2
 
 
+def test_declared_register_raises_type_error():
+    # A declared address cannot be reassigned.
+    declared = RegisterU32(0x08)
+    with pytest.raises(TypeError, match="already declares address"):
+        declared(0x09)
+
+
+def test_declared_array_register_raises_type_error():
+    declared = RegisterU32Array(0x28, length=3)
+    with pytest.raises(TypeError, match="already declares address"):
+        declared(0x29, length=3)
+
+
+def test_register_repr_shows_name_and_address():
+    assert repr(RegisterU32(0x08)) == "<RegisterU32_0x08 @8>"
+    # A base declares no address, so it keeps the default class repr.
+    assert repr(RegisterU32).startswith("<class ")
+
+
 @pytest.mark.parametrize(
     "reg_cls, payload_cls, value",
     [
@@ -184,6 +203,18 @@ def test_format_with_payload_instance_via_register():
     msg = _parse_frame(frame)
     parsed = TimestampSecond.parse(msg)
     assert parsed == 42
+
+
+def test_empty_buffer_keeps_columns():
+    # A sub-array renders one column per element, and the count comes from the dtype,
+    # so a buffer carrying no frames still renders all of them.
+    reg = RegisterU32Array(0x28, length=3)
+    records = np.arange(6, dtype=np.uint32).reshape(2, 3)
+    populated = parse_to_dataframe(reg, bytes(reg.format_bulk(records)), timestamp=False)
+    empty = parse_to_dataframe(reg, b"", timestamp=False)
+    assert list(empty.columns) == list(populated.columns)
+    assert empty.dtypes.equals(populated.dtypes)
+    assert len(empty) == 0
 
 
 def test_structured_register_format_single_sample():

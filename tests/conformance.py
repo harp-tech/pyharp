@@ -8,7 +8,7 @@ type fails the build rather than being noticed downstream.
 from typing import Any, ClassVar, assert_type
 
 import numpy as np
-from harp.data import DatasetReader, create_dataset_reader
+from harp.data import DatasetReader, open_dataset
 from harp.device.client import Device, ITransport
 from harp.device.core import OperationControl, OperationControlPayload, WhoAmI
 from harp.device.schema import DeviceModule, DeviceModuleLike, create_device_module
@@ -104,10 +104,15 @@ def dataset_reader_registers_resolve_through_the_module() -> None:
     the ceiling here is the one :func:`create_device_module` documents. A generated
     package carries its own declarations and resolves each to its own class.
     """
-    reader = create_dataset_reader("session.harp")
+    reader = open_dataset("session.harp")
     assert_type(reader, DatasetReader[DeviceModule])
     assert_type(reader.device_module.AnalogData, Any)
     reader.read(reader.device_module.AnalogData)
+
+
+def open_dataset_keeps_supplied_module_type(generated: DeviceModuleLike) -> None:
+    """A module passed through the entry point types the reader on itself."""
+    assert_type(open_dataset("session.harp", generated), DatasetReader[DeviceModuleLike])
 
 
 def open_serial_device_prefers_the_subclass_overload() -> None:

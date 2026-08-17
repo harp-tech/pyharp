@@ -69,15 +69,26 @@ with serial.open_serial_device(behavior, port="COM3") as device:
 ```python
 from harp import data
 
-# Finds device.yml in the folder, builds the device, returns a ready-to-use reader.
-reader = data.create_dataset_reader("session.harp")
-behavior = reader.device_module
-df = reader.read(behavior.AnalogData)  # by register class
-df = reader.read(44)                   # or by address
-everything = reader.read_all()         # {register_name: DataFrame}
+# Finds device.yml in the folder, builds the device, returns a ready-to-use reader
+reader = data.open_dataset("session.harp")
+df = reader.read("AnalogData")  # by name
+df = reader.read(44)            # or by address
+
+# `contents` names every register the folder holds
+frames = {name: reader.read(name) for name in reader.contents}
 ```
 
-Both paths are based on a device schema. Given only a `device.yml` and no pre-generated package, `create_device_module` compiles it into a module of register classes at runtime, with no code-generation step. This is exactly what `create_dataset_reader` does internally:
+Given a device package already in hand, pass it as the second argument and read by register class. This is the form that type-checks, and it also checks the device identity against the `device.yml` in the folder:
+
+```python
+from harp import data
+from harp.device import behavior
+
+reader = data.open_dataset("session.harp", behavior)
+df = reader.read(behavior.AnalogData)
+```
+
+Both paths are based on a device schema. Given only a `device.yml` and no pre-generated package, `create_device_module` compiles it into a module of register classes at runtime, with no code-generation step. This is exactly what `open_dataset` does internally:
 
 ```python
 from pathlib import Path

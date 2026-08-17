@@ -2,7 +2,7 @@
 
 ---
 
-::: harp.data.create_dataset_reader
+::: harp.data.open_dataset
 ::: harp.data.DatasetReader
 ::: harp.data.default_file_resolver
 ::: harp.data.parse_to_dataframe

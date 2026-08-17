@@ -19,33 +19,45 @@ A Harp acquisition is usually saved as a de-multiplexed folder, one binary file 
  ┗ 📜 device.yml
 ```
 
-Reading is based on a [device module](../harp-device) that describes how to decode each register. `create_dataset_reader` supplies one automatically. It finds the `device.yml` in the folder, builds the module, and returns a ready-to-use reader:
+Reading is based on a [device module](../harp-device) that describes how to decode each register. `open_dataset` supplies one automatically. It finds the `device.yml` in the folder, builds the module, and returns a ready-to-use reader:
 
 ```python
 from harp import data
 
-reader = data.create_dataset_reader("session.harp")
-behavior = reader.device_module
-df = reader.read(behavior.AnalogData)  # by register class
-df = reader.read(44)                   # by address
-everything = reader.read_all()         # {register_name: DataFrame}
+reader = data.open_dataset("session.harp")
+df = reader.read("AnalogData")  # by name
+df = reader.read(44)            # by address
 ```
 
-Given a device module already in hand, either a pre-generated package or one built with `create_device_module`, pass it to `DatasetReader` directly:
+`contents` maps every register with data in the folder to its address, keyed by register name. It is the place to start on an unfamiliar dataset, and since its keys are exactly what `read` takes, loading a whole dataset can be done with a comprehension:
+
+```python
+reader.contents  # {'WhoAmI': 0, 'AnalogData': 33, ...}
+
+frames = {name: reader.read(name) for name in reader.contents}
+```
+
+A name is resolved through the device register map rather than the module namespace, so the common registers are reachable by name too.
+
+A register declared in the device register map with no data present in the folder reads as an empty DataFrame carrying the same columns, since the schema describes the structure of the data regardless of whether anything was recorded. `contents` is what tells the two cases apart. A register the device does not declare at all raises `KeyError`.
+
+Given a device module already in hand, either a pre-generated package or one built with `create_device_module`, pass it as the second argument:
 
 ```python
 from harp import data
 from harp.device import behavior
 
-reader = data.DatasetReader(behavior, "session.harp")
-df = reader.read(behavior.AnalogData)
+reader = data.open_dataset("session.harp", behavior)
+df = reader.read(behavior.AnalogData)  # by register class
 ```
 
-Timestamps are auto-detected per register and placed on the DataFrame index named `"Time"`: float seconds by default, or an absolute `DatetimeIndex` when `epoch=REFERENCE_EPOCH` is passed. Multi-chunk registers logged as `<DeviceName>_<address>_<suffix>.bin` are concatenated in filename order; pass a `resolver` to support an alternative on-disk layout.
+Prefer the register class where a generated package supplies one, since it is the only form that type-checks and a misspelling is caught before the folder is read. A module built by `create_device_module` resolves its registers as `Any`, so there the class verifies no more than the name does.
+
+The Harp time becomes the DataFrame index named `"Time"`, as float seconds by default or an absolute `DatetimeIndex` when `epoch=REFERENCE_EPOCH` is passed. Data carrying no timestamp raise unless `timestamp=False` is passed. Multi-chunk registers logged as `<DeviceName>_<address>_<suffix>.bin` are concatenated in filename order; pass a `resolver` to support an alternative on-disk layout. `paths` reports what the resolver found, keyed by address, which is where a custom layout or a chunked register can be checked.
 
 The `<DeviceName>` prefix comes from the `DEVICE_NAME` declared by the device module. Pass `name=` to override it, or to supply one when the module declares an empty name.
 
-When the folder carries a `device.yml` and the module declares an identity, their `whoAmI` values are checked against each other. Reusing a module across sessions and reaching the wrong folder then fails on construction rather than decoding the files against the wrong register map. Pass `validate=False` to turn off every check the reader performs, so a folder whose `device.yml` is damaged can be read with a module obtained elsewhere.
+When a device module declaring an identity is supplied and the folder carries a `device.yml`, their `whoAmI` values are checked against each other. Reusing a module across sessions and reaching the wrong folder then fails on construction rather than decoding the files against the wrong register map. Pass `validate=False` to turn off every check the reader performs, so a folder whose `device.yml` is damaged can be read with a module obtained elsewhere.
 
 ## Read a single register file
 

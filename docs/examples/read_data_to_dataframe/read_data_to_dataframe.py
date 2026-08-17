@@ -15,6 +15,6 @@ print(df.index.name, df.index[:3].to_list())
 with open("OperationControl.bin", "rb") as f:
     df = data.parse_to_dataframe(core.OperationControl, f)
 
-# To read a whole recorded session folder at once, covering many registers based on
-# the device schema, use `harp.data.DatasetReader`. See the "Reading a Whole Dataset
-# Folder" example.
+# To read registers from a recorded session folder, resolved against the device
+# schema, use `harp.data.open_dataset`. See the "Reading a Whole Dataset Folder"
+# example.
