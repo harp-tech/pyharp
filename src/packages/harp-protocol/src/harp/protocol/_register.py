@@ -105,17 +105,34 @@ class _LazyTimestamps:
         return repr(self._resolve())
 
 
-class _RegisterMeta(ABCMeta):
-    """Calling a register class with an address creates a one-off subclass: ``RegisterU32(0x08)``."""
+class _RegisterBaseMeta(ABCMeta):
+    """The metaclass of every register, rendering its name and address."""
+
+    def __repr__(cls) -> str:
+        address = getattr(cls, "address", None)
+        return super().__repr__() if address is None else f"<{cls.__name__} @{address}>"
+
+
+def _require_no_address(cls: Any) -> None:
+    address = getattr(cls, "address", None)
+    if address is not None:
+        raise TypeError(
+            f"{cls.__name__} already declares address {address} and cannot be reassigned."
+        )
+
+
+class _ScalarRegisterMeta(_RegisterBaseMeta):
+    """Calling a register base with an address creates a one-off subclass: ``RegisterU32(0x08)``."""
 
     def __call__(cls: "type[_R]", address: int) -> "type[_R]":
+        _require_no_address(cls)
         return cast(
             "type[_R]",
             type(f"{cls.__name__}_{address:#04x}", (cls,), {"address": address}),
         )
 
 
-class RegisterBase(ABC, Generic[U]):
+class RegisterBase(ABC, Generic[U], metaclass=_RegisterBaseMeta):
     """Abstract base for all typed Harp registers.
 
     The generic parameter ``U`` is the static return type of :meth:`parse`, the
@@ -323,73 +340,74 @@ class RegisterBase(ABC, Generic[U]):
             )
 
 
-class RegisterU8(RegisterBase[np.uint8], metaclass=_RegisterMeta):
+class RegisterU8(RegisterBase[np.uint8], metaclass=_ScalarRegisterMeta):
     """A simple scalar register with a uint8 payload. ``parse()`` returns ``np.uint8``."""
 
     payload_type: ClassVar[PayloadType] = PayloadType.U8
     payload_class = PayloadU8
 
 
-class RegisterU16(RegisterBase[np.uint16], metaclass=_RegisterMeta):
+class RegisterU16(RegisterBase[np.uint16], metaclass=_ScalarRegisterMeta):
     """A simple scalar register with a uint16 payload. ``parse()`` returns ``np.uint16``."""
 
     payload_type: ClassVar[PayloadType] = PayloadType.U16
     payload_class = PayloadU16
 
 
-class RegisterU32(RegisterBase[np.uint32], metaclass=_RegisterMeta):
+class RegisterU32(RegisterBase[np.uint32], metaclass=_ScalarRegisterMeta):
     """A simple scalar register with a uint32 payload. ``parse()`` returns ``np.uint32``."""
 
     payload_type: ClassVar[PayloadType] = PayloadType.U32
     payload_class = PayloadU32
 
 
-class RegisterU64(RegisterBase[np.uint64], metaclass=_RegisterMeta):
+class RegisterU64(RegisterBase[np.uint64], metaclass=_ScalarRegisterMeta):
     """A simple scalar register with a uint64 payload. ``parse()`` returns ``np.uint64``."""
 
     payload_type: ClassVar[PayloadType] = PayloadType.U64
     payload_class = PayloadU64
 
 
-class RegisterS8(RegisterBase[np.int8], metaclass=_RegisterMeta):
+class RegisterS8(RegisterBase[np.int8], metaclass=_ScalarRegisterMeta):
     """A simple scalar register with a int8 payload. ``parse()`` returns ``np.int8``."""
 
     payload_type: ClassVar[PayloadType] = PayloadType.S8
     payload_class = PayloadS8
 
 
-class RegisterS16(RegisterBase[np.int16], metaclass=_RegisterMeta):
+class RegisterS16(RegisterBase[np.int16], metaclass=_ScalarRegisterMeta):
     """A simple scalar register with a int16 payload. ``parse()`` returns ``np.int16``."""
 
     payload_type: ClassVar[PayloadType] = PayloadType.S16
     payload_class = PayloadS16
 
 
-class RegisterS32(RegisterBase[np.int32], metaclass=_RegisterMeta):
+class RegisterS32(RegisterBase[np.int32], metaclass=_ScalarRegisterMeta):
     """A simple scalar register with a int32 payload. ``parse()`` returns ``np.int32``."""
 
     payload_type: ClassVar[PayloadType] = PayloadType.S32
     payload_class = PayloadS32
 
 
-class RegisterS64(RegisterBase[np.int64], metaclass=_RegisterMeta):
+class RegisterS64(RegisterBase[np.int64], metaclass=_ScalarRegisterMeta):
     """A simple scalar register with a int64 payload. ``parse()`` returns ``np.int64``."""
 
     payload_type: ClassVar[PayloadType] = PayloadType.S64
     payload_class = PayloadS64
 
 
-class RegisterFloat(RegisterBase[np.float32], metaclass=_RegisterMeta):
+class RegisterFloat(RegisterBase[np.float32], metaclass=_ScalarRegisterMeta):
     """A simple scalar register with a float32 payload. ``parse()`` returns ``np.float32``."""
 
     payload_type: ClassVar[PayloadType] = PayloadType.Float
     payload_class = PayloadFloat
 
 
-class _ArrayRegisterMeta(ABCMeta):
+class _ArrayRegisterMeta(_RegisterBaseMeta):
     """A base metaclass for array registers. Calling with address and length creates a concrete subclass: ``RegisterU16Array(0x28, length=3)``."""
 
     def __call__(cls: "type[_AR]", address: int, *, length: int) -> "type[_AR]":  # type: ignore[override, misc]
+        _require_no_address(cls)
         base_payload = cls.payload_class  # type: ignore[attr-defined]
         # Anonymous payloads carry a plain (non-structured) dtype. The array
         # variant uses a sub-dtype (inner_dtype, (length,)) so a single buffer

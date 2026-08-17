@@ -157,6 +157,25 @@ def test_factory_different_addresses_are_independent():
     assert r1 is not r2
 
 
+def test_declared_register_raises_type_error():
+    # A declared address cannot be reassigned.
+    declared = RegisterU32(0x08)
+    with pytest.raises(TypeError, match="already declares address"):
+        declared(0x09)
+
+
+def test_declared_array_register_raises_type_error():
+    declared = RegisterU32Array(0x28, length=3)
+    with pytest.raises(TypeError, match="already declares address"):
+        declared(0x29, length=3)
+
+
+def test_register_repr_shows_name_and_address():
+    assert repr(RegisterU32(0x08)) == "<RegisterU32_0x08 @8>"
+    # A base declares no address, so it keeps the default class repr.
+    assert repr(RegisterU32).startswith("<class ")
+
+
 @pytest.mark.parametrize(
     "reg_cls, payload_cls, value",
     [
