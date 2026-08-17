@@ -6,7 +6,7 @@ import pytest
 from harp.data import (
     REFERENCE_EPOCH,
     DatasetReader,
-    create_dataset_reader,
+    open_dataset,
     parse_to_dataframe,
 )
 from harp.device.core import TimestampSeconds, WhoAmI
@@ -54,7 +54,7 @@ def test_read_by_class_and_by_address(dataset):
         assert reader.read(address).equals(expected)
 
 
-def test_read_by_name_from_module(dataset):
+def test_read_by_class_from_module_namespace(dataset):
     mod, _name, root, specs = dataset
     reader = DatasetReader(mod, root)
     for address, (cls, _timestamped, _buf) in specs.items():
@@ -62,9 +62,23 @@ def test_read_by_name_from_module(dataset):
         assert reader.read(getattr(mod, cls.__name__)).equals(reader.read(address))
 
 
+def test_read_by_register_name(dataset):
+    mod, _name, root, specs = dataset
+    reader = DatasetReader(mod, root)
+    for address, (cls, _timestamped, _buf) in specs.items():
+        assert reader.read(cls.__name__).equals(reader.read(address))
+
+
+def test_unknown_name_raises_key_error(dataset):
+    mod, _name, root, _specs = dataset
+    reader = DatasetReader(mod, root)
+    with pytest.raises(KeyError):
+        reader.read("NotARegister")
+
+
 def test_reads_common_registers_not_named_by_module(emitted_module, tmp_path):
-    """A device module names only its own registers, but a session folder also holds
-    files for the common ones, so the reader must still decode those."""
+    # A device module names only its own registers, but a session folder also holds
+    # files for the common ones, so the reader must still decode those.
     mod = emitted_module
     assert not hasattr(mod, "WhoAmI")  # imported from harp.device, not re-exported
 
@@ -74,13 +88,12 @@ def test_reads_common_registers_not_named_by_module(emitted_module, tmp_path):
         (tmp_path / f"{mod.DEVICE_NAME}_{cls.address}.bin").write_bytes(buf)
 
     reader = DatasetReader(mod, tmp_path)
-    # By address, and by the class imported from harp.device.
+    # By address, by the class imported from harp.device, and by name, which resolves
+    # through the register map and so reaches further than the module namespace.
     assert len(reader.read(WhoAmI.address)) == 4
     assert reader.read(WhoAmI).equals(reader.read(WhoAmI.address))
-    assert {reader.registers[a].__name__ for a in reader.files} == {
-        "WhoAmI",
-        "TimestampSeconds",
-    }
+    assert reader.read("WhoAmI").equals(reader.read(WhoAmI.address))
+    assert set(reader.contents) == {"WhoAmI", "TimestampSeconds"}
 
 
 def test_timestamp_is_auto_detected(dataset):
@@ -135,13 +148,11 @@ def test_suffix_chunks_are_concatenated(emitted_module, tmp_path):
     assert reader.read(cls, suffix="20260816T090000Z").equals(earliest)
 
 
-def test_non_module_raises_on_register_access(dataset):
+def test_non_module_raises_on_construction(dataset):
+    # The register map is read at construction, so a module without one is rejected.
     _mod, name, root, _specs = dataset
-    # Registers are derived lazily; anything without a REGISTER_MAP fails on access.
-    # name and validate keep construction from reading the module at all.
-    reader = DatasetReader(object, root, name=name, validate=False)
     with pytest.raises(AttributeError, match="REGISTER_MAP"):
-        _ = reader.registers
+        DatasetReader(object, root, name=name, validate=False)
 
 
 def test_explicit_name_overrides(dataset):
@@ -163,7 +174,7 @@ def test_empty_dataset_reads_empty(emitted_module, tmp_path):
     # A session that logged nothing is a dataset with no data, not a failure.
     reader = DatasetReader(emitted_module, tmp_path)
     assert reader.name == emitted_module.DEVICE_NAME
-    assert reader.files == {}
+    assert reader.paths == {}
 
 
 def test_nameless_module_raises_on_construction(dataset):
@@ -211,19 +222,65 @@ def test_custom_file_resolver_supports_alternative_layout(emitted_module, tmp_pa
         return found
 
     reader = DatasetReader(mod, tmp_path, resolver=resolver)
-    assert set(reader.files) == set(addresses)
+    assert set(reader.paths) == set(addresses)
     for address in addresses:
         assert reader.read(address).equals(expected[mod.REGISTER_MAP[address].__name__])
 
 
-def test_files_property_lists_discovered_bins(dataset):
+def test_paths_property_lists_discovered_bins(dataset):
     mod, _name, root, specs = dataset
     reader = DatasetReader(mod, root)
-    assert set(reader.files) == set(specs)
+    assert set(reader.paths) == set(specs)
+
+
+def test_contents_maps_names_to_addresses(dataset):
+    mod, _name, root, specs = dataset
+    reader = DatasetReader(mod, root)
+    # The declared address space is much larger; contents is what this folder holds.
+    assert reader.contents == {cls.__name__: address for address, (cls, _ts, _buf) in specs.items()}
+    assert len(mod.REGISTER_MAP) > len(reader.contents)
+
+
+def test_contents_sorted_by_address(dataset):
+    mod, name, root, _specs = dataset
+    cls = mod.REGISTER_MAP[0]
+    (root / f"{name}_0.bin").write_bytes(bytes(cls.format_bulk(_records(cls, 2, seed=0))))
+
+    reader = DatasetReader(mod, root)
+
+    assert list(reader.contents.values()) == sorted(reader.contents.values())
+    assert next(iter(reader.contents)) == "WhoAmI"
+
+
+def test_contents_keys_read_every_register(dataset):
+    # The comprehension over contents is what replaces a load-everything call, so its
+    # keys must reach every register with data and produce the same frames as a direct read.
+    mod, _name, root, specs = dataset
+    reader = DatasetReader(mod, root)
+
+    frames = {name: reader.read(name) for name in reader.contents}
+
+    assert set(frames) == {cls.__name__ for cls, _ts, _buf in specs.values()}
+    for cls, timestamped, buf in specs.values():
+        assert frames[cls.__name__].equals(parse_to_dataframe(cls, buf, timestamp=timestamped))
+
+
+def test_contents_excludes_undescribed_address(dataset):
+    # A file at an address not described by the register map cannot be named, but it
+    # stays visible in paths.
+    mod, name, root, specs = dataset
+    undescribed = max(mod.REGISTER_MAP) + 1
+    (root / f"{name}_{undescribed}.bin").write_bytes(b"")
+
+    reader = DatasetReader(mod, root)
+
+    assert undescribed in reader.paths
+    assert undescribed not in reader.contents.values()
+    assert set(reader.contents) == {cls.__name__ for cls, _ts, _buf in specs.values()}
 
 
 def test_every_register_round_trips(emitted_module, tmp_path):
-    """Write one .bin per register of the device.yml device, then read them all back."""
+    # Write one .bin per register of the device.yml device, then read them all back.
     mod = emitted_module
     name = mod.DEVICE_NAME
     expected = {}
@@ -238,27 +295,27 @@ def test_every_register_round_trips(emitted_module, tmp_path):
 
     reader = DatasetReader(mod, tmp_path)
 
-    assert set(reader.files) == set(mod.REGISTER_MAP)
+    assert set(reader.paths) == set(mod.REGISTER_MAP)
     for address, cls in mod.REGISTER_MAP.items():
         df = reader.read(address)
         assert len(df) == 4
         assert df.equals(expected[cls.__name__])
 
 
-def test_reader_derives_name_and_registers_from_module(dataset):
-    mod, name, root, _specs = dataset
+def test_reader_derives_name_and_contents_from_module(dataset):
+    mod, name, root, specs = dataset
     reader = DatasetReader(mod, root)
     assert reader.device_module is mod
     assert reader.name == name
-    assert reader.registers == mod.REGISTER_MAP
+    assert set(reader.contents.values()) == set(specs)
 
 
-def test_create_dataset_reader_builds_module_from_device_yml(dataset, device_yml):
+def test_open_dataset_builds_module_from_device_yml(dataset, device_yml):
     mod, _name, root, specs = dataset
     (root / "device.yml").write_text(device_yml)
     # require_converters=False mirrors the emitted_module fixture, which does not
     # inject the custom DataConverter either.
-    reader = create_dataset_reader(root, require_converters=False)
+    reader = open_dataset(root, require_converters=False)
     assert isinstance(reader, DatasetReader)
     # Reads match a reader built from an explicitly-generated module.
     reference = DatasetReader(mod, root)
@@ -266,13 +323,36 @@ def test_create_dataset_reader_builds_module_from_device_yml(dataset, device_yml
         assert reader.read(address).equals(reference.read(cls))
 
 
-def test_create_dataset_reader_accepts_explicit_schema_path(dataset, device_yml, tmp_path):
+def test_open_dataset_accepts_explicit_schema_path(dataset, device_yml, tmp_path):
     _mod, _name, root, specs = dataset
     schema_path = tmp_path / "elsewhere.yml"  # not inside the dataset folder
     schema_path.write_text(device_yml)
-    reader = create_dataset_reader(root, schema=schema_path, require_converters=False)
+    reader = open_dataset(root, schema=schema_path, require_converters=False)
     address = next(iter(specs))
     assert not reader.read(address).empty
+
+
+def test_open_dataset_accepts_device_module(dataset):
+    # The overload taking a module must reach the same reader as constructing one,
+    # since it is the only route open to a pre-generated package here.
+    mod, _name, root, specs = dataset
+    reader = open_dataset(root, mod)
+    reference = DatasetReader(mod, root)
+    assert reader.device_module is mod
+    assert reader.name == reference.name
+    for address in specs:
+        assert reader.read(address).equals(reference.read(address))
+
+
+def test_open_dataset_rejects_schema_beside_module(dataset, device_yml, tmp_path):
+    # Both describe how to build a module, so accepting them together would ignore one.
+    mod, _name, root, _specs = dataset
+    schema_path = tmp_path / "elsewhere.yml"
+    schema_path.write_text(device_yml)
+    with pytest.raises(TypeError, match="device module"):
+        open_dataset(root, mod, schema=schema_path)
+    with pytest.raises(TypeError, match="device module"):
+        open_dataset(root, mod, converters={})
 
 
 def _with_whoami(device_yml: str, who_am_i: int) -> str:
@@ -362,7 +442,20 @@ def test_corrupt_schema_is_not_skipped(dataset, device_yml):
     assert not isinstance(excinfo.value, ValueError)
 
 
-def test_create_dataset_reader_missing_schema_raises(dataset):
+def test_open_dataset_missing_schema_raises_file_not_found(dataset):
     _mod, _name, root, _specs = dataset  # no device.yml written into the folder
     with pytest.raises(FileNotFoundError, match="device.yml"):
-        create_dataset_reader(root)
+        open_dataset(root)
+
+
+def test_external_schema_mismatch_raises_on_construction(dataset, device_yml, tmp_path):
+    # Building the module from a schema outside the folder leaves the two free to
+    # disagree, so the check still runs. Omitting schema= builds it from the folder
+    # itself, where they agree by construction and the check is skipped.
+    _mod, _name, root, _specs = dataset
+    (root / "device.yml").write_text(_with_whoami(device_yml, 1234))
+    schema_path = tmp_path / "elsewhere.yml"
+    schema_path.write_text(_with_whoami(device_yml, 1216))
+
+    with pytest.raises(ValueError, match="WhoAmI mismatch"):
+        open_dataset(root, schema=schema_path, require_converters=False)

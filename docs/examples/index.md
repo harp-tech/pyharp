@@ -14,5 +14,5 @@ Talking to a device:
 
 Reading recorded data:
 
-- [Reading a Whole Dataset Folder](./read_dataset/read_dataset.md) - load an entire recorded session folder into pandas DataFrames with `DatasetReader`.
+- [Reading a Whole Dataset Folder](./read_dataset/read_dataset.md) - read registers from a recorded session folder into pandas DataFrames, decoded against the device schema.
 - [Reading Data into a DataFrame](./read_data_to_dataframe/read_data_to_dataframe.md) - decode the binary file of a single register into a pandas DataFrame.

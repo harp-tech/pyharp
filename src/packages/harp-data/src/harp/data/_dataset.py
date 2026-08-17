@@ -3,7 +3,7 @@ from collections.abc import Callable, Mapping
 from datetime import datetime
 from os import PathLike
 from pathlib import Path
-from typing import Any, Generic, TypeVar
+from typing import Any, Generic, TypeVar, overload
 
 import pandas as pd
 from harp.device.schema import (
@@ -19,7 +19,7 @@ from ._reader import parse_to_dataframe
 
 M = TypeVar("M", bound=DeviceModuleLike)
 
-RegisterKey = type[RegisterBase[Any]] | int
+RegisterKey = type[RegisterBase[Any]] | int | str
 
 FileNameResolver = Callable[[Path, str], Mapping[int, list[Path]]]
 
@@ -35,22 +35,26 @@ def default_file_resolver(root: Path, name: str) -> dict[int, list[Path]]:
         match = pattern.match(path.stem)
         if match is not None:
             files.setdefault(int(match.group(1)), []).append(path)
-    return files
+    return dict(sorted(files.items()))
 
 
 class DatasetReader(Generic[M]):
     """Reader over a de-multiplexed Harp dataset folder.
 
-    Construct from a device module and a dataset folder, then read the
-    frames of a register into a DataFrame by register class or by address::
+    Construct from a device module and a dataset folder, then read the frames of a
+    register into a DataFrame by register class, by name, or by address::
 
         reader = DatasetReader(behavior, "session.harp")
         df = reader.read(behavior.AnalogData)  # by register class
+        df = reader.read("AnalogData")         # by name
         df = reader.read(44)                   # by address
+
+    :func:`open_dataset` builds one for a folder that carries its own ``device.yml``.
+    :attr:`contents` lists what was recorded, keyed by register name.
 
     ``device_module`` is a device module -- a generated device package, or one built from a
     schema with :func:`~harp.device.schema.create_device_module`. Its ``REGISTER_MAP`` is
-    read on demand.
+    read at construction.
 
     The files are matched by a ``<DeviceName>`` prefix, taken from the ``DEVICE_NAME``
     declared by the module. Pass ``name`` to override it, or to supply one when the module
@@ -85,7 +89,9 @@ class DatasetReader(Generic[M]):
         self._name_override = name
         self._resolver = resolver
         self._name = self._resolve_name()
-        self._files = dict(self._resolver(self._root, self._name))
+        self._paths = dict(self._resolver(self._root, self._name))
+        registers = device_module.REGISTER_MAP
+        self._name_map = {registers[address].__name__: address for address in sorted(registers)}
         if validate:
             self._validate_whoami()
 
@@ -139,14 +145,14 @@ class DatasetReader(Generic[M]):
         )
 
     @property
-    def registers(self) -> Mapping[int, type[RegisterBase[Any]]]:
-        """The address -> register-class map the module carries as ``REGISTER_MAP``."""
-        return self._device_module.REGISTER_MAP
+    def contents(self) -> Mapping[str, int]:
+        """The mapping from register name to address for registers with data under :attr:`root`."""
+        return {name: address for name, address in self._name_map.items() if address in self._paths}
 
     @property
-    def files(self) -> Mapping[int, list[Path]]:
-        """The discovered address -> binary file(s) present under :attr:`root`."""
-        return self._files
+    def paths(self) -> Mapping[int, list[Path]]:
+        """The mapping from address to binary files discovered under :attr:`root`."""
+        return self._paths
 
     def read(
         self,
@@ -161,15 +167,22 @@ class DatasetReader(Generic[M]):
     ) -> pd.DataFrame:
         """Read the data of one register into a DataFrame.
 
-        ``register`` is a register class or an address. ``suffix`` selects a single
-        ``<name>_<address>_<suffix>.bin`` chunk (default: concatenate every chunk
-        for the address). ``timestamp`` defaults to ``None``, auto-detecting from the
-        payload-type bit of the frame; pass ``True``/``False`` to force. ``epoch`` makes
-        the ``"Time"`` index absolute (e.g. :data:`~harp.data.REFERENCE_EPOCH`). The
-        remaining options match :func:`~harp.data.parse_to_dataframe`.
+        ``register`` is a register class, a register name, or an address. Names are
+        resolved through the device register map rather than the module namespace, which
+        declares no common registers. Prefer the class where a generated package supplies
+        one, since it is the only form a type checker can verify. A module built by
+        :func:`~harp.device.schema.create_device_module` resolves its registers as
+        ``Any``, so there the generated module verifies no more than the name does.
+
+        ``suffix`` selects a single ``<name>_<address>_<suffix>.bin`` chunk (default:
+        concatenate every chunk for the address). ``timestamp`` defaults to ``None``,
+        auto-detecting from the payload-type bit of the frame; pass ``True``/``False``
+        to force. ``epoch`` makes the ``"Time"`` index absolute (e.g.
+        :data:`~harp.data.REFERENCE_EPOCH`). The remaining options match
+        :func:`~harp.data.parse_to_dataframe`.
         """
         cls, address = self._resolve(register)
-        paths = self._resolve_files(address, suffix)
+        paths = self._resolve_paths(address, suffix)
         raw = b"".join(p.read_bytes() for p in paths)
         ts = self._first_frame_timestamped(raw) if timestamp is None else timestamp
         return parse_to_dataframe(
@@ -185,13 +198,19 @@ class DatasetReader(Generic[M]):
     def _resolve(self, register: RegisterKey) -> tuple[type[RegisterBase[Any]], int]:
         if isinstance(register, type):
             return register, register.address
-        cls = self.registers.get(register)
+        registers = self._device_module.REGISTER_MAP
+        if isinstance(register, str):
+            address = self._name_map.get(register)
+            if address is None:
+                raise KeyError(f"No register named {register!r} in the map of this device.")
+            return registers[address], address
+        cls = registers.get(register)
         if cls is None:
             raise KeyError(f"No register at address {register} in the map of this device.")
         return cls, register
 
-    def _resolve_files(self, address: int, suffix: str | None) -> list[Path]:
-        paths = self._files.get(address)
+    def _resolve_paths(self, address: int, suffix: str | None) -> list[Path]:
+        paths = self._paths.get(address)
         if not paths:
             raise FileNotFoundError(
                 f"No data file for register address {address} under {self._root} "
@@ -211,8 +230,34 @@ class DatasetReader(Generic[M]):
         return len(raw) > 4 and bool(raw[4] & _TIMESTAMP_FLAG)
 
 
-def create_dataset_reader(
+@overload
+def open_dataset(
     root: str | PathLike[str],
+    device_module: M,
+    *,
+    name: str | None = ...,
+    resolver: FileNameResolver = ...,
+    validate: bool = ...,
+) -> DatasetReader[M]: ...
+
+
+@overload
+def open_dataset(
+    root: str | PathLike[str],
+    device_module: None = ...,
+    *,
+    schema: str | PathLike[str] | None = ...,
+    name: str | None = ...,
+    resolver: FileNameResolver = ...,
+    converters: Mapping[str, Any] | None = ...,
+    require_converters: bool = ...,
+    validate: bool = ...,
+) -> DatasetReader[DeviceModule]: ...
+
+
+def open_dataset(
+    root: str | PathLike[str],
+    device_module: DeviceModuleLike | None = None,
     *,
     schema: str | PathLike[str] | None = None,
     name: str | None = None,
@@ -220,35 +265,50 @@ def create_dataset_reader(
     converters: Mapping[str, Any] | None = None,
     require_converters: bool = True,
     validate: bool = True,
-) -> DatasetReader[DeviceModule]:
-    """Build a :class:`DatasetReader` for a dataset folder, device and all.
+) -> DatasetReader:
+    """Open a de-multiplexed Harp dataset folder and return a :class:`DatasetReader`.
 
-    Convenience wrapper that finds the device schema inside ``root`` (``device.yml``
-    by default), builds its module with :func:`~harp.device.schema.create_device_module`, and
-    returns a reader ready to :meth:`~DatasetReader.read`::
+    If the device module is omitted, the schema file inside the folder will be used.
+    The ``device.yml`` inside ``root`` is first built into a module using
+    :func:`~harp.device.schema.create_device_module`.
 
-        reader = create_dataset_reader("session.harp")
-        df = reader.read(44)
+    If a device module is provided, its identity class will be used to validate the
+    dataaset, and a generated package additionally carries register classes a
+    type checker can verify.
 
-    ``schema`` points at the schema file explicitly when it isn't ``root/device.yml``.
+    ``schema`` points at the schema file when it isn't ``root/device.yml``, and
     ``converters`` and ``require_converters`` are forwarded to
     :func:`~harp.device.schema.create_device_module` for custom ``interfaceType``
-    decoding; ``name``, ``resolver`` and ``validate`` are forwarded to
-    :class:`DatasetReader`. Use ``DatasetReader(device_module, root)`` directly given a
-    device module already in hand, for example a pre-generated one.
+    decoding. These three parameters describe alternative ways to supply a module, so
+    they are mutually exclusive, and will raise when more than one is specified.
 
-    Note ``validate`` cannot rescue a damaged ``device.yml`` here, since the module is
-    built from that same file and fails before the reader exists. Reading such a folder
-    means supplying a module obtained elsewhere.
+    ``validate`` cannot rescue a corrupt ``device.yml`` if that schema file is also
+    used to build the module. Reading such a folder always requires supplying a module
+    obtained elsewhere.
     """
     root_path = Path(root)
+    if device_module is not None:
+        if schema is not None or converters is not None:
+            raise TypeError(
+                "schema= and converters= describe how to build a device module, so they "
+                "do not apply when one is given. Drop them, or drop the device module."
+            )
+        return DatasetReader(
+            device_module, root_path, name=name, resolver=resolver, validate=validate
+        )
     schema_path = Path(schema) if schema is not None else root_path / DEVICE_SCHEMA_FILENAME
     if not schema_path.is_file():
         raise FileNotFoundError(
             f"No device schema at '{schema_path}'. Pass schema= to point at a device.yml, "
-            f"or build the device module yourself and use DatasetReader(device_module, root)."
+            f"or pass the device module itself as open_dataset(root, device_module)."
         )
-    device_module = create_device_module(
+    built = create_device_module(
         schema_path.read_text(), converters=converters, require_converters=require_converters
     )
-    return DatasetReader(device_module, root_path, name=name, resolver=resolver, validate=validate)
+    return DatasetReader(
+        built,
+        root_path,
+        name=name,
+        resolver=resolver,
+        validate=validate and schema is not None,
+    )
