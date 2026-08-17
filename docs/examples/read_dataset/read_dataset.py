@@ -24,9 +24,8 @@ df = reader.read(core.OperationControl)
 # map rather than the module namespace, so common registers are reachable too.
 df = reader.read("OperationControl")
 
-# Or by address. Timestamps are auto-detected from the frames, and when present
-# they become the DataFrame index, named "Time", holding float seconds from
-# device start.
+# Or by address. The Harp time becomes the DataFrame index, named "Time",
+# holding float seconds from device start.
 df = reader.read(44)
 print(df.head())
 

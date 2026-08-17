@@ -13,7 +13,6 @@ from harp.device.schema import (
     parse_device_schema,
 )
 from harp.protocol import RegisterBase
-from harp.protocol._constants import _TIMESTAMP_FLAG
 
 from ._reader import parse_to_dataframe
 
@@ -159,7 +158,7 @@ class DatasetReader(Generic[M]):
         register: RegisterKey,
         *,
         suffix: str | None = None,
-        timestamp: bool | None = None,
+        timestamp: bool = True,
         epoch: datetime | None = None,
         message_type: bool = False,
         decode_enums: bool = True,
@@ -174,21 +173,24 @@ class DatasetReader(Generic[M]):
         :func:`~harp.device.schema.create_device_module` resolves its registers as
         ``Any``, so there the generated module verifies no more than the name does.
 
-        ``suffix`` selects a single ``<name>_<address>_<suffix>.bin`` chunk (default:
-        concatenate every chunk for the address). ``timestamp`` defaults to ``None``,
-        auto-detecting from the payload-type bit of the frame; pass ``True``/``False``
-        to force. ``epoch`` makes the ``"Time"`` index absolute (e.g.
-        :data:`~harp.data.REFERENCE_EPOCH`). The remaining options match
+        A register declared in the device register map with no data present in the folder
+        reads as an empty DataFrame carrying the same columns, since the schema describes
+        the structure of the data regardless of whether anything was recorded.
+        :attr:`contents` is what tells the two cases apart. A register the device does not
+        declare at all raises ``KeyError``.
+
+        ``suffix`` selects a single ``<name>_<address>_<suffix>.bin`` chunk, and naming
+        one that is absent raises ``FileNotFoundError`` (default: concatenate every
+        chunk for the address). The remaining options match
         :func:`~harp.data.parse_to_dataframe`.
         """
         cls, address = self._resolve(register)
         paths = self._resolve_paths(address, suffix)
         raw = b"".join(p.read_bytes() for p in paths)
-        ts = self._first_frame_timestamped(raw) if timestamp is None else timestamp
         return parse_to_dataframe(
             cls,
             raw,
-            timestamp=ts,
+            timestamp=timestamp,
             epoch=epoch,
             message_type=message_type,
             decode_enums=decode_enums,
@@ -210,12 +212,7 @@ class DatasetReader(Generic[M]):
         return cls, register
 
     def _resolve_paths(self, address: int, suffix: str | None) -> list[Path]:
-        paths = self._paths.get(address)
-        if not paths:
-            raise FileNotFoundError(
-                f"No data file for register address {address} under {self._root} "
-                f"(expected '{self.name}_{address}[_<suffix>].bin')."
-            )
+        paths = self._paths.get(address) or []
         if suffix is not None:
             paths = [p for p in paths if p.stem.endswith(f"_{suffix}")]
             if not paths:
@@ -223,11 +220,6 @@ class DatasetReader(Generic[M]):
                     f"No '_{suffix}' chunk for register address {address} under {self._root}."
                 )
         return paths
-
-    @staticmethod
-    def _first_frame_timestamped(raw: bytes) -> bool:
-        """Whether the first frame carries a timestamp (payload-type bit ``0x10``)."""
-        return len(raw) > 4 and bool(raw[4] & _TIMESTAMP_FLAG)
 
 
 @overload

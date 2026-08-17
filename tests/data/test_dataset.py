@@ -13,6 +13,10 @@ from harp.device.core import TimestampSeconds, WhoAmI
 from harp.device.schema import create_device_module
 
 
+def _timestamps(n):
+    return np.arange(n, dtype=np.float64)
+
+
 def _records(cls, n, seed):
     dtype = cls.payload_class.payload_dtype
     rng = np.random.default_rng(seed)
@@ -29,27 +33,26 @@ def emitted_module(device_yml):
 
 @pytest.fixture
 def dataset(emitted_module, tmp_path):
-    """A dataset folder with three app registers; the first is timestamped."""
+    """A dataset folder with three app registers."""
     mod = emitted_module
     name = mod.DEVICE_NAME
     addresses = [a for a in sorted(mod.REGISTER_MAP) if a >= 32][:3]
     specs = {}
-    for i, address in enumerate(addresses):
+    for address in addresses:
         cls = mod.REGISTER_MAP[address]
         records = _records(cls, 5, seed=address)
-        timestamped = i == 0
-        timestamps = np.arange(5, dtype=np.float64) if timestamped else None
+        timestamps = _timestamps(5)
         buf = bytes(cls.format_bulk(records, timestamps=timestamps))
         (tmp_path / f"{name}_{address}.bin").write_bytes(buf)
-        specs[address] = (cls, timestamped, buf)
+        specs[address] = (cls, buf)
     return mod, name, tmp_path, specs
 
 
 def test_read_by_class_and_by_address(dataset):
     mod, _name, root, specs = dataset
     reader = DatasetReader(mod, root)
-    for address, (cls, timestamped, buf) in specs.items():
-        expected = parse_to_dataframe(cls, buf, timestamp=timestamped)
+    for address, (cls, buf) in specs.items():
+        expected = parse_to_dataframe(cls, buf)
         assert reader.read(cls).equals(expected)
         assert reader.read(address).equals(expected)
 
@@ -57,7 +60,7 @@ def test_read_by_class_and_by_address(dataset):
 def test_read_by_class_from_module_namespace(dataset):
     mod, _name, root, specs = dataset
     reader = DatasetReader(mod, root)
-    for address, (cls, _timestamped, _buf) in specs.items():
+    for address, (cls, _buf) in specs.items():
         # The register reached by name off the module is the one at that address.
         assert reader.read(getattr(mod, cls.__name__)).equals(reader.read(address))
 
@@ -65,7 +68,7 @@ def test_read_by_class_from_module_namespace(dataset):
 def test_read_by_register_name(dataset):
     mod, _name, root, specs = dataset
     reader = DatasetReader(mod, root)
-    for address, (cls, _timestamped, _buf) in specs.items():
+    for address, (cls, _buf) in specs.items():
         assert reader.read(cls.__name__).equals(reader.read(address))
 
 
@@ -84,7 +87,7 @@ def test_reads_common_registers_not_named_by_module(emitted_module, tmp_path):
 
     for cls in (WhoAmI, TimestampSeconds):
         records = _records(cls, 4, seed=cls.address)
-        buf = bytes(cls.format_bulk(records))
+        buf = bytes(cls.format_bulk(records, timestamps=_timestamps(4)))
         (tmp_path / f"{mod.DEVICE_NAME}_{cls.address}.bin").write_bytes(buf)
 
     reader = DatasetReader(mod, tmp_path)
@@ -96,19 +99,43 @@ def test_reads_common_registers_not_named_by_module(emitted_module, tmp_path):
     assert set(reader.contents) == {"WhoAmI", "TimestampSeconds"}
 
 
-def test_timestamp_is_auto_detected(dataset):
+def test_read_gives_time_index(dataset):
+    # Every register reads with the same index, so frames aggregate across sessions.
     mod, _name, root, specs = dataset
     reader = DatasetReader(mod, root)
-    for address, (_cls, timestamped, _buf) in specs.items():
-        df = reader.read(address)
-        # Timestamped frames get a "Time" index; untimestamped keep a plain RangeIndex.
-        assert (df.index.name == "Time") is timestamped
+    for address in specs:
+        assert reader.read(address).index.name == "Time"
+
+
+def test_timestamp_false_gives_range_index(dataset):
+    # The diagnostic escape hatch, and the only way to read frames carrying no timestamp.
+    mod, _name, root, specs = dataset
+    reader = DatasetReader(mod, root)
+    df = reader.read(next(iter(specs)), timestamp=False)
+    assert df.index.name is None
+
+
+def test_untimestamped_frames_raise_value_error(emitted_module, tmp_path):
+    # A recording every device should be incapable of producing, so it surfaces rather
+    # than reading back with a silently different index.
+    mod = emitted_module
+    address = next(a for a in sorted(mod.REGISTER_MAP) if a >= 32)
+    cls = mod.REGISTER_MAP[address]
+    (tmp_path / f"{mod.DEVICE_NAME}_{address}.bin").write_bytes(
+        bytes(cls.format_bulk(_records(cls, 3, seed=1)))
+    )
+
+    reader = DatasetReader(mod, tmp_path)
+
+    with pytest.raises(ValueError, match="no timestamp data"):
+        reader.read(address)
+    assert len(reader.read(address, timestamp=False)) == 3
 
 
 def test_time_index_is_float_seconds_without_epoch(dataset):
     mod, _name, root, specs = dataset
     reader = DatasetReader(mod, root)
-    address = next(a for a, (_c, ts, _b) in specs.items() if ts)  # the timestamped register
+    address = next(iter(specs))
     df = reader.read(address)
     assert df.index.name == "Time"
     assert list(df.index) == [0.0, 1.0, 2.0, 3.0, 4.0]  # arange(5) seconds from the fixture
@@ -117,7 +144,7 @@ def test_time_index_is_float_seconds_without_epoch(dataset):
 def test_epoch_gives_absolute_datetime_index(dataset):
     mod, _name, root, specs = dataset
     reader = DatasetReader(mod, root)
-    address = next(a for a, (_c, ts, _b) in specs.items() if ts)
+    address = next(iter(specs))
     df = reader.read(address, epoch=REFERENCE_EPOCH)
     assert isinstance(df.index, pd.DatetimeIndex)
     assert df.index.name == "Time"
@@ -134,17 +161,21 @@ def test_suffix_chunks_are_concatenated(emitted_module, tmp_path):
     address = next(a for a in sorted(mod.REGISTER_MAP) if a >= 32)
     cls = mod.REGISTER_MAP[address]
     chunks = {
-        "20260816T090000Z": bytes(cls.format_bulk(_records(cls, 3, seed=1))),
-        "20260816T100000Z": bytes(cls.format_bulk(_records(cls, 2, seed=2))),
+        "20260816T090000Z": bytes(
+            cls.format_bulk(_records(cls, 3, seed=1), timestamps=_timestamps(3))
+        ),
+        "20260816T100000Z": bytes(
+            cls.format_bulk(_records(cls, 2, seed=2), timestamps=_timestamps(2))
+        ),
     }
     for suffix in reversed(list(chunks)):
         (tmp_path / f"{name}_{address}_{suffix}.bin").write_bytes(chunks[suffix])
 
     reader = DatasetReader(mod, tmp_path)
-    combined = parse_to_dataframe(cls, b"".join(chunks.values()), timestamp=False)
-    assert reader.read(cls).reset_index(drop=True).equals(combined)
+    combined = parse_to_dataframe(cls, b"".join(chunks.values()))
+    assert reader.read(cls).reset_index(drop=True).equals(combined.reset_index(drop=True))
     # A specific chunk can still be selected by suffix.
-    earliest = parse_to_dataframe(cls, chunks["20260816T090000Z"], timestamp=False)
+    earliest = parse_to_dataframe(cls, chunks["20260816T090000Z"])
     assert reader.read(cls, suffix="20260816T090000Z").equals(earliest)
 
 
@@ -188,12 +219,30 @@ def test_nameless_module_raises_on_construction(dataset):
     assert DatasetReader(nameless, root, name=name).name == name
 
 
-def test_missing_register_file_raises(dataset):
+def test_unlogged_register_reads_empty(dataset):
+    # The schema describes the columns whether or not anything was recorded, so a
+    # declared register with no file is zero rows rather than a failure. WhoAmI sits
+    # at address 0, is in the map, and has no file in this dataset.
     mod, _name, root, _specs = dataset
     reader = DatasetReader(mod, root)
-    # WhoAmI (address 0) is in the map but has no file in this dataset.
-    with pytest.raises(FileNotFoundError):
-        reader.read(0)
+
+    df = reader.read(0)
+    buf = bytes(WhoAmI.format_bulk(_records(WhoAmI, 2, seed=0), timestamps=_timestamps(2)))
+    populated = parse_to_dataframe(WhoAmI, buf)
+
+    assert len(df) == 0
+    assert "WhoAmI" not in reader.contents
+    assert list(df.columns) == list(populated.columns)
+    assert df.dtypes.equals(populated.dtypes)
+    assert df.index.name == "Time"
+
+
+def test_unknown_suffix_raises_file_not_found(dataset):
+    # Naming a chunk that is absent is a mistake about the request, so it still raises.
+    mod, _name, root, specs = dataset
+    reader = DatasetReader(mod, root)
+    with pytest.raises(FileNotFoundError, match="chunk"):
+        reader.read(next(iter(specs)), suffix="20991231T000000Z")
 
 
 def test_unknown_address_raises(dataset):
@@ -209,9 +258,9 @@ def test_custom_file_resolver_supports_alternative_layout(emitted_module, tmp_pa
     expected = {}
     for address in addresses:
         cls = mod.REGISTER_MAP[address]
-        buf = bytes(cls.format_bulk(_records(cls, 3, seed=address)))
+        buf = bytes(cls.format_bulk(_records(cls, 3, seed=address), timestamps=_timestamps(3)))
         (tmp_path / f"reg{address}.bin").write_bytes(buf)  # not the Harp layout
-        expected[cls.__name__] = parse_to_dataframe(cls, buf, timestamp=False)
+        expected[cls.__name__] = parse_to_dataframe(cls, buf)
 
     def resolver(root, _name):
         found = {}
@@ -237,7 +286,7 @@ def test_contents_maps_names_to_addresses(dataset):
     mod, _name, root, specs = dataset
     reader = DatasetReader(mod, root)
     # The declared address space is much larger; contents is what this folder holds.
-    assert reader.contents == {cls.__name__: address for address, (cls, _ts, _buf) in specs.items()}
+    assert reader.contents == {cls.__name__: address for address, (cls, _buf) in specs.items()}
     assert len(mod.REGISTER_MAP) > len(reader.contents)
 
 
@@ -260,9 +309,9 @@ def test_contents_keys_read_every_register(dataset):
 
     frames = {name: reader.read(name) for name in reader.contents}
 
-    assert set(frames) == {cls.__name__ for cls, _ts, _buf in specs.values()}
-    for cls, timestamped, buf in specs.values():
-        assert frames[cls.__name__].equals(parse_to_dataframe(cls, buf, timestamp=timestamped))
+    assert set(frames) == {cls.__name__ for cls, _buf in specs.values()}
+    for cls, buf in specs.values():
+        assert frames[cls.__name__].equals(parse_to_dataframe(cls, buf))
 
 
 def test_contents_excludes_undescribed_address(dataset):
@@ -276,7 +325,7 @@ def test_contents_excludes_undescribed_address(dataset):
 
     assert undescribed in reader.paths
     assert undescribed not in reader.contents.values()
-    assert set(reader.contents) == {cls.__name__ for cls, _ts, _buf in specs.values()}
+    assert set(reader.contents) == {cls.__name__ for cls, _buf in specs.values()}
 
 
 def test_every_register_round_trips(emitted_module, tmp_path):
@@ -286,12 +335,9 @@ def test_every_register_round_trips(emitted_module, tmp_path):
     expected = {}
     for address, cls in mod.REGISTER_MAP.items():
         records = _records(cls, 4, seed=address)
-        # Alternate timestamped/untimestamped to exercise both parse paths.
-        timestamped = address % 2 == 0
-        timestamps = np.arange(4, dtype=np.float64) if timestamped else None
-        buf = bytes(cls.format_bulk(records, timestamps=timestamps))
+        buf = bytes(cls.format_bulk(records, timestamps=_timestamps(4)))
         (tmp_path / f"{name}_{address}.bin").write_bytes(buf)
-        expected[cls.__name__] = parse_to_dataframe(cls, buf, timestamp=timestamped)
+        expected[cls.__name__] = parse_to_dataframe(cls, buf)
 
     reader = DatasetReader(mod, tmp_path)
 
@@ -319,7 +365,7 @@ def test_open_dataset_builds_module_from_device_yml(dataset, device_yml):
     assert isinstance(reader, DatasetReader)
     # Reads match a reader built from an explicitly-generated module.
     reference = DatasetReader(mod, root)
-    for address, (cls, _timestamped, _buf) in specs.items():
+    for address, (cls, _buf) in specs.items():
         assert reader.read(address).equals(reference.read(cls))
 
 
