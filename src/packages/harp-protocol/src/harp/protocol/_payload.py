@@ -176,7 +176,8 @@ class Field(Generic[T]):
             return [Column(name, sub)]
         # sub-array -> one column per element; index is intrinsic identity, so a
         # nameless (root) array is positional, a named field is prefixed.
-        flat = sub.reshape(len(arr), -1)
+        width = int(np.prod(sub.shape[1:]))
+        flat = sub.reshape(len(arr), width)
         label = (lambda i: str(i)) if name is None else (lambda i: f"{name}_{i}")
         return [Column(label(i), flat[:, i]) for i in range(flat.shape[1])]
 

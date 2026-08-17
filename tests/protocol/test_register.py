@@ -205,6 +205,18 @@ def test_format_with_payload_instance_via_register():
     assert parsed == 42
 
 
+def test_empty_buffer_keeps_columns():
+    # A sub-array renders one column per element, and the count comes from the dtype,
+    # so a buffer carrying no frames still renders all of them.
+    reg = RegisterU32Array(0x28, length=3)
+    records = np.arange(6, dtype=np.uint32).reshape(2, 3)
+    populated = parse_to_dataframe(reg, bytes(reg.format_bulk(records)), timestamp=False)
+    empty = parse_to_dataframe(reg, b"", timestamp=False)
+    assert list(empty.columns) == list(populated.columns)
+    assert empty.dtypes.equals(populated.dtypes)
+    assert len(empty) == 0
+
+
 def test_structured_register_format_single_sample():
     sample = np.array([(100, 512, -200)], dtype=AnalogDataPayload.payload_dtype)
     frame = AnalogData.format(sample)
