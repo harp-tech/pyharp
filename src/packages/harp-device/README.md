@@ -29,7 +29,7 @@ This is the same structure `create_device_module` builds from a schema, so a dev
 
 A device module names only what its schema declares, the registers beside the enums and payload classes they are built from, so `REGISTER_MAP` is the device address space while the module namespace is what the device adds to it. The common registers and any core mask the schema reuses have a single definition, in `harp.device.core`, and are reached from there rather than through the device module. The core register set is not a device, so it carries no `WHO_AM_I`.
 
-Pass the module to `Device`, or to `open_serial_device`, to validate identity on open:
+Pass the module to `Device`, or to `open_device`, to validate identity on open:
 
 ```python
 from harp.device import behavior, client, core

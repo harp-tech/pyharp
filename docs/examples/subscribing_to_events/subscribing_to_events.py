@@ -17,7 +17,7 @@ def print_any_event(msg: HarpMessage) -> None:
     print(f"[{msg.address}] {msg.timestamp:.6f}  {msg.message_type.name:<5s}  {value}")
 
 
-with serial.open_serial_device(client.Device, port=SERIAL_PORT) as device:
+with serial.open_device(client.Device, port=SERIAL_PORT) as device:
     # Subscribe to a single, typed register: the handler receives a parsed payload.
     timestamp_subscription = device.subscribe(core.TimestampSeconds, print_timestamp)
 

@@ -3,4 +3,4 @@
 ---
 
 ::: harp.serial.SerialTransport
-::: harp.serial.open_serial_device
+::: harp.serial.open_device

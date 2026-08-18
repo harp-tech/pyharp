@@ -1,6 +1,6 @@
 # harp-serial
 
-Serial transport for [`harp-device`](../harp-device). Provides `SerialTransport` and the `open_serial_device` factory, which pairs a device module or a `Device` class with a serial port. This is the package that pulls in `pyserial`.
+Serial transport for [`harp-device`](../harp-device). Provides `SerialTransport` and the `open_device` factory, which pairs a device module or a `Device` class with a serial port. This is the package that pulls in `pyserial`.
 
 ## Usage
 
@@ -11,7 +11,7 @@ from harp import serial
 from harp.device import behavior, core
 
 # Use "COMx" on Windows, "/dev/ttyUSBx" on Linux.
-with serial.open_serial_device(behavior, port="COM3") as device:
+with serial.open_device(behavior, port="COM3") as device:
     print(device.read(core.WhoAmI).parsed)         # a common register
     print(device.read(behavior.AnalogData).parsed) # a device register
 ```
