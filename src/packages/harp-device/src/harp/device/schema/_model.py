@@ -211,6 +211,9 @@ class Register(BaseModel):
 class Registers(BaseModel):
     """A bare register collection, a header-less ``device.yml`` fragment."""
 
+    description: Optional[str] = Field(
+        None, description="A summary description of the register interface."
+    )
     registers: Dict[str, Register] = Field(
         ..., description="The collection of registers implementing the device function."
     )

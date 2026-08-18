@@ -10,6 +10,7 @@ def test_parse_full_device(device_yml):
     assert isinstance(m, DeviceModel)
     assert m.device == "Tests"
     assert m.whoAmI is None  # this application-device metadata omits whoAmI
+    assert m.description is None  # and omits a top-level description
     assert "AnalogData" in m.registers
     ad = m.registers["AnalogData"]
     assert ad.type is PayloadType.Float
@@ -77,6 +78,7 @@ def test_reserved_word_mask_keys_stay_strings():
 def test_parse_core_registers(core_yml):
     c = parse_device_schema(core_yml)
     assert "WhoAmI" in c.registers
+    assert c.description  # the core metadata declares a top-level description
     # 'None' bit name stays a string, not YAML null.
     assert "None" in c.bitMasks["ResetFlags"].bits
 

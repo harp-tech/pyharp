@@ -84,7 +84,8 @@ def create_device_module(
       name, so :class:`~harp.data.DatasetReader` matches files by it;
     * ``__name__``, the same name, falling back to ``"Device"`` so the module is never
       anonymous. This names the module rather than the device, and is not part of what
-      a device module promises.
+      a device module promises;
+    * ``__doc__``, the optional ``description`` of the schema.
 
     Because the names come from the schema at runtime they don't autocomplete, and
     each resolves as ``Any`` rather than its own type. A generated device package is
@@ -112,7 +113,7 @@ def create_device_module(
     for declaration in contents.values():
         declaration.__module__ = module_name
 
-    module = DeviceModule(module_name, f"Harp registers for {module_name}, from a schema.")
+    module = DeviceModule(module_name, device.description)
     vars(module).update(
         contents,
         DEVICE_NAME=device_name,
