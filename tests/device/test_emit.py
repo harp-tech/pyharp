@@ -13,7 +13,7 @@ from harp.device.schema._emit import (
     create_registers,
 )
 
-from . import expected_core, expected_device
+from . import expected_device
 from .converters import DataConverter
 
 CONVERTERS = {"DataConverter": DataConverter()}
@@ -137,17 +137,19 @@ def test_enum_names_match_generator_for_every_enum(device_registers):
 
 
 # ---------------------------------------------------------------------------
-# Core reference output, from protocol common.yml
+# Core registers: the emitter and the generated package, from the same core.yml
 # ---------------------------------------------------------------------------
 
 
 def _core_expected():
-    return {cls.__name__: cls for cls in expected_core.REGISTER_MAP.values()}
+    # harp.device.core is the generated Python interface, so it is the reference for
+    # what the emitter should build from the same core registers.
+    return {cls.__name__: cls for cls in core.REGISTER_MAP.values()}
 
 
 @pytest.mark.parametrize("name", sorted(_core_expected()))
-def test_core_register_structural(name, common_yml):
-    emitted = create_registers(common_yml)[name]
+def test_core_register_structural(name, core_yml):
+    emitted = create_registers(core_yml)[name]
     expected = _core_expected()[name]
     assert emitted.address == expected.address
     assert emitted.payload_type == expected.payload_type
@@ -155,10 +157,6 @@ def test_core_register_structural(name, common_yml):
         emitted.payload_class.payload_dtype.itemsize
         == expected.payload_class.payload_dtype.itemsize
     )
-    if name == "DeviceName":
-        # Generator enriches DeviceName to interfaceType: string, while the
-        # common.yml of the protocol does not, so only the layout size matches here.
-        return
     assert _layout(emitted.payload_class.payload_dtype) == _layout(
         expected.payload_class.payload_dtype
     )

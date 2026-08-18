@@ -22,6 +22,6 @@ def device_yml() -> str:
 
 
 @pytest.fixture(scope="session")
-def common_yml() -> str:
-    """The Harp common (core) register set ``common.yml`` as text."""
-    return (ASSETS / "common.yml").read_text()
+def core_yml() -> str:
+    """The generators core metadata ``core.yml`` as text."""
+    return (ASSETS / "core.yml").read_text()

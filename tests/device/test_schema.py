@@ -10,6 +10,7 @@ def test_parse_full_device(device_yml):
     assert isinstance(m, DeviceModel)
     assert m.device == "Tests"
     assert m.whoAmI is None  # this application-device metadata omits whoAmI
+    assert m.description is None  # and omits a top-level description
     assert "AnalogData" in m.registers
     ad = m.registers["AnalogData"]
     assert ad.type is PayloadType.Float
@@ -58,22 +59,36 @@ def test_parse_bytes_decodes_as_utf8_regardless_of_locale():
     )
 
 
-def test_parse_common_registers(common_yml):
-    c = parse_device_schema(common_yml)
-    assert c.device is None
+def test_reserved_word_mask_keys_stay_strings():
+    # Off, On, Yes and No are booleans in YAML 1.1, so a 1.1 parser keys these values by
+    # True and False.
+    schema = (
+        "registers:\n"
+        "  Indicators: {address: 32, type: U8, access: Write, maskType: LedState}\n"
+        "groupMasks:\n"
+        "  LedState:\n"
+        "    values:\n"
+        "      Off: 0\n"
+        "      On: 1\n"
+    )
+    m = parse_device_schema(schema)
+    assert {k: int(v) for k, v in m.groupMasks["LedState"].values.items()} == {"Off": 0, "On": 1}
+
+
+def test_parse_core_registers(core_yml):
+    c = parse_device_schema(core_yml)
     assert "WhoAmI" in c.registers
-    # Off/On group-mask keys must stay strings (YAML 1.1 would coerce to bool).
-    assert {k: int(v) for k, v in c.groupMasks["LedState"].values.items()} == {"Off": 0, "On": 1}
+    assert c.description  # the core metadata declares a top-level description
     # 'None' bit name stays a string, not YAML null.
     assert "None" in c.bitMasks["ResetFlags"].bits
 
 
-def test_bool_values_preserved(common_yml):
-    c = parse_device_schema(common_yml)
+def test_bool_values_preserved(core_yml):
+    c = parse_device_schema(core_yml)
     assert c.registers["TimestampSeconds"].volatile is True
 
 
-def test_access_list_and_scalar(common_yml):
-    c = parse_device_schema(common_yml)
+def test_access_list_and_scalar(core_yml):
+    c = parse_device_schema(core_yml)
     # TimestampSeconds has a list access [Read, Write, Event]; WhoAmI a scalar.
     assert isinstance(c.registers["TimestampSeconds"].access, list)

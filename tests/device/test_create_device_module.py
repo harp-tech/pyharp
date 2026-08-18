@@ -5,7 +5,12 @@ import harp.device.core
 import pytest
 from harp.device.core import REGISTER_MAP as CORE_REGISTER_MAP
 from harp.device.core import WhoAmI
-from harp.device.schema import DeviceModule, DeviceModuleLike, create_device_module
+from harp.device.schema import (
+    DeviceModule,
+    DeviceModuleLike,
+    create_device_module,
+    parse_device_schema,
+)
 from harp.protocol import RegisterBase
 
 from . import expected_device
@@ -46,6 +51,20 @@ def test_whoami_from_schema():
         "device: D\nwhoAmI: 1216\nregisters:\n  Foo: {address: 40, type: U16, access: Read}\n"
     )
     assert mod.WHO_AM_I == 1216
+
+
+def test_docstring_from_schema(core_yml):
+    # The docstring is the schema description rather than composed from the module name,
+    # so a runtime module reads the same as the generated package for the same metadata.
+    doc = create_device_module(core_yml).__doc__
+    assert doc == parse_device_schema(core_yml).description
+    assert doc
+
+
+def test_docstring_absent_when_undeclared(test_module):
+    # device.yml declares no description, and a generated package carries no module
+    # docstring either, so both paths agree instead of one composing a name.
+    assert test_module.__doc__ is None
 
 
 def test_registers_are_reachable_by_name(test_module):
