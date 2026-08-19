@@ -8,7 +8,6 @@ import queue
 import threading
 
 from harp.protocol import HarpMessage, MessageType
-from harp.protocol._message import ParsedHarpMessage
 from harp.protocol._register import RegisterBase
 
 from harp.device.schema import DeviceModuleLike
@@ -23,8 +22,8 @@ P = TypeVar("P")
 
 _logger = logging.getLogger(__name__)
 
-EventHandler = Callable[[ParsedHarpMessage[P]], None]
-"""A callback receiving a typed, parsed event for a specific register."""
+EventHandler = Callable[[HarpMessage[P]], None]
+"""A callback receiving a message typed by the payload of a specific register."""
 
 MessageTypeFilter = MessageType | Iterable[MessageType]
 """Message types a subscription reacts to, as a single type or an iterable."""
@@ -164,7 +163,7 @@ class Device(Generic[M]):
         expected = module.WHO_AM_I
         if expected == 0x0:
             return
-        actual = int(self.read(WhoAmI).parsed)
+        actual = int(self.read(WhoAmI).payload)
         if actual != expected:
             raise RuntimeError(
                 f"WhoAmI mismatch: {module.DEVICE_NAME} expects 0x{expected:04x} "
@@ -204,12 +203,12 @@ class Device(Generic[M]):
         *,
         timestamp: float | None = None,
         port: int = 255,
-    ) -> ParsedHarpMessage[P]:
+    ) -> HarpMessage[P]:
         # Note: ty can't correctly infer the return type, and this is a known issue:
         # https://github.com/astral-sh/ty/issues/623
         frame = register.format(message_type=MessageType.Read, timestamp=timestamp, port=port)
         msg = self._request(register.address, frame)
-        return ParsedHarpMessage.from_message(msg, register.parse(msg))
+        return msg.decode(register)
 
     def write(
         self,
@@ -218,12 +217,12 @@ class Device(Generic[M]):
         *,
         timestamp: float | None = None,
         port: int = 255,
-    ) -> ParsedHarpMessage[P]:
+    ) -> HarpMessage[P]:
         frame = register.format(
             value, message_type=MessageType.Write, timestamp=timestamp, port=port
         )
         msg = self._request(register.address, frame)
-        return ParsedHarpMessage.from_message(msg, register.parse(msg))
+        return msg.decode(register)
 
     # ------------------------------------------------------------------
     # Events
@@ -236,8 +235,8 @@ class Device(Generic[M]):
         *,
         message_types: MessageTypeFilter = MessageType.Event,
     ) -> Subscription:
-        """Call ``handler`` with a typed, parsed :class:`ParsedHarpMessage` each
-        time the device emits a message for ``register``.
+        """Call ``handler`` with a :class:`~harp.protocol.HarpMessage` typed by the
+        payload of ``register``, each time the device emits a message for it.
 
         By default only unsolicited ``Event`` messages are delivered. Pass
         ``message_types`` (a :class:`MessageType` or an iterable of them) to also
@@ -310,14 +309,14 @@ class Device(Generic[M]):
         matching = [s for s in subs if msg.message_type in s._message_types]
         if matching and register is not None:
             try:
-                parsed = ParsedHarpMessage.from_message(msg, register.parse(msg))
+                typed = msg.decode(register)
             except Exception:
                 _logger.exception(
                     "Failed to parse %r for address 0x%02x", msg.message_type, msg.address
                 )
             else:
                 for sub in matching:
-                    self._safe_call(sub._handler, parsed)
+                    self._safe_call(sub._handler, typed)
 
         for sub in catch_all:
             if msg.message_type in sub._message_types:
@@ -372,7 +371,7 @@ class Device(Generic[M]):
                 if msg.has_error and self.raise_on_error:
                     raise RuntimeError(
                         f"Device returned error for register address {address} "
-                        f"(0x{address:02x}). Payload: {msg.payload.hex()}"
+                        f"(0x{address:02x}). Payload: {msg.payload_bytes.hex()}"
                     )
                 return msg
             except queue.Empty as exc:

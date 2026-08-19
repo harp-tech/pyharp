@@ -1,4 +1,4 @@
-from ._message import HarpMessage, HarpParseError, ParsedHarpMessage
+from ._message import HarpMessage, HarpParseError
 from ._message_type import MessageType
 from ._payload_converters import (
     BoolConverter,
@@ -74,7 +74,6 @@ __all__ = [
     "encode_payload_type",
     # Message
     "HarpMessage",
-    "ParsedHarpMessage",
     "HarpParseError",
     # Converters
     "Converter",
