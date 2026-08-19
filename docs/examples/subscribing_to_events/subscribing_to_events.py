@@ -13,7 +13,7 @@ def print_timestamp(msg: HarpMessage[np.uint32]) -> None:
 
 def print_any_event(msg: HarpMessage) -> None:
     register = core.REGISTER_MAP.get(msg.address, None)
-    value = register.parse(msg) if register is not None else msg.raw_payload.hex()
+    value = register.parse(msg) if register is not None else msg.payload_bytes.hex()
     print(f"[{msg.address}] {msg.timestamp:.6f}  {msg.message_type.name:<5s}  {value}")
 
 

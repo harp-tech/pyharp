@@ -17,7 +17,7 @@ def test_parse_read_request():
     assert msg.has_error is False
     assert msg.address == 8
     assert msg.port == 0xFF
-    assert msg.raw_payload == b""
+    assert msg.payload_bytes == b""
     assert msg.timestamp is None
 
 
@@ -25,7 +25,7 @@ def test_parse_write_u8_payload():
     frame = make_frame_from_raw(0x02, address=10, port=0xFF, payload_type=0x01, payload=b"\x05")
     msg = HarpMessage.parse(frame)
     assert msg.message_type == MessageType.Write
-    assert msg.raw_payload == b"\x05"
+    assert msg.payload_bytes == b"\x05"
     assert msg.payload_type == PayloadType.U8
 
 
@@ -41,7 +41,7 @@ def test_parse_with_timestamp():
     msg = HarpMessage.parse(frame)
     assert msg.message_type == MessageType.Event
     assert msg.timestamp == pytest.approx(1.0)
-    assert msg.raw_payload == b"\x7f"
+    assert msg.payload_bytes == b"\x7f"
 
 
 def test_parse_error_flag():
@@ -55,7 +55,7 @@ def test_parse_u16_array():
     payload = struct.pack("<HHH", 100, 200, 300)
     frame = make_frame_from_raw(0x03, address=32, port=0xFF, payload_type=0x02, payload=payload)
     msg = HarpMessage.parse(frame)
-    arr = np.frombuffer(msg.raw_payload, dtype=np.dtype("<u2"))
+    arr = np.frombuffer(msg.payload_bytes, dtype=np.dtype("<u2"))
     assert list(arr) == [100, 200, 300]
 
 
@@ -97,7 +97,7 @@ def test_wire_message_carries_no_payload():
         make_frame_from_raw(0x02, address=10, port=0xFF, payload_type=0x01, payload=b"\x05")
     )
     assert msg.has_payload is False
-    assert msg.raw_payload == b"\x05"
+    assert msg.payload_bytes == b"\x05"
     with pytest.raises(ValueError, match="has no payload"):
         msg.payload
 
@@ -110,7 +110,7 @@ def test_with_payload_attaches_without_touching_the_frame():
     assert typed.has_payload is True
     assert typed.payload == 5
     assert typed.bytes == msg.bytes
-    assert typed.raw_payload == b"\x05"
+    assert typed.payload_bytes == b"\x05"
     assert typed.address == msg.address
 
 

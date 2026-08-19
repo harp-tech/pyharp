@@ -371,7 +371,7 @@ class Device(Generic[M]):
                 if msg.has_error and self.raise_on_error:
                     raise RuntimeError(
                         f"Device returned error for register address {address} "
-                        f"(0x{address:02x}). Payload: {msg.raw_payload.hex()}"
+                        f"(0x{address:02x}). Payload: {msg.payload_bytes.hex()}"
                     )
                 return msg
             except queue.Empty as exc:

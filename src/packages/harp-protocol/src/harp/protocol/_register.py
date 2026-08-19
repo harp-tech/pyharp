@@ -164,7 +164,7 @@ class RegisterBase(ABC, Generic[U], metaclass=_RegisterBaseMeta):
         ``payload.Channel0`` works). Anonymous payloads (scalar / array
         registers) return the raw numpy scalar or ndarray directly.
         """
-        buf = value.raw_payload if isinstance(value, HarpMessage) else value
+        buf = value.payload_bytes if isinstance(value, HarpMessage) else value
         record = np.frombuffer(buf, dtype=cls.payload_class.payload_dtype, count=1)[0]
         return cast(U, cls.payload_class._unwrap(record))
 

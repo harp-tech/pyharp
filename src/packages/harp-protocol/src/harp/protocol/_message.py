@@ -3,6 +3,8 @@
 import struct
 from typing import Any, Generic, TypeVar, cast
 
+from typing_extensions import Sentinel
+
 from ._builder import build_message_frame
 from ._checksum import validate as _validate_checksum
 from ._constants import (
@@ -17,9 +19,9 @@ from ._message_type import MessageType, _message_type_from_byte_safe
 from ._payload_type import PayloadType, decode_payload_type
 
 P = TypeVar("P")
-_T = TypeVar("_T")
+_P = TypeVar("_P")
 
-_UNDECODED: Any = object()
+_UNDECODED = Sentinel("_UNDECODED")
 """Marks a message whose payload no register has decoded yet."""
 
 
@@ -45,15 +47,15 @@ class HarpMessage(Generic[P]):
         message_type: MessageType,
         address: int,
         payload_type: PayloadType,
-        raw_payload: bytes = b"",
+        payload_bytes: bytes = b"",
         *,
         port: int = _DEFAULT_PORT,
         timestamp: float | None = None,
     ) -> None:
         self._bytes: bytes = build_message_frame(
-            message_type, address, payload_type, raw_payload, port=port, timestamp=timestamp
+            message_type, address, payload_type, payload_bytes, port=port, timestamp=timestamp
         )
-        self._payload: P = _UNDECODED
+        self._payload: P | _UNDECODED = _UNDECODED
 
     @classmethod
     def parse(cls, data: bytes | bytearray | memoryview) -> "HarpMessage[Any]":
@@ -127,7 +129,7 @@ class HarpMessage(Generic[P]):
         return cast(int, seconds) + cast(int, microseconds) * _TICK_PERIOD_S
 
     @property
-    def raw_payload(self) -> memoryview:
+    def payload_bytes(self) -> memoryview:
         """Payload bytes, excluding timestamp and checksum."""
         offset = _TIMESTAMPED_PAYLOAD_OFFSET if self.has_timestamp else _HEADER_LEN
         return memoryview(self._bytes)[offset:-1]
@@ -143,18 +145,18 @@ class HarpMessage(Generic[P]):
 
         Only a register knows which contract a frame satisfies, so a message read from
         the wire carries no payload until one decodes it. Raises ``ValueError`` in that
-        case; test with ``has_payload``, or read ``raw_payload`` for the frame bytes.
+        case; test with ``has_payload`` first, or read ``payload_bytes`` instead.
         """
         if self._payload is _UNDECODED:
             raise ValueError(
                 "No register has decoded this message, so it has no payload. "
-                "Parse it with a register, or read raw_payload for the frame bytes."
+                "Parse it with a register, or read payload_bytes instead."
             )
         return self._payload
 
-    def with_payload(self, payload: _T) -> "HarpMessage[_T]":
+    def with_payload(self, payload: _P) -> "HarpMessage[_P]":
         """Return a copy of this message carrying ``payload`` as its decoded payload."""
-        obj: HarpMessage[_T] = HarpMessage.__new__(HarpMessage)
+        obj: HarpMessage[_P] = HarpMessage.__new__(HarpMessage)
         obj._bytes = self._bytes
         obj._payload = payload
         return obj
