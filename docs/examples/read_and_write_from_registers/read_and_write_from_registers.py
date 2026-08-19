@@ -3,7 +3,7 @@ from harp.device import client, core
 
 SERIAL_PORT = "/dev/ttyUSB0"  # or "COMx" in Windows, where "x" is the serial port number
 
-with serial.open_serial_device(client.Device, port=SERIAL_PORT) as device:
+with serial.open_device(client.Device, port=SERIAL_PORT) as device:
     # Read a scalar register.
     print("WhoAmI:", device.read(core.WhoAmI).parsed)
 

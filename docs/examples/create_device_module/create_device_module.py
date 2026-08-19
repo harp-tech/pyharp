@@ -20,7 +20,7 @@ assert behavior.REGISTER_MAP[44] is AnalogData  # or by address
 # Registers are ordinary register classes, so they work with `read` and `write` on
 # any `Device` over a transport. Passing the module itself validates the device
 # identity on open, against its `WHO_AM_I`, which a value of `0` skips.
-with serial.open_serial_device(behavior, port=SERIAL_PORT) as device:
+with serial.open_device(behavior, port=SERIAL_PORT) as device:
     print("AnalogData:", device.read(AnalogData).parsed)
 
 # The same register classes also decode a recorded binary dump into a pandas

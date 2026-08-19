@@ -13,7 +13,7 @@ from harp.device.client import Device, ITransport
 from harp.device.core import OperationControl, OperationControlPayload, WhoAmI
 from harp.device.schema import DeviceModule, DeviceModuleLike, create_device_module
 from harp.protocol import ParsedHarpMessage, RegisterBase
-from harp.serial import open_serial_device
+from harp.serial import open_device
 
 
 def schema_built_registers(yml: str) -> None:
@@ -51,27 +51,27 @@ def device_without_module(transport: ITransport) -> None:
     assert_type(device.module, None)
 
 
-def open_serial_device_with_module(module: DeviceModule) -> None:
-    """open_serial_device with a module returns Device[M]."""
-    device = open_serial_device(module, port="COM3")
+def open_device_with_module(module: DeviceModule) -> None:
+    """open_device with a module returns Device[M]."""
+    device = open_device(module, port="COM3")
     assert_type(device, Device[DeviceModule])
     assert_type(device.module, DeviceModule)
 
 
-def open_serial_device_without_module() -> None:
-    """open_serial_device without a module returns Device[None]."""
-    device = open_serial_device(port="COM3")
+def open_device_without_module() -> None:
+    """open_device without a module returns Device[None]."""
+    device = open_device(port="COM3")
     assert_type(device, Device[None])
     assert_type(device.module, None)
 
 
-def open_serial_device_with_subclass() -> None:
-    """open_serial_device with a Device subclass preserves its type."""
+def open_device_with_subclass() -> None:
+    """open_device with a Device subclass preserves its type."""
 
     class MyDevice(Device[DeviceModule]):
         def arm(self) -> None: ...
 
-    device = open_serial_device(MyDevice, port="COM3")
+    device = open_device(MyDevice, port="COM3")
     assert_type(device, MyDevice)
 
 
@@ -115,7 +115,7 @@ def open_dataset_keeps_supplied_module_type(generated: DeviceModuleLike) -> None
     assert_type(open_dataset("session.harp", generated), DatasetReader[DeviceModuleLike])
 
 
-def open_serial_device_prefers_the_subclass_overload() -> None:
+def open_device_prefers_the_subclass_overload() -> None:
     """A Device subclass is matched as a subclass even when it looks like a module.
 
     type[D] is narrower than the structural module overload, so it has to come first:
@@ -129,5 +129,5 @@ def open_serial_device_prefers_the_subclass_overload() -> None:
         WHO_AM_I: ClassVar[int] = 1216
         REGISTER_MAP: ClassVar[dict[int, type[RegisterBase[Any]]]] = {}
 
-    device = open_serial_device(Hybrid, port="COM3")
+    device = open_device(Hybrid, port="COM3")
     assert_type(device, Hybrid)

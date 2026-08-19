@@ -54,7 +54,7 @@ class SerialTransport:
 
 
 @overload
-def open_serial_device(
+def open_device(
     device_or_module: type[D],
     *,
     port: str,
@@ -64,7 +64,7 @@ def open_serial_device(
 
 
 @overload
-def open_serial_device(
+def open_device(
     device_or_module: M,
     *,
     port: str,
@@ -74,7 +74,7 @@ def open_serial_device(
 
 
 @overload
-def open_serial_device(
+def open_device(
     device_or_module: None = ...,
     *,
     port: str,
@@ -83,7 +83,7 @@ def open_serial_device(
 ) -> Device[None]: ...
 
 
-def open_serial_device(
+def open_device(
     device_or_module: DeviceModuleLike | type[D] | None = None,
     *,
     port: str,
@@ -98,13 +98,13 @@ def open_serial_device(
 
         from harp.device import behavior, core
 
-        with open_serial_device(behavior, port="COM3") as dev:
+        with open_device(behavior, port="COM3") as dev:
             dev.read(core.WhoAmI)           # a common register
             dev.read(behavior.AnalogData)   # declared by the schema
 
     - **Device subclass**: instantiates the subclass directly, preserving its type::
 
-        with open_serial_device(MyBehavior, port="COM3") as dev:
+        with open_device(MyBehavior, port="COM3") as dev:
             dev.arm()   # method defined on MyBehavior
 
     Omit the first argument for schema-free access, which skips the identity check.
