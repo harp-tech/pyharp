@@ -1,7 +1,7 @@
 """Harp message container."""
 
 import struct
-from typing import Generic, TypeVar, cast
+from typing import Any, Generic, TypeVar, cast
 
 from ._builder import build_message_frame
 from ._checksum import validate as _validate_checksum
@@ -17,6 +17,10 @@ from ._message_type import MessageType, _message_type_from_byte_safe
 from ._payload_type import PayloadType, decode_payload_type
 
 P = TypeVar("P")
+_T = TypeVar("_T")
+
+_UNDECODED: Any = object()
+"""Marks a message whose payload no register has decoded yet."""
 
 
 class HarpParseError(Exception):
@@ -25,30 +29,34 @@ class HarpParseError(Exception):
     pass
 
 
-class HarpMessage:
-    """A Harp message backed by its raw frame bytes.
+class HarpMessage(Generic[P]):
+    """A Harp message backed by its raw frame bytes, parameterized by its payload type.
 
     Build with the constructor or parse from wire bytes with ``HarpMessage.parse()``.
+    A message off the wire is a ``HarpMessage[Any]``, since a frame declares only how
+    its payload is encoded and not which register contract it satisfies. Decoding it
+    with a register yields a ``HarpMessage[P]``, whose ``payload`` is that contract.
     """
 
-    __slots__ = ("_bytes",)
+    __slots__ = ("_bytes", "_payload")
 
     def __init__(
         self,
         message_type: MessageType,
         address: int,
         payload_type: PayloadType,
-        payload: bytes = b"",
+        raw_payload: bytes = b"",
         *,
         port: int = _DEFAULT_PORT,
         timestamp: float | None = None,
     ) -> None:
         self._bytes: bytes = build_message_frame(
-            message_type, address, payload_type, payload, port=port, timestamp=timestamp
+            message_type, address, payload_type, raw_payload, port=port, timestamp=timestamp
         )
+        self._payload: P = _UNDECODED
 
     @classmethod
-    def parse(cls, data: bytes | bytearray | memoryview) -> "HarpMessage":
+    def parse(cls, data: bytes | bytearray | memoryview) -> "HarpMessage[Any]":
         """Parse and validate a complete Harp Message from a byte sequence. Raises ``HarpParseError`` on failure."""
         raw = data if isinstance(data, bytes) else bytes(data)
 
@@ -77,6 +85,7 @@ class HarpMessage:
 
         obj = cls.__new__(cls)
         obj._bytes = raw
+        obj._payload = _UNDECODED
         return obj
 
     @property
@@ -118,10 +127,37 @@ class HarpMessage:
         return cast(int, seconds) + cast(int, microseconds) * _TICK_PERIOD_S
 
     @property
-    def payload(self) -> memoryview:
+    def raw_payload(self) -> memoryview:
         """Payload bytes, excluding timestamp and checksum."""
         offset = _TIMESTAMPED_PAYLOAD_OFFSET if self.has_timestamp else _HEADER_LEN
         return memoryview(self._bytes)[offset:-1]
+
+    @property
+    def has_payload(self) -> bool:
+        """Return True if a register has decoded the payload of this message."""
+        return self._payload is not _UNDECODED
+
+    @property
+    def payload(self) -> P:
+        """The decoded payload, as the register that parsed this message defines it.
+
+        Only a register knows which contract a frame satisfies, so a message read from
+        the wire carries no payload until one decodes it. Raises ``ValueError`` in that
+        case; test with ``has_payload``, or read ``raw_payload`` for the frame bytes.
+        """
+        if self._payload is _UNDECODED:
+            raise ValueError(
+                "No register has decoded this message, so it has no payload. "
+                "Parse it with a register, or read raw_payload for the frame bytes."
+            )
+        return self._payload
+
+    def with_payload(self, payload: _T) -> "HarpMessage[_T]":
+        """Return a copy of this message carrying ``payload`` as its decoded payload."""
+        obj: HarpMessage[_T] = HarpMessage.__new__(HarpMessage)
+        obj._bytes = self._bytes
+        obj._payload = payload
+        return obj
 
     @property
     def bytes(self) -> bytes:
@@ -133,38 +169,3 @@ class HarpMessage:
             f"HarpMessage(message_type={self.message_type!r}, address={self.address:#04x}, "
             f"payload_type={self.payload_type!r}, timestamp={self.timestamp!r})"
         )
-
-
-class ParsedHarpMessage(HarpMessage, Generic[P]):
-    """A ``HarpMessage`` with a typed parsed payload attached."""
-
-    __slots__ = ("_parsed",)
-
-    def __init__(
-        self,
-        message_type: MessageType,
-        address: int,
-        payload_type: PayloadType,
-        payload: bytes = b"",
-        *,
-        port: int = _DEFAULT_PORT,
-        timestamp: float | None = None,
-        parsed: P,
-    ) -> None:
-        super().__init__(
-            message_type, address, payload_type, payload, port=port, timestamp=timestamp
-        )
-        self._parsed = parsed
-
-    @classmethod
-    def from_message(cls, msg: HarpMessage, parsed: P) -> "ParsedHarpMessage[P]":
-        """Wrap a ``HarpMessage`` with a pre-parsed payload."""
-        obj = cls.__new__(cls)
-        obj._bytes = msg.bytes
-        obj._parsed = parsed
-        return obj
-
-    @property
-    def parsed(self) -> P:
-        """Returns the parsed payload."""
-        return self._parsed

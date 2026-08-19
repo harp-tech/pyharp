@@ -5,10 +5,10 @@ SERIAL_PORT = "/dev/ttyUSB0"  # or "COMx" in Windows, where "x" is the serial po
 
 with serial.open_device(client.Device, port=SERIAL_PORT) as device:
     # Read a scalar register.
-    print("WhoAmI:", device.read(core.WhoAmI).parsed)
+    print("WhoAmI:", device.read(core.WhoAmI).payload)
 
     # Read a structured register and inspect a field.
-    control = device.read(core.OperationControl).parsed
+    control = device.read(core.OperationControl).payload
     print("operation_mode before:", control.operation_mode)
 
     # Write the register, then read it back to confirm the change. A struct payload
@@ -24,5 +24,5 @@ with serial.open_device(client.Device, port=SERIAL_PORT) as device:
             heartbeat=core.EnableFlag.DISABLED,
         ),
     )
-    control = device.read(core.OperationControl).parsed
+    control = device.read(core.OperationControl).payload
     print("operation_mode after:", control.operation_mode)

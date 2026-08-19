@@ -12,7 +12,7 @@ from harp.data import DatasetReader, open_dataset
 from harp.device.client import Device, ITransport
 from harp.device.core import OperationControl, OperationControlPayload, WhoAmI
 from harp.device.schema import DeviceModule, DeviceModuleLike, create_device_module
-from harp.protocol import ParsedHarpMessage, RegisterBase
+from harp.protocol import HarpMessage, RegisterBase
 from harp.serial import open_device
 
 
@@ -27,14 +27,14 @@ def schema_built_registers(yml: str) -> None:
 
 def statically_declared_registers(device: Device) -> None:
     """A register written out in a module carries its payload type through read."""
-    assert_type(device.read(WhoAmI), ParsedHarpMessage[np.uint16])
-    assert_type(device.read(WhoAmI).parsed, np.uint16)
-    assert_type(device.read(OperationControl).parsed, OperationControlPayload)
+    assert_type(device.read(WhoAmI), HarpMessage[np.uint16])
+    assert_type(device.read(WhoAmI).payload, np.uint16)
+    assert_type(device.read(OperationControl).payload, OperationControlPayload)
 
 
 def register_writes(device: Device, payload: OperationControlPayload) -> None:
     """Write accepts the payload type its register parses to."""
-    assert_type(device.write(OperationControl, payload).parsed, OperationControlPayload)
+    assert_type(device.write(OperationControl, payload).payload, OperationControlPayload)
 
 
 def device_with_module(transport: ITransport, module: DeviceModule) -> None:

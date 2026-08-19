@@ -10,7 +10,7 @@ A `Device` operates over a transport. `read` and `write` take a register class:
 from harp.device import core
 
 # `device` is a Device opened over some transport, see harp-serial
-who = device.read(core.WhoAmI).parsed          # -> np.uint16
+who = device.read(core.WhoAmI).payload          # -> np.uint16
 device.write(core.OperationControl, payload)   # write a register
 ```
 

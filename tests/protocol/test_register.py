@@ -88,7 +88,7 @@ def test_scalar_register_format_write(reg_cls, address, payload_type, value, dty
     assert msg.address == address
     assert msg.payload_type == payload_type
     expected = np.asarray(value, dtype=dtype).tobytes()
-    assert msg.payload == expected
+    assert msg.raw_payload == expected
 
 
 @pytest.mark.parametrize(
@@ -112,7 +112,7 @@ def test_scalar_register_format_read(reg_cls, address, payload_type):
     msg = _parse_frame(frame)
     assert msg.message_type == MessageType.Read
     assert msg.address == address
-    assert msg.payload == b""
+    assert msg.raw_payload == b""
 
 
 @pytest.mark.parametrize("value", [0, 1, 2**32 - 1])
@@ -193,7 +193,7 @@ def test_format_with_payload_instance(reg_cls, payload_cls, value):
     frame = reg.format(payload)
     msg = _parse_frame(frame)
     assert msg.message_type == MessageType.Write
-    assert msg.payload == payload.payload_array.tobytes()
+    assert msg.raw_payload == payload.payload_array.tobytes()
 
 
 def test_format_with_payload_instance_via_register():
@@ -263,7 +263,7 @@ def test_array_register_format_write():
     frame = reg.format(values)
     msg = _parse_frame(frame)
     assert msg.message_type == MessageType.Write
-    assert msg.payload == values.tobytes()
+    assert msg.raw_payload == values.tobytes()
 
 
 def test_array_register_parse_roundtrip():
@@ -308,7 +308,7 @@ def test_format_read_override_message_type():
     frame = TimestampSecond.format(message_type=MessageType.Write)
     msg = _parse_frame(frame)
     assert msg.message_type == MessageType.Write
-    assert msg.payload == b""
+    assert msg.raw_payload == b""
 
 
 def test_format_write_override_message_type():

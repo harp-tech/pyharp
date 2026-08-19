@@ -11,7 +11,7 @@ def test_single_message():
     msgs = HarpFramer.parse_bytes(frame)
     assert len(msgs) == 1
     assert msgs[0].address == 10
-    assert msgs[0].payload == b"\x01"
+    assert msgs[0].raw_payload == b"\x01"
 
 
 def test_back_to_back_messages():
@@ -67,7 +67,7 @@ def test_incremental_feed():
         framer.feed(bytes([byte]))
         results.extend(framer.frames())
     assert len(results) == 1
-    assert results[0].payload == b"\x42"
+    assert results[0].raw_payload == b"\x42"
 
 
 def test_all_scalar_types():
@@ -89,7 +89,7 @@ def test_array_payload():
     frame = make_frame_from_raw(0x03, 32, 0xFF, 0x02, payload)
     msgs = HarpFramer.parse_bytes(frame)
     assert len(msgs) == 1
-    assert len(msgs[0].payload) == 10
+    assert len(msgs[0].raw_payload) == 10
 
 
 def test_parse_file(tmp_path):

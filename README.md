@@ -56,8 +56,8 @@ from harp.device import behavior, core
 
 # Use "COMx" on Windows, "/dev/ttyUSBx" on Linux.
 with serial.open_device(behavior, port="COM3") as device:
-    print(device.read(core.WhoAmI).parsed)         # a common register
-    print(device.read(behavior.AnalogData).parsed) # a device register
+    print(device.read(core.WhoAmI).payload)         # a common register
+    print(device.read(behavior.AnalogData).payload) # a device register
     device.write(
         core.OperationControl,
         core.OperationControlPayload(operation_mode=core.OperationMode.ACTIVE),
