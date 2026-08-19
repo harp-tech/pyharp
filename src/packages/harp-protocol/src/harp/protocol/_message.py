@@ -1,8 +1,9 @@
 """Harp message container."""
 
 import struct
-from typing import Any, Generic, TypeVar, cast
+from typing import Any, ClassVar, Generic, Protocol, TypeVar, cast
 
+import numpy as np
 from typing_extensions import Sentinel
 
 from ._builder import build_message_frame
@@ -20,6 +21,7 @@ from ._payload_type import PayloadType, decode_payload_type
 
 P = TypeVar("P")
 _P = TypeVar("_P")
+_P_co = TypeVar("_P_co", covariant=True)
 
 _UNDECODED = Sentinel("_UNDECODED")
 """Marks a message whose payload no register has decoded yet."""
@@ -29,6 +31,23 @@ class HarpParseError(Exception):
     """An exception raised for errors encountered during message parsing"""
 
     pass
+
+
+class PayloadDecoder(Protocol[_P_co]):
+    """Reads a payload of type ``_P_co`` out of a message.
+
+    Structural rather than nominal, so a message never has to know about registers, and
+    anything declaring a payload type, a length and a ``parse`` satisfies it. Every
+    ``RegisterBase`` does. ``length`` is the element count, or ``None`` for a single
+    value, and together with ``payload_type`` it fixes how many payload bytes the
+    decoder consumes.
+    """
+
+    payload_type: ClassVar["PayloadType"]
+    length: ClassVar[int | None]
+
+    @classmethod
+    def parse(cls, value: Any) -> _P_co: ...
 
 
 class HarpMessage(Generic[P]):
@@ -154,11 +173,29 @@ class HarpMessage(Generic[P]):
             )
         return self._payload
 
-    def with_payload(self, payload: _P) -> "HarpMessage[_P]":
-        """Return a copy of this message carrying ``payload`` as its decoded payload."""
+    def decode(self, decoder: type[PayloadDecoder[_P]]) -> "HarpMessage[_P]":
+        """Return a copy of this message with its payload decoded by ``decoder``.
+
+        The payload is derived from the frame in the same call, so the two cannot
+        disagree. The payload type and the byte count are both checked, since together
+        they decide whether these bytes can be read as this payload at all. The address
+        is not, so a frame may be decoded by anything describing the same layout.
+        """
+        if self.payload_type is not decoder.payload_type:
+            raise HarpParseError(
+                f"{decoder.__name__} declares {decoder.payload_type!r} but this "
+                f"message declares {self.payload_type!r}."
+            )
+        expected = (decoder.length or 1) * np.dtype(decoder.payload_type.value).itemsize
+        actual = len(self.payload_bytes)
+        if actual != expected:
+            raise HarpParseError(
+                f"{decoder.__name__} reads {expected} payload bytes but this message "
+                f"carries {actual}."
+            )
         obj: HarpMessage[_P] = HarpMessage.__new__(HarpMessage)
         obj._bytes = self._bytes
-        obj._payload = payload
+        obj._payload = decoder.parse(self)
         return obj
 
     @property

@@ -3,6 +3,7 @@ import struct
 import numpy as np
 import pytest
 from harp.protocol._message import HarpMessage, HarpParseError
+from harp.protocol._register import RegisterU8, RegisterU16
 from harp.protocol._message_type import MessageType
 from harp.protocol._payload_type import PayloadType
 
@@ -102,22 +103,36 @@ def test_wire_message_carries_no_payload():
         msg.payload
 
 
-def test_with_payload_attaches_without_touching_the_frame():
-    msg = HarpMessage.parse(
+def _u8_frame():
+    return HarpMessage.parse(
         make_frame_from_raw(0x02, address=10, port=0xFF, payload_type=0x01, payload=b"\x05")
     )
-    typed = msg.with_payload(5)
+
+
+def test_decode_attaches_without_touching_the_frame():
+    typed = _u8_frame().decode(RegisterU8(0x0A))
     assert typed.has_payload is True
     assert typed.payload == 5
-    assert typed.bytes == msg.bytes
     assert typed.payload_bytes == b"\x05"
-    assert typed.address == msg.address
+    assert typed.address == 10
 
 
-def test_with_payload_leaves_the_source_undecoded():
+def test_decode_leaves_the_source_undecoded():
     # The dispatch loop hands one frame to several places, so decoding must not mutate it.
-    msg = HarpMessage.parse(
-        make_frame_from_raw(0x02, address=10, port=0xFF, payload_type=0x01, payload=b"\x05")
-    )
-    msg.with_payload(5)
+    msg = _u8_frame()
+    msg.decode(RegisterU8(0x0A))
     assert msg.has_payload is False
+
+
+def test_decode_rejects_a_payload_type_mismatch():
+    # Without the check the register reads the low bytes at its own width and returns a
+    # silently wrong value, which is what parse does on its own.
+    with pytest.raises(HarpParseError, match="declares"):
+        _u8_frame().decode(RegisterU16(0x0A))
+
+
+def test_decode_accepts_a_register_at_another_address():
+    # The payload type decides whether these bytes can be read as this register at all.
+    # The address says which register the device meant, so an identical layout decodes
+    # either way and a frame can be read through more than one register.
+    assert _u8_frame().decode(RegisterU8(0x2A)).payload == 5

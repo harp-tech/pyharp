@@ -208,7 +208,7 @@ class Device(Generic[M]):
         # https://github.com/astral-sh/ty/issues/623
         frame = register.format(message_type=MessageType.Read, timestamp=timestamp, port=port)
         msg = self._request(register.address, frame)
-        return msg.with_payload(register.parse(msg))
+        return msg.decode(register)
 
     def write(
         self,
@@ -222,7 +222,7 @@ class Device(Generic[M]):
             value, message_type=MessageType.Write, timestamp=timestamp, port=port
         )
         msg = self._request(register.address, frame)
-        return msg.with_payload(register.parse(msg))
+        return msg.decode(register)
 
     # ------------------------------------------------------------------
     # Events
@@ -309,7 +309,7 @@ class Device(Generic[M]):
         matching = [s for s in subs if msg.message_type in s._message_types]
         if matching and register is not None:
             try:
-                typed = msg.with_payload(register.parse(msg))
+                typed = msg.decode(register)
             except Exception:
                 _logger.exception(
                     "Failed to parse %r for address 0x%02x", msg.message_type, msg.address
