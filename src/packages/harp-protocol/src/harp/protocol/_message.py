@@ -11,6 +11,7 @@ from ._checksum import validate as _validate_checksum
 from ._constants import (
     _DEFAULT_PORT,
     _HEADER_LEN,
+    _MIN_FRAME_LEN,
     _TICK_PERIOD_S,
     _TIMESTAMP_FLAG,
     _TIMESTAMP_LEN,
@@ -81,8 +82,8 @@ class HarpMessage(Generic[P]):
         """Parse and validate a complete Harp Message from a byte sequence. Raises ``HarpParseError`` on failure."""
         raw = data if isinstance(data, bytes) else bytes(data)
 
-        if len(raw) < 6:
-            raise HarpParseError(f"Frame too short: {len(raw)} bytes (minimum 6)")
+        if len(raw) < _MIN_FRAME_LEN:
+            raise HarpParseError(f"Frame too short: {len(raw)} bytes (minimum {_MIN_FRAME_LEN})")
 
         if not _validate_checksum(raw):
             raise HarpParseError("Checksum mismatch")

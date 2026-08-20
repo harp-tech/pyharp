@@ -606,6 +606,56 @@ def test_format_bulk_is_exact_inverse_of_parse_bulk():
     assert bytes(rebuilt) == bytes(original)
 
 
+def test_format_bulk_accepts_sequences_for_array_register():
+    # An array register formats a sequence element-wise, as format does, so every
+    # spelling of the same values produces the same frames.
+    reg = RegisterU16Array(0x20, length=2)
+    records = np.array([(1, 2), (3, 4)], dtype=reg.payload_class.payload_dtype)
+    expected = bytes(reg.format_bulk(records))
+    for values in (
+        np.array([[1, 2], [3, 4]], dtype=np.uint16),
+        np.array([[1, 2], [3, 4]]),
+        [[1, 2], [3, 4]],
+        ((1, 2), (3, 4)),
+    ):
+        assert bytes(reg.format_bulk(values)) == expected
+
+
+def test_format_bulk_single_frame_matches_format_for_array_register():
+    reg = RegisterU16Array(0x20, length=2)
+    bulk = reg.format_bulk([1, 2], message_type=MessageType.Write)
+    assert bytes(bulk) == reg.format([1, 2], message_type=MessageType.Write)
+
+
+def test_format_bulk_rejects_shape_without_declared_payload():
+    # Four elements for a two-element register could be one frame or two, so the
+    # ambiguous flat form raises rather than guessing.
+    reg = RegisterU16Array(0x20, length=2)
+    with pytest.raises(ValueError, match="do not end in the declared payload shape"):
+        reg.format_bulk(np.array([1, 2, 3, 4], dtype=np.uint16))
+    with pytest.raises(ValueError, match="do not end in the declared payload shape"):
+        reg.format_bulk([[1, 2, 3], [4, 5, 6]])
+
+
+def test_parse_bulk_names_register_on_partial_frame():
+    # numpy would otherwise report an out-of-bounds index against the strided view,
+    # naming neither the register nor how many bytes a frame needs.
+    reg = RegisterU16Array(0x20, length=2)
+    buf = bytes(reg.format_bulk([[1, 2], [3, 4]]))
+    stride = buf[1] + 2
+    with pytest.raises(HarpParseError, match="at least 6 bytes"):
+        reg.parse_bulk(buf[:5])
+    with pytest.raises(HarpParseError, match=f"frames of {stride} bytes"):
+        reg.parse_bulk(buf[: stride - 1])
+
+
+def test_parse_bulk_empty_buffer_does_not_raise():
+    reg = RegisterU16Array(0x20, length=2)
+    _data, timestamps, msgtype, payload = reg.parse_bulk(b"")
+    assert len(np.asarray(payload.payload_array)) == 0
+    assert timestamps is None and msgtype is None
+
+
 def test_to_buffer_and_to_file_roundtrip(tmp_path):
     reg = RegisterU16(0x20)
     values = np.array([10, 20], dtype="<u2")
