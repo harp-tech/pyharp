@@ -12,6 +12,9 @@ _DEFAULT_PORT: int = 0xFF
 _HEADER_LEN: int = 5
 """Fixed header size in bytes: msg_type + length + address + port + payload_type."""
 
+_MIN_FRAME_LEN: int = 6
+"""Smallest frame on the wire in bytes, the fixed header plus the checksum."""
+
 _TIMESTAMP_LEN: int = 6
 """Timestamp field size in bytes: 4-byte seconds as u32 plus 2-byte microseconds as u16."""
 

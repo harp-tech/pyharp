@@ -5,7 +5,7 @@ from typing import ClassVar
 import numpy as np
 import pytest
 from harp.data import parse_to_dataframe, payload_to_dataframe, to_buffer, to_file
-from harp.protocol._message import HarpMessage
+from harp.protocol._message import HarpMessage, HarpParseError
 from harp.protocol._message_type import MessageType
 from harp.protocol._payload import (
     PayloadBase,
@@ -32,6 +32,7 @@ from harp.protocol._register import (
     RegisterS64,
     RegisterU8,
     RegisterU16,
+    RegisterU16Array,
     RegisterU32,
     RegisterU32Array,
     RegisterU64,
@@ -194,6 +195,32 @@ def test_format_with_payload_instance(reg_cls, payload_cls, value):
     msg = _parse_frame(frame)
     assert msg.message_type == MessageType.Write
     assert msg.payload_bytes == payload.payload_array.tobytes()
+
+
+def test_format_accepts_sequence_for_array_register():
+    # The payload dtype is a sub-array, so converting a sequence against it directly
+    # broadcasts each element into the full shape and doubles the payload.
+    reg = RegisterU16Array(0x20, length=2)
+    expected = np.array([1, 2], dtype=np.uint16).tobytes()
+    for value in ([1, 2], (1, 2), np.array([1, 2], dtype=np.uint16)):
+        msg = _parse_frame(reg.format(value))
+        assert msg.payload_bytes == expected
+        assert list(reg.parse(msg)) == [1, 2]
+
+
+def test_format_rejects_wrong_length_sequence():
+    reg = RegisterU16Array(0x20, length=2)
+    with pytest.raises(ValueError, match="expects 2 elements but got 3"):
+        reg.format([1, 2, 3])
+
+
+def test_parse_names_register_on_short_payload():
+    # A read request carries no payload, and numpy would otherwise report only
+    # "buffer is smaller than requested size", naming neither side.
+    reg = RegisterU16(0x20)
+    request = _parse_frame(reg.format(message_type=MessageType.Read))
+    with pytest.raises(HarpParseError, match="reads 2 payload bytes"):
+        reg.parse(request)
 
 
 def test_format_with_payload_instance_via_register():
@@ -577,6 +604,56 @@ def test_format_bulk_is_exact_inverse_of_parse_bulk():
     _data, ts, msg, payload = reg.parse_bulk(bytes(original))
     rebuilt = reg.format_bulk(payload, timestamps=np.asarray(ts), message_type=np.asarray(msg))
     assert bytes(rebuilt) == bytes(original)
+
+
+def test_format_bulk_accepts_sequences_for_array_register():
+    # An array register formats a sequence element-wise, as format does, so every
+    # spelling of the same values produces the same frames.
+    reg = RegisterU16Array(0x20, length=2)
+    records = np.array([(1, 2), (3, 4)], dtype=reg.payload_class.payload_dtype)
+    expected = bytes(reg.format_bulk(records))
+    for values in (
+        np.array([[1, 2], [3, 4]], dtype=np.uint16),
+        np.array([[1, 2], [3, 4]]),
+        [[1, 2], [3, 4]],
+        ((1, 2), (3, 4)),
+    ):
+        assert bytes(reg.format_bulk(values)) == expected
+
+
+def test_format_bulk_single_frame_matches_format_for_array_register():
+    reg = RegisterU16Array(0x20, length=2)
+    bulk = reg.format_bulk([1, 2], message_type=MessageType.Write)
+    assert bytes(bulk) == reg.format([1, 2], message_type=MessageType.Write)
+
+
+def test_format_bulk_rejects_shape_without_declared_payload():
+    # Four elements for a two-element register could be one frame or two, so the
+    # ambiguous flat form raises rather than guessing.
+    reg = RegisterU16Array(0x20, length=2)
+    with pytest.raises(ValueError, match="do not end in the declared payload shape"):
+        reg.format_bulk(np.array([1, 2, 3, 4], dtype=np.uint16))
+    with pytest.raises(ValueError, match="do not end in the declared payload shape"):
+        reg.format_bulk([[1, 2, 3], [4, 5, 6]])
+
+
+def test_parse_bulk_names_register_on_partial_frame():
+    # numpy would otherwise report an out-of-bounds index against the strided view,
+    # naming neither the register nor how many bytes a frame needs.
+    reg = RegisterU16Array(0x20, length=2)
+    buf = bytes(reg.format_bulk([[1, 2], [3, 4]]))
+    stride = buf[1] + 2
+    with pytest.raises(HarpParseError, match="at least 6 bytes"):
+        reg.parse_bulk(buf[:5])
+    with pytest.raises(HarpParseError, match=f"frames of {stride} bytes"):
+        reg.parse_bulk(buf[: stride - 1])
+
+
+def test_parse_bulk_empty_buffer_does_not_raise():
+    reg = RegisterU16Array(0x20, length=2)
+    _data, timestamps, msgtype, payload = reg.parse_bulk(b"")
+    assert len(np.asarray(payload.payload_array)) == 0
+    assert timestamps is None and msgtype is None
 
 
 def test_to_buffer_and_to_file_roundtrip(tmp_path):

@@ -9,12 +9,13 @@ from ._builder import build_message_frame
 from ._constants import (
     _DEFAULT_PORT,
     _HEADER_LEN,
+    _MIN_FRAME_LEN,
     _TICK_PERIOD_S,
     _TIMESTAMP_FLAG,
     _TIMESTAMPED_PAYLOAD_OFFSET,
     _TS_MICROS_OFFSET,
 )
-from ._message import HarpMessage
+from ._message import HarpMessage, HarpParseError
 from ._message_type import MessageType, message_type_to_byte
 from ._payload import (
     Batch,
@@ -165,6 +166,12 @@ class RegisterBase(ABC, Generic[U], metaclass=_RegisterBaseMeta):
         registers) return the raw numpy scalar or ndarray directly.
         """
         buf = value.payload_bytes if isinstance(value, HarpMessage) else value
+        expected = cls.payload_class.payload_dtype.itemsize
+        if len(buf) < expected:
+            raise HarpParseError(
+                f"{cls.__name__} reads {expected} payload bytes as {cls.payload_type!r} "
+                f"but only {len(buf)} are available."
+            )
         record = np.frombuffer(buf, dtype=cls.payload_class.payload_dtype, count=1)[0]
         return cast(U, cls.payload_class._unwrap(record))
 
@@ -185,9 +192,20 @@ class RegisterBase(ABC, Generic[U], metaclass=_RegisterBaseMeta):
             payload = payload_cls._from_array(np.empty(0, dtype=payload_cls.payload_dtype))
             return data, None, None, cast("Batch[Any]", payload)
 
+        if len(data) < _MIN_FRAME_LEN:
+            raise HarpParseError(
+                f"{cls.__name__} reads frames of at least {_MIN_FRAME_LEN} bytes "
+                f"but only {len(data)} are available."
+            )
+
         stride = (
             int(data[1]) + 2
         )  # TODO this assumes all frames have the same length but we may want to revisit in the future.
+        if len(data) < stride:
+            raise HarpParseError(
+                f"{cls.__name__} reads frames of {stride} bytes as declared by the first "
+                f"length byte, but only {len(data)} are available."
+            )
         nrows = len(data) // stride
         is_timestamped = bool(int(data[4]) & _TIMESTAMP_FLAG)
         payload_offset = _TIMESTAMPED_PAYLOAD_OFFSET if is_timestamped else _HEADER_LEN
@@ -235,22 +253,35 @@ class RegisterBase(ABC, Generic[U], metaclass=_RegisterBaseMeta):
         ``parse_bulk``.
         """
         payload_cls = cls.payload_class
-        itemsize = payload_cls.payload_dtype.itemsize
+        record_dtype = payload_cls.payload_dtype
+        itemsize = record_dtype.itemsize
+        subdtype = record_dtype.subdtype
         if isinstance(values, PayloadBase):
             records = np.atleast_1d(np.asarray(values.payload_array))
         else:
             records = np.atleast_1d(np.asarray(values))
+        if subdtype is not None and records.dtype != record_dtype:
+            # An array register: convert against the element type and let the declared
+            # shape decide the frame count, as `format` does for a single frame.
+            element_dtype, shape = subdtype
+            records = np.asarray(records, dtype=element_dtype)
+            if records.shape[-len(shape) :] != shape:
+                raise ValueError(
+                    f"{cls.__name__}.format_bulk: values of shape {records.shape} do not end "
+                    f"in the declared payload shape {shape}"
+                )
+            records = records.reshape(-1, *shape)
+        elif (
             # Coerce the element type only for plain scalar payloads (e.g. an int
-            # list for a scalar register). Struct/sub-array records already carry
-            # the right byte layout and must not be re-cast.
-            plain = (
-                records.dtype.names is None
-                and records.dtype.subdtype is None
-                and payload_cls.payload_dtype.names is None
-                and payload_cls.payload_dtype.subdtype is None
-            )
-            if plain and records.dtype != payload_cls.payload_dtype:
-                records = records.astype(payload_cls.payload_dtype)
+            # list for a scalar register). Struct records already carry the right
+            # byte layout and must not be re-cast.
+            records.dtype.names is None
+            and records.dtype.subdtype is None
+            and record_dtype.names is None
+            and subdtype is None
+            and records.dtype != record_dtype
+        ):
+            records = records.astype(record_dtype)
         nrows = len(records)
         flat = np.ascontiguousarray(records).tobytes()
         if len(flat) != nrows * itemsize:
