@@ -14,7 +14,7 @@ from ._constants import (
     _TIMESTAMPED_PAYLOAD_OFFSET,
     _TS_MICROS_OFFSET,
 )
-from ._message import HarpMessage
+from ._message import HarpMessage, HarpParseError
 from ._message_type import MessageType, message_type_to_byte
 from ._payload import (
     Batch,
@@ -165,6 +165,12 @@ class RegisterBase(ABC, Generic[U], metaclass=_RegisterBaseMeta):
         registers) return the raw numpy scalar or ndarray directly.
         """
         buf = value.payload_bytes if isinstance(value, HarpMessage) else value
+        expected = cls.payload_class.payload_dtype.itemsize
+        if len(buf) < expected:
+            raise HarpParseError(
+                f"{cls.__name__} reads {expected} payload bytes as {cls.payload_type!r} "
+                f"but only {len(buf)} are available."
+            )
         record = np.frombuffer(buf, dtype=cls.payload_class.payload_dtype, count=1)[0]
         return cast(U, cls.payload_class._unwrap(record))
 

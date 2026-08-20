@@ -5,7 +5,7 @@ from typing import ClassVar
 import numpy as np
 import pytest
 from harp.data import parse_to_dataframe, payload_to_dataframe, to_buffer, to_file
-from harp.protocol._message import HarpMessage
+from harp.protocol._message import HarpMessage, HarpParseError
 from harp.protocol._message_type import MessageType
 from harp.protocol._payload import (
     PayloadBase,
@@ -32,6 +32,7 @@ from harp.protocol._register import (
     RegisterS64,
     RegisterU8,
     RegisterU16,
+    RegisterU16Array,
     RegisterU32,
     RegisterU32Array,
     RegisterU64,
@@ -194,6 +195,32 @@ def test_format_with_payload_instance(reg_cls, payload_cls, value):
     msg = _parse_frame(frame)
     assert msg.message_type == MessageType.Write
     assert msg.payload_bytes == payload.payload_array.tobytes()
+
+
+def test_format_accepts_sequence_for_array_register():
+    # The payload dtype is a sub-array, so converting a sequence against it directly
+    # broadcasts each element into the full shape and doubles the payload.
+    reg = RegisterU16Array(0x20, length=2)
+    expected = np.array([1, 2], dtype=np.uint16).tobytes()
+    for value in ([1, 2], (1, 2), np.array([1, 2], dtype=np.uint16)):
+        msg = _parse_frame(reg.format(value))
+        assert msg.payload_bytes == expected
+        assert list(reg.parse(msg)) == [1, 2]
+
+
+def test_format_rejects_wrong_length_sequence():
+    reg = RegisterU16Array(0x20, length=2)
+    with pytest.raises(ValueError, match="expects 2 elements but got 3"):
+        reg.format([1, 2, 3])
+
+
+def test_parse_names_register_on_short_payload():
+    # A read request carries no payload, and numpy would otherwise report only
+    # "buffer is smaller than requested size", naming neither side.
+    reg = RegisterU16(0x20)
+    request = _parse_frame(reg.format(message_type=MessageType.Read))
+    with pytest.raises(HarpParseError, match="reads 2 payload bytes"):
+        reg.parse(request)
 
 
 def test_format_with_payload_instance_via_register():

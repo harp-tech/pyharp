@@ -1030,7 +1030,18 @@ class AnonymousPayload(PayloadBase[NpStructT]):
                 raise TypeError(f"{type(self).__name__}() requires a value")
         if kwargs:
             raise TypeError(f"{type(self).__name__}() got unexpected kwargs: {sorted(kwargs)}")
-        self._arr = np.asarray(value, dtype=self.payload_dtype)
+        subdtype = self.payload_dtype.subdtype
+        if subdtype is not None:
+            element_dtype, shape = subdtype
+            arr = np.asarray(value, dtype=element_dtype)
+            if arr.shape != shape:
+                expected = shape[0] if len(shape) == 1 else shape
+                raise ValueError(
+                    f"{type(self).__name__}() expects {expected} elements but got {arr.size}"
+                )
+        else:
+            arr = np.asarray(value, dtype=self.payload_dtype)
+        self._arr = arr
 
     @classmethod
     def _unwrap(cls, arr: "np.ndarray") -> Any:
