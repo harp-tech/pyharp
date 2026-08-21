@@ -160,7 +160,7 @@ class DatasetReader(Generic[M]):
         suffix: str | None = None,
         timestamp: bool = True,
         epoch: datetime | None = None,
-        message_type: bool = False,
+        keep_type: bool = False,
         decode_enums: bool = True,
         demux_bit_masks: bool = False,
     ) -> pd.DataFrame:
@@ -192,7 +192,7 @@ class DatasetReader(Generic[M]):
             raw,
             timestamp=timestamp,
             epoch=epoch,
-            message_type=message_type,
+            keep_type=keep_type,
             decode_enums=decode_enums,
             demux_bit_masks=demux_bit_masks,
         )

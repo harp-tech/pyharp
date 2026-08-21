@@ -77,7 +77,7 @@ def read(
     source: Source,
     *,
     timestamp: bool = True,
-    message_type: bool = False,
+    keep_type: bool = False,
 ) -> pd.DataFrame:
     """Read the binary data of a single register, inferring its native layout.
 
@@ -89,4 +89,4 @@ def read(
     if len(raw) == 0:
         return pd.DataFrame()
     register = _infer_native_register(raw)
-    return parse_to_dataframe(register, raw, timestamp=timestamp, message_type=message_type)
+    return parse_to_dataframe(register, raw, timestamp=timestamp, keep_type=keep_type)

@@ -70,7 +70,7 @@ def parse_to_dataframe(
     *,
     timestamp: bool = True,
     epoch: Union[datetime, None] = None,
-    message_type: bool = False,
+    keep_type: bool = False,
     decode_enums: bool = True,
     demux_bit_masks: bool = False,
 ) -> pd.DataFrame:
@@ -79,7 +79,7 @@ def parse_to_dataframe(
     ``source`` may be a file path, raw bytes, or an open binary file object. When
     ``timestamp`` is set, the Harp time becomes the DataFrame index (named
     ``"Time"``): float seconds by default, or an absolute ``DatetimeIndex`` when
-    ``epoch`` is given (e.g. :data:`REFERENCE_EPOCH`). ``message_type`` inserts a
+    ``epoch`` is given (e.g. :data:`REFERENCE_EPOCH`). ``keep_type`` inserts a
     leading column; ``decode_enums`` controls whether enum fields become
     ``pd.Categorical`` (True) or raw codes; ``demux_bit_masks`` expands each flag
     (``BitMask``) field into one boolean column per flag member (True) or keeps it
@@ -89,7 +89,7 @@ def parse_to_dataframe(
     _data, timestamps, msg_view, payload = register.parse_bulk(raw, parse_timestamp=timestamp)
     df = payload_to_dataframe(payload, decode_enums=decode_enums, demux_bit_masks=demux_bit_masks)
 
-    if message_type and msg_view is not None:
+    if keep_type and msg_view is not None:
         df.insert(
             0,
             "message_type",

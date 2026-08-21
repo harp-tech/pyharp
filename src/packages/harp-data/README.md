@@ -69,7 +69,7 @@ from my_device import AnalogData
 
 df = data.parse_to_dataframe(AnalogData, "AnalogData.bin")
 df = data.parse_to_dataframe(
-    AnalogData, raw, timestamp=True, message_type=False, decode_enums=True
+    AnalogData, raw, timestamp=True, keep_type=False, decode_enums=True
 )
 ```
 
