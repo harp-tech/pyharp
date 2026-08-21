@@ -237,8 +237,8 @@ def test_empty_buffer_keeps_columns():
     # so a buffer carrying no frames still renders all of them.
     reg = RegisterU32Array(0x28, length=3)
     records = np.arange(6, dtype=np.uint32).reshape(2, 3)
-    populated = parse_to_dataframe(reg, bytes(reg.format_bulk(records)), timestamp=False)
-    empty = parse_to_dataframe(reg, b"", timestamp=False)
+    populated = parse_to_dataframe(reg, bytes(reg.format_bulk(records)), time_index=False)
+    empty = parse_to_dataframe(reg, b"", time_index=False)
     assert list(empty.columns) == list(populated.columns)
     assert empty.dtypes.equals(populated.dtypes)
     assert len(empty) == 0
@@ -594,7 +594,7 @@ def test_format_bulk_parse_bulk_roundtrip():
     reg = RegisterU16(0x20)
     values = np.array([1, 2, 3], dtype="<u2")
     buf = reg.format_bulk(values, timestamps=[1.0, 2.0, 3.0])
-    df = parse_to_dataframe(reg, bytes(buf), timestamp=False)
+    df = parse_to_dataframe(reg, bytes(buf), time_index=False)
     assert df["value"].tolist() == [1, 2, 3]
 
 

@@ -28,6 +28,22 @@ def _time_index(seconds: NDArray[np.float64], epoch: datetime | None) -> pd.Inde
     )
 
 
+def _resolve_epoch(time_index: object) -> Union[datetime, None]:
+    """The epoch a ``time_index`` argument selects, rejecting anything else.
+
+    Only ``bool`` and ``datetime`` are accepted, so a value that happens to be truthy
+    cannot pass for a request to index by time.
+    """
+    if isinstance(time_index, bool):
+        return None
+    if isinstance(time_index, datetime):
+        return time_index
+    raise TypeError(
+        f"time_index must be a bool or a datetime such as REFERENCE_EPOCH, "
+        f"not {type(time_index).__name__}."
+    )
+
+
 def _read_bytes(source: Source) -> bytes:
     if isinstance(source, (bytes, bytearray, memoryview)):
         return bytes(source)
@@ -68,25 +84,27 @@ def parse_to_dataframe(
     register: type[RegisterBase[Any]],
     source: Source,
     *,
-    timestamp: bool = True,
-    epoch: Union[datetime, None] = None,
+    time_index: Union[bool, datetime] = True,
     keep_type: bool = False,
     decode_enums: bool = True,
     demux_bit_masks: bool = False,
 ) -> pd.DataFrame:
     """Parse all frames of ``register`` from ``source`` into a DataFrame.
 
-    ``source`` may be a file path, raw bytes, or an open binary file object. When
-    ``timestamp`` is set, the Harp time becomes the DataFrame index (named
-    ``"Time"``): float seconds by default, or an absolute ``DatetimeIndex`` when
-    ``epoch`` is given (e.g. :data:`REFERENCE_EPOCH`). ``keep_type`` inserts a
+    ``source`` may be a file path, raw bytes, or an open binary file object.
+    ``time_index`` makes the Harp time the DataFrame index, named ``"Time"``: ``True``
+    for float seconds, a ``datetime`` such as :data:`REFERENCE_EPOCH` for an absolute
+    ``DatetimeIndex``, and ``False`` for a ``RangeIndex``. ``keep_type`` inserts a
     leading column; ``decode_enums`` controls whether enum fields become
     ``pd.Categorical`` (True) or raw codes; ``demux_bit_masks`` expands each flag
     (``BitMask``) field into one boolean column per flag member (True) or keeps it
     as a single raw-integer column.
     """
+    epoch = _resolve_epoch(time_index)
     raw = _read_bytes(source)
-    _data, timestamps, msg_view, payload = register.parse_bulk(raw, parse_timestamp=timestamp)
+    _data, timestamps, msg_view, payload = register.parse_bulk(
+        raw, parse_timestamp=time_index is not False
+    )
     df = payload_to_dataframe(payload, decode_enums=decode_enums, demux_bit_masks=demux_bit_masks)
 
     if keep_type and msg_view is not None:
@@ -95,11 +113,11 @@ def parse_to_dataframe(
             "message_type",
             pd.Categorical(_MSG_NAMES[msg_view & 0x03], categories=_MSG_NAMES[1:]),
         )
-    if timestamp:
+    if time_index is not False:
         if timestamps is None:
             if len(df) > 0:
                 raise ValueError(
-                    "Buffer contains no timestamp data; pass timestamp=False to suppress "
+                    "Buffer contains no timestamp data; pass time_index=False to suppress "
                     "the time index."
                 )
             seconds = np.empty(0, dtype=np.float64)  # empty buffer: empty Time index

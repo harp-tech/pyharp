@@ -111,7 +111,7 @@ def test_timestamp_false_gives_range_index(dataset):
     # The diagnostic escape hatch, and the only way to read frames carrying no timestamp.
     mod, _name, root, specs = dataset
     reader = DatasetReader(mod, root)
-    df = reader.read(next(iter(specs)), timestamp=False)
+    df = reader.read(next(iter(specs)), time_index=False)
     assert df.index.name is None
 
 
@@ -129,7 +129,7 @@ def test_untimestamped_frames_raise_value_error(emitted_module, tmp_path):
 
     with pytest.raises(ValueError, match="no timestamp data"):
         reader.read(address)
-    assert len(reader.read(address, timestamp=False)) == 3
+    assert len(reader.read(address, time_index=False)) == 3
 
 
 def test_time_index_is_float_seconds_without_epoch(dataset):
@@ -145,12 +145,22 @@ def test_epoch_gives_absolute_datetime_index(dataset):
     mod, _name, root, specs = dataset
     reader = DatasetReader(mod, root)
     address = next(iter(specs))
-    df = reader.read(address, epoch=REFERENCE_EPOCH)
+    df = reader.read(address, time_index=REFERENCE_EPOCH)
     assert isinstance(df.index, pd.DatetimeIndex)
     assert df.index.name == "Time"
     # Harp seconds are measured from the reference epoch (timestamps were arange(5)).
     assert df.index[0] == pd.Timestamp(REFERENCE_EPOCH)
     assert df.index[2] == pd.Timestamp(REFERENCE_EPOCH) + pd.Timedelta(seconds=2)
+
+
+def test_time_index_raises_type_error_for_other_types(dataset):
+    # Only a bool or a datetime selects the index, so a value that merely happens to be
+    # truthy cannot pass for a request to index by time.
+    mod, _name, root, specs = dataset
+    reader = DatasetReader(mod, root)
+    address = next(iter(specs))
+    with pytest.raises(TypeError, match="time_index"):
+        reader.read(address, time_index="Time")  # type: ignore[arg-type]
 
 
 def test_suffix_chunks_are_concatenated(emitted_module, tmp_path):

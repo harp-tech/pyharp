@@ -1,4 +1,5 @@
-from typing import Any
+from datetime import datetime
+from typing import Any, Union
 
 import pandas as pd
 from harp.protocol import (
@@ -76,7 +77,7 @@ def _infer_native_register(raw: bytes) -> type[RegisterBase[Any]]:
 def read(
     source: Source,
     *,
-    timestamp: bool = True,
+    time_index: Union[bool, datetime] = True,
     keep_type: bool = False,
 ) -> pd.DataFrame:
     """Read the binary data of a single register, inferring its native layout.
@@ -84,9 +85,10 @@ def read(
     ``source`` may be a file path, raw bytes, or an open binary file. The element
     type, length and timestamp presence are read from the first frame; values
     decode to the matching native numpy type (no enum or bit-mask decoding).
+    ``time_index`` matches :func:`~harp.data.parse_to_dataframe`.
     """
     raw = _read_bytes(source)
     if len(raw) == 0:
         return pd.DataFrame()
     register = _infer_native_register(raw)
-    return parse_to_dataframe(register, raw, timestamp=timestamp, keep_type=keep_type)
+    return parse_to_dataframe(register, raw, time_index=time_index, keep_type=keep_type)

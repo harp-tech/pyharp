@@ -535,7 +535,7 @@ def test_emitted_register_bulk_matches_oracle(name, device_registers):
 
     # Cross-read via harp.data: the shared bytes decode to equal frames through
     # either class, including column names and decoded enum labels, which now agree.
-    df_emitted = parse_to_dataframe(emitted, buf, timestamp=False)
-    df_oracle = parse_to_dataframe(oracle, buf, timestamp=False)
+    df_emitted = parse_to_dataframe(emitted, buf, time_index=False)
+    df_oracle = parse_to_dataframe(oracle, buf, time_index=False)
     assert list(df_emitted.columns) == list(df_oracle.columns)
     assert df_emitted.equals(df_oracle)
