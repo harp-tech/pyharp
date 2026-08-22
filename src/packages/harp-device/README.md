@@ -14,6 +14,10 @@ who = device.read(core.WhoAmI).payload          # -> np.uint16
 device.write(core.OperationControl, payload)   # write a register
 ```
 
+## When a request fails
+
+An error reply raises `DeviceError`, which keeps the reply as `reply` so the frame sent by the device stays available for inspection. Pass `raise_on_error=False` to the constructor to receive such a reply as an ordinary return value instead. A transport failure raises `TransportError`, and every later request reports the same failure rather than waiting for a reply that cannot arrive. A device that never answers raises `TimeoutError` after `REPLY_TIMEOUT`, which is also what happens when `close` is called during a request.
+
 ## Extending for a specific device
 
 A device is described by a module. Downstream, often generated, packages record the device identity as `WHO_AM_I`, declare the register classes at module level, and expand the core `REGISTER_MAP` beside them:

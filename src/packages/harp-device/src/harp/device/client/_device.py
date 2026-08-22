@@ -31,11 +31,31 @@ MessageTypeFilter = MessageType | Iterable[MessageType]
 _DEFAULT_MESSAGE_TYPES: frozenset[MessageType] = frozenset({MessageType.Event})
 """Default filter for :meth:`Device.subscribe`: unsolicited events only."""
 
+_Waiter = queue.SimpleQueue["HarpMessage | Exception"]
+"""The received reply or failure that ends the wait of a blocked request."""
+
 
 def _normalize_message_types(message_types: MessageTypeFilter) -> frozenset[MessageType]:
     if isinstance(message_types, MessageType):
         return frozenset({message_types})
     return frozenset(message_types)
+
+
+class DeviceError(Exception):
+    """Raised when the device replies to a request with the error flag set.
+
+    The reply is kept as :attr:`reply`, so the frame sent by the device stays available
+    for inspection. Construct the device with ``raise_on_error=False`` to receive such
+    a reply as an ordinary return value instead.
+    """
+
+    def __init__(self, reply: HarpMessage) -> None:
+        super().__init__(
+            f"Device returned error for register address {reply.address} "
+            f"(0x{reply.address:02x}). Payload: {reply.payload_bytes.hex()}"
+        )
+        self.reply = reply
+        """The error reply, as received."""
 
 
 class Subscription:
@@ -85,6 +105,13 @@ class Device(Generic[M]):
     Omitting ``device_module`` skips that check. The module is not otherwise
     consulted: registers reach :meth:`read`, :meth:`write` and :meth:`subscribe`
     as arguments either way, and only a subscribed register is parsed on arrival.
+
+    A request fails in one of three ways. An error reply raises :class:`DeviceError`
+    carrying the reply, unless ``raise_on_error=False``. A transport failure raises
+    :class:`~harp.device.client.TransportError`, and every later request reports the
+    same failure rather than waiting for a reply that cannot arrive. A device that
+    never answers raises :class:`TimeoutError` after ``REPLY_TIMEOUT``, which is also
+    what happens when :meth:`close` is called during a request.
     """
 
     REPLY_TIMEOUT: ClassVar[float] = 5.0  # seconds
@@ -114,8 +141,9 @@ class Device(Generic[M]):
         self._device_module = device_module
         self.raise_on_error = raise_on_error
         self._framer = HarpFramer()
-        self._pending: dict[int, queue.SimpleQueue] = {}
+        self._pending: dict[tuple[int, MessageType], list[_Waiter]] = {}
         self._pending_lock = threading.Lock()
+        self._fault: Exception | None = None
         self._running = False
         self._thread: threading.Thread | None = None
 
@@ -207,7 +235,7 @@ class Device(Generic[M]):
         # Note: ty can't correctly infer the return type, and this is a known issue:
         # https://github.com/astral-sh/ty/issues/623
         frame = register.format(message_type=MessageType.Read, timestamp=timestamp, port=port)
-        msg = self._request(register.address, frame)
+        msg = self._request(register.address, MessageType.Read, frame)
         return msg.decode(register)
 
     def write(
@@ -221,7 +249,7 @@ class Device(Generic[M]):
         frame = register.format(
             value, message_type=MessageType.Write, timestamp=timestamp, port=port
         )
-        msg = self._request(register.address, frame)
+        msg = self._request(register.address, MessageType.Write, frame)
         return msg.decode(register)
 
     # ------------------------------------------------------------------
@@ -337,9 +365,10 @@ class Device(Generic[M]):
         while self._running:
             try:
                 chunk = self._transport.read()
-            except TransportError:
+            except TransportError as exc:
                 if self._running:
-                    raise
+                    _logger.exception("The transport failed, so the device stopped reading")
+                    self._fault_pending(exc)
                 break  # expected while shutting down
             if not chunk:
                 continue
@@ -348,37 +377,54 @@ class Device(Generic[M]):
             for msg in self._framer.frames():
                 self._dispatch(msg)
 
+    def _fault_pending(self, exc: Exception) -> None:
+        """Report ``exc`` to every waiting request, and record it so a later request
+        reports it at once instead of waiting for a reply that cannot arrive."""
+        with self._pending_lock:
+            self._fault = exc
+            waiting = [q for waiters in self._pending.values() for q in waiters]
+            self._pending.clear()
+        for q in waiting:
+            q.put(exc)
+
     def _dispatch(self, msg: HarpMessage) -> None:
         # Fast path: correlate replies to a pending synchronous request. This is
         # O(1) and non-blocking, so it should never stall behind a slow subscriber.
         # Events are unsolicited and never correlate to requests
         if msg.message_type != MessageType.Event:
             with self._pending_lock:
-                q = self._pending.get(msg.address)
-            if q is not None:
+                waiting = list(self._pending.get((msg.address, msg.message_type), ()))
+            for q in waiting:
                 q.put(msg)
 
         self._event_queue.put(msg)
 
-    def _request(self, address: int, frame: bytes) -> HarpMessage:
-        q: queue.SimpleQueue = queue.SimpleQueue()
+    def _request(self, address: int, message_type: MessageType, frame: bytes) -> HarpMessage:
+        key = (address, message_type)
+        q: _Waiter = queue.SimpleQueue()
         with self._pending_lock:
-            self._pending[address] = q
+            if self._fault is not None:
+                raise self._fault
+            self._pending.setdefault(key, []).append(q)
         try:
             self._transport.write(frame)
             try:
-                msg = q.get(timeout=self.REPLY_TIMEOUT)
-                if msg.has_error and self.raise_on_error:
-                    raise RuntimeError(
-                        f"Device returned error for register address {address} "
-                        f"(0x{address:02x}). Payload: {msg.payload_bytes.hex()}"
-                    )
-                return msg
+                reply = q.get(timeout=self.REPLY_TIMEOUT)
             except queue.Empty as exc:
                 raise TimeoutError(
                     f"No reply from device for register address {address} "
                     f"within {self.REPLY_TIMEOUT}s"
                 ) from exc
+            if isinstance(reply, Exception):
+                raise reply
+            if reply.has_error and self.raise_on_error:
+                raise DeviceError(reply)
+            return reply
         finally:
             with self._pending_lock:
-                self._pending.pop(address, None)
+                waiters = self._pending.get(key)
+                if waiters is not None:
+                    if q in waiters:
+                        waiters.remove(q)
+                    if not waiters:
+                        del self._pending[key]

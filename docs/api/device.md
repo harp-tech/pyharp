@@ -3,6 +3,7 @@
 ---
 
 ::: harp.device.client.Device
+::: harp.device.client.DeviceError
 ::: harp.device.client.HarpFramer
 ::: harp.device.client.ITransport
 ::: harp.device.client.TransportError
