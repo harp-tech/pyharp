@@ -6,6 +6,7 @@ from numpy.typing import NDArray
 
 from harp.protocol import (
     AnonymousPayload,
+    ArrayConverter,
     BitMask,
     BoolConverter,
     Converter,
@@ -109,9 +110,7 @@ class AnalogDataPayload(StructPayload[np.float32], length=6):
     analog0: np.float32 = Field(IdentityConverter(np.float32), offset=0)
     analog1: np.float32 = Field(IdentityConverter(np.float32), offset=1)
     analog2: np.float32 = Field(IdentityConverter(np.float32), offset=2)
-    accelerometer: NDArray[np.float32] = Field(
-        IdentityConverter(np.dtype((np.float32, (3,)))), offset=3
-    )
+    accelerometer: NDArray[np.float32] = Field(ArrayConverter(np.float32, 3), offset=3)
 
 
 class AnalogData(RegisterBase[AnalogDataPayload]):
@@ -149,9 +148,7 @@ class VersionPayload(StructPayload[np.uint8], length=32):
     firmware_version: HarpVersion = Field(HarpVersionConverter(np.uint8), offset=3)
     hardware_version: HarpVersion = Field(HarpVersionConverter(np.uint8), offset=6)
     core_id: str = Field(StringConverter(3), offset=9)
-    interface_hash: NDArray[np.uint8] = Field(
-        IdentityConverter(np.dtype((np.uint8, (20,)))), offset=12
-    )
+    interface_hash: NDArray[np.uint8] = Field(ArrayConverter(np.uint8, 20), offset=12)
 
 
 class Version(RegisterBase[VersionPayload]):
@@ -375,7 +372,7 @@ def main() -> None:  # pragma: no cover - manual exploration entry point
     assert int(p.header) == 7 and int(p.data) == -1234
     print("CustomMemberConverter    OK")
 
-    p = _roundtrip(BitmaskSplitter, BitmaskSplitterPayload(low=0xA, high=0x5))
+    p = _roundtrip(BitmaskSplitter, BitmaskSplitterPayload(low=np.int32(0xA), high=np.int32(0x5)))
     assert int(p.low) == 0xA and int(p.high) == 0x5
     assert p.payload_array.tobytes() == bytes([0x5A])
     print("BitmaskSplitter          OK")
@@ -411,7 +408,10 @@ def main() -> None:  # pragma: no cover - manual exploration entry point
     assert p.digital_output == PwmPort.PWM1 and int(p.pulse_width) == 300
     assert int(p.frequency) == 200 and int(p.pulse_count) == 50
     assert StartPulseTrainPayload.payload_dtype.itemsize == 4
-    assert int(StartPulseTrainPayload(pulse_count=np.uint8(3)).frequency) == 1  # defaultValue
+    partial = StartPulseTrainPayload(
+        digital_output=PwmPort.PWM0, pulse_width=np.uint16(0), pulse_count=np.uint8(3)
+    )
+    assert int(partial.frequency) == 1  # defaultValue
     print("StartPulseTrain          OK  (4 masked members, 2 words, default frequency=1)")
 
     p = _roundtrip(EncoderMode, EncoderModeMask.DISPLACEMENT)

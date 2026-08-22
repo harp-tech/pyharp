@@ -15,6 +15,7 @@ from harp.protocol import (
     Field,
     GroupMask,
     HarpVersionConverter,
+    ArrayConverter,
     IdentityConverter,
     RegisterBase,
     RegisterFloat,
@@ -318,7 +319,9 @@ class _Emitter:
         if ctx.mask is not None:
             return IdentityConverter(ctx.member_dtype)  # bit-field: native slice of the element
         if it is None:
-            return IdentityConverter(ctx.raw_dtype)  # raw passthrough / sub-array
+            if ctx.length > 1:
+                return ArrayConverter(ctx.element, ctx.length)  # raw passthrough, sub-array
+            return IdentityConverter(ctx.element)  # raw passthrough, single element
         # A known primitive that didn't fit is re-interpreted per field (``{Name}Converter``);
         # an unknown interfaceType is a domain type (``{InterfaceType}Converter``).
         symbol = f"{ctx.name}Converter" if entry is not None else f"{it}Converter"

@@ -12,8 +12,16 @@ from harp.data import DatasetReader, open_dataset
 from harp.device.client import Device, ITransport
 from harp.device.core import OperationControl, OperationControlPayload, WhoAmI
 from harp.device.schema import DeviceModule, DeviceModuleLike, create_device_module
-from harp.protocol import HarpMessage, RegisterBase
+from harp.protocol import (
+    ArrayConverter,
+    Field,
+    HarpMessage,
+    IdentityConverter,
+    RegisterBase,
+    StructPayload,
+)
 from harp.serial import open_device
+from numpy.typing import NDArray
 
 
 def schema_built_registers(yml: str) -> None:
@@ -131,3 +139,20 @@ def open_device_prefers_the_subclass_overload() -> None:
 
     device = open_device(Hybrid, port="COM3")
     assert_type(device, Hybrid)
+
+
+def array_payload_members() -> None:
+    """A member spanning several elements resolves as an array of the element type.
+
+    The equivalent sub-array dtype passed to IdentityConverter produces the same bytes
+    but resolves as a scalar, since a sub-array dtype carries np.void as its scalar
+    type, so ArrayConverter is what carries the element type through the descriptor.
+    """
+
+    class Payload(StructPayload[np.float32], length=6):
+        analog0: np.float32 = Field(IdentityConverter(np.float32), offset=0)
+        accelerometer: NDArray[np.float32] = Field(ArrayConverter(np.float32, 3), offset=3)
+
+    payload = Payload(analog0=np.float32(0), accelerometer=np.zeros(3, dtype=np.float32))
+    assert_type(payload.analog0, np.float32)
+    assert_type(payload.accelerometer, NDArray[np.float32])
