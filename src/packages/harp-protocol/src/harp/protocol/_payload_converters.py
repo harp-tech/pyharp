@@ -1,6 +1,6 @@
 import enum as _enum
 from abc import ABC, abstractmethod
-from typing import Any, Generic, TypeVar, cast
+from typing import TYPE_CHECKING, Any, Generic, TypeVar, cast
 from dataclasses import dataclass
 import numpy as np
 from numpy.typing import NDArray
@@ -119,6 +119,33 @@ class FloatConverter(IdentityConverter[np.float32]):
 
     def __init__(self) -> None:
         super().__init__(np.float32)
+
+
+if TYPE_CHECKING:
+
+    class ArrayConverter(Converter["NDArray[NpScalarT]"]):
+        """Pass-through converter for a member spanning several elements of one type.
+
+        The array counterpart of :class:`IdentityConverter`, decoding to an ``NDArray``
+        of the element type rather than to a single scalar. It exists to carry that type
+        and builds an :class:`IdentityConverter` over the equivalent sub-array dtype, so
+        every code path and every ``isinstance`` sees the passthrough converter it
+        already knows. Passing that dtype directly instead types the member as a scalar,
+        since a sub-array dtype carries ``np.void`` as its scalar type.
+        """
+
+        def __init__(self, dtype: "np.dtype[NpScalarT] | type[NpScalarT]", length: int) -> None: ...
+
+        def decode_scalar(self, view: np.generic) -> "NDArray[NpScalarT]": ...
+
+        def decode_batch(self, view: "NDArray[np.generic]") -> Any: ...
+
+        def encode_into(self, view: "NDArray[np.generic]", value: "NDArray[NpScalarT]") -> None: ...
+
+else:
+
+    def ArrayConverter(dtype, length):
+        return IdentityConverter(np.dtype((dtype, (length,))))
 
 
 class BoolConverter(Converter[bool]):

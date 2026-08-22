@@ -1,6 +1,7 @@
 from ._message import HarpMessage, HarpParseError
 from ._message_type import MessageType
 from ._payload_converters import (
+    ArrayConverter,
     BoolConverter,
     Converter,
     EnumConverter,
@@ -78,6 +79,7 @@ __all__ = [
     # Converters
     "Converter",
     "IdentityConverter",
+    "ArrayConverter",
     "StringConverter",
     "BoolConverter",
     "EnumConverter",

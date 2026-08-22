@@ -110,13 +110,13 @@ def benchmark_register(reg: BenchmarkedRegister, path: Path, *, runs: int) -> Re
         file_bytes=file_bytes,
     )
     df_pre = _time(
-        lambda: parse_to_dataframe(register, raw, timestamp=reg.timestamped),
+        lambda: parse_to_dataframe(register, raw, time_index=reg.timestamped),
         runs=runs,
         frames=frames,
         file_bytes=file_bytes,
     )
     df_re = _time(
-        lambda: parse_to_dataframe(register, path.read_bytes(), timestamp=reg.timestamped),
+        lambda: parse_to_dataframe(register, path.read_bytes(), time_index=reg.timestamped),
         runs=runs,
         frames=frames,
         file_bytes=file_bytes,
@@ -326,7 +326,7 @@ def main() -> None:
             f"df={_fmt_ms(res.df_preread.mean):>9s}ms"
         )
         if args.head:
-            df = parse_to_dataframe(reg.register, path.read_bytes(), timestamp=True)
+            df = parse_to_dataframe(reg.register, path.read_bytes(), time_index=True)
             print(df.head(5))
             print()
 
