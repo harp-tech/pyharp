@@ -72,6 +72,10 @@ class DatasetReader(Generic[M]):
     when a register was logged as several ``<name>_<address>_<suffix>.bin`` chunks,
     they are concatenated in filename order. Pass ``resolver`` (a :data:`FileResolver`)
     to support an alternative on-disk layout.
+
+    ``epoch`` anchors the time index of every read to absolute time, so one dataset is
+    read on one clock rather than the choice being made per register. It describes how
+    the recording was anchored. The reference Harp clock starts at :data:`REFERENCE_EPOCH`.
     """
 
     def __init__(
@@ -81,12 +85,14 @@ class DatasetReader(Generic[M]):
         *,
         name: str | None = None,
         resolver: FileNameResolver = default_file_resolver,
+        epoch: datetime | None = None,
         validate: bool = True,
     ) -> None:
         self._device_module = device_module
         self._root = Path(root)
         self._name_override = name
         self._resolver = resolver
+        self._epoch = epoch
         self._name = self._resolve_name()
         self._paths = dict(self._resolver(self._root, self._name))
         registers = device_module.REGISTER_MAP
@@ -158,9 +164,8 @@ class DatasetReader(Generic[M]):
         register: RegisterKey,
         *,
         suffix: str | None = None,
-        timestamp: bool = True,
-        epoch: datetime | None = None,
-        message_type: bool = False,
+        time_index: bool = True,
+        keep_type: bool = False,
         decode_enums: bool = True,
         demux_bit_masks: bool = False,
     ) -> pd.DataFrame:
@@ -182,7 +187,8 @@ class DatasetReader(Generic[M]):
         ``suffix`` selects a single ``<name>_<address>_<suffix>.bin`` chunk, and naming
         one that is absent raises ``FileNotFoundError`` (default: concatenate every
         chunk for the address). The remaining options match
-        :func:`~harp.data.parse_to_dataframe`.
+        :func:`~harp.data.parse_to_dataframe`, except that the epoch is the one the
+        reader was opened with.
         """
         cls, address = self._resolve(register)
         paths = self._resolve_paths(address, suffix)
@@ -190,9 +196,9 @@ class DatasetReader(Generic[M]):
         return parse_to_dataframe(
             cls,
             raw,
-            timestamp=timestamp,
-            epoch=epoch,
-            message_type=message_type,
+            time_index=time_index,
+            epoch=self._epoch,
+            keep_type=keep_type,
             decode_enums=decode_enums,
             demux_bit_masks=demux_bit_masks,
         )
@@ -229,6 +235,7 @@ def open_dataset(
     *,
     name: str | None = ...,
     resolver: FileNameResolver = ...,
+    epoch: datetime | None = ...,
     validate: bool = ...,
 ) -> DatasetReader[M]: ...
 
@@ -243,6 +250,7 @@ def open_dataset(
     resolver: FileNameResolver = ...,
     converters: Mapping[str, Any] | None = ...,
     require_converters: bool = ...,
+    epoch: datetime | None = ...,
     validate: bool = ...,
 ) -> DatasetReader[DeviceModule]: ...
 
@@ -256,6 +264,7 @@ def open_dataset(
     resolver: FileNameResolver = default_file_resolver,
     converters: Mapping[str, Any] | None = None,
     require_converters: bool = True,
+    epoch: datetime | None = None,
     validate: bool = True,
 ) -> DatasetReader:
     """Open a de-multiplexed Harp dataset folder and return a :class:`DatasetReader`.
@@ -274,6 +283,10 @@ def open_dataset(
     decoding. These three parameters describe alternative ways to supply a module, so
     they are mutually exclusive, and will raise when more than one is specified.
 
+    ``epoch`` anchors the time index of every read to absolute time, since the anchor
+    describes the recording rather than one register. The reference Harp clock starts
+    at :data:`REFERENCE_EPOCH`, and the default of ``None`` gives float seconds.
+
     ``validate`` cannot rescue a corrupt ``device.yml`` if that schema file is also
     used to build the module. Reading such a folder always requires supplying a module
     obtained elsewhere.
@@ -286,7 +299,12 @@ def open_dataset(
                 "do not apply when one is given. Drop them, or drop the device module."
             )
         return DatasetReader(
-            device_module, root_path, name=name, resolver=resolver, validate=validate
+            device_module,
+            root_path,
+            name=name,
+            resolver=resolver,
+            epoch=epoch,
+            validate=validate,
         )
     schema_path = Path(schema) if schema is not None else root_path / DEVICE_SCHEMA_FILENAME
     if not schema_path.is_file():
@@ -302,5 +320,6 @@ def open_dataset(
         root_path,
         name=name,
         resolver=resolver,
+        epoch=epoch,
         validate=validate and schema is not None,
     )

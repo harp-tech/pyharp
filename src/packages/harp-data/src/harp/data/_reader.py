@@ -2,14 +2,14 @@
 
 from datetime import datetime
 from pathlib import Path
-from typing import Any, BinaryIO, Union
+from typing import Any, BinaryIO
 
 import numpy as np
 import pandas as pd
 from harp.protocol import RegisterBase
 from numpy.typing import NDArray
 
-Source = Union[str, Path, bytes, bytearray, memoryview, BinaryIO]
+Source = str | Path | bytes | bytearray | memoryview | BinaryIO
 
 _MSG_NAMES = np.array(["_NONE", "Read", "Write", "Event"])
 
@@ -68,38 +68,39 @@ def parse_to_dataframe(
     register: type[RegisterBase[Any]],
     source: Source,
     *,
-    timestamp: bool = True,
-    epoch: Union[datetime, None] = None,
-    message_type: bool = False,
+    time_index: bool = True,
+    epoch: datetime | None = None,
+    keep_type: bool = False,
     decode_enums: bool = True,
     demux_bit_masks: bool = False,
 ) -> pd.DataFrame:
     """Parse all frames of ``register`` from ``source`` into a DataFrame.
 
-    ``source`` may be a file path, raw bytes, or an open binary file object. When
-    ``timestamp`` is set, the Harp time becomes the DataFrame index (named
-    ``"Time"``): float seconds by default, or an absolute ``DatetimeIndex`` when
-    ``epoch`` is given (e.g. :data:`REFERENCE_EPOCH`). ``message_type`` inserts a
-    leading column; ``decode_enums`` controls whether enum fields become
+    ``source`` may be a file path, raw bytes, or an open binary file object.
+    ``time_index`` makes the Harp time the DataFrame index, named ``"Time"``, and
+    ``False`` leaves a ``RangeIndex``. ``epoch`` anchors that index to absolute time,
+    giving a ``DatetimeIndex`` measured from it, where the default of ``None`` gives
+    float seconds; the Harp clock starts at :data:`REFERENCE_EPOCH`. ``keep_type``
+    inserts a leading column; ``decode_enums`` controls whether enum fields become
     ``pd.Categorical`` (True) or raw codes; ``demux_bit_masks`` expands each flag
     (``BitMask``) field into one boolean column per flag member (True) or keeps it
     as a single raw-integer column.
     """
     raw = _read_bytes(source)
-    _data, timestamps, msg_view, payload = register.parse_bulk(raw, parse_timestamp=timestamp)
+    _data, timestamps, msg_view, payload = register.parse_bulk(raw, parse_timestamp=time_index)
     df = payload_to_dataframe(payload, decode_enums=decode_enums, demux_bit_masks=demux_bit_masks)
 
-    if message_type and msg_view is not None:
+    if keep_type and msg_view is not None:
         df.insert(
             0,
             "message_type",
             pd.Categorical(_MSG_NAMES[msg_view & 0x03], categories=_MSG_NAMES[1:]),
         )
-    if timestamp:
+    if time_index:
         if timestamps is None:
             if len(df) > 0:
                 raise ValueError(
-                    "Buffer contains no timestamp data; pass timestamp=False to suppress "
+                    "Buffer contains no timestamp data; pass time_index=False to suppress "
                     "the time index."
                 )
             seconds = np.empty(0, dtype=np.float64)  # empty buffer: empty Time index

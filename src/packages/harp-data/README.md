@@ -53,7 +53,7 @@ df = reader.read(behavior.AnalogData)  # by register class
 
 Prefer the register class where a generated package supplies one, since it is the only form that type-checks and a misspelling is caught before the folder is read. A module built by `create_device_module` resolves its registers as `Any`, so there the class verifies no more than the name does.
 
-The Harp time becomes the DataFrame index named `"Time"`, as float seconds by default or an absolute `DatetimeIndex` when `epoch=REFERENCE_EPOCH` is passed. Data carrying no timestamp raise unless `timestamp=False` is passed. Multi-chunk registers logged as `<DeviceName>_<address>_<suffix>.bin` are concatenated in filename order; pass a `resolver` to support an alternative on-disk layout. `paths` reports what the resolver found, keyed by address, which is where a custom layout or a chunked register can be checked.
+The Harp time becomes the DataFrame index named `"Time"`, as float seconds by default or an absolute `DatetimeIndex` when the dataset is opened with `epoch=REFERENCE_EPOCH`. The anchor is set once for the dataset, since it describes how the recording was made rather than how one register is read. Data carrying no timestamp raise unless `time_index=False` is passed. Multi-chunk registers logged as `<DeviceName>_<address>_<suffix>.bin` are concatenated in filename order; pass a `resolver` to support an alternative on-disk layout. `paths` reports what the resolver found, keyed by address, which is where a custom layout or a chunked register can be checked.
 
 The `<DeviceName>` prefix comes from the `DEVICE_NAME` declared by the device module. Pass `name=` to override it, or to supply one when the module declares an empty name.
 
@@ -69,11 +69,11 @@ from my_device import AnalogData
 
 df = data.parse_to_dataframe(AnalogData, "AnalogData.bin")
 df = data.parse_to_dataframe(
-    AnalogData, raw, timestamp=True, message_type=False, decode_enums=True
+    AnalogData, raw, time_index=True, epoch=None, keep_type=False, decode_enums=True
 )
 ```
 
-With `timestamp=True`, the default, the Harp time becomes the DataFrame index named `"Time"`, as float seconds, or an absolute `DatetimeIndex` when `epoch=REFERENCE_EPOCH` is also passed. Enum fields decode to `pd.Categorical`, and `decode_enums=False` keeps raw codes.
+`time_index` decides the index: `True`, the default, gives the Harp time named `"Time"`, and `False` gives a `RangeIndex`. `epoch` anchors that index, giving float seconds when omitted and an absolute `DatetimeIndex` when set to a datetime such as `REFERENCE_EPOCH`. This function reads one file rather than a dataset, so it takes the anchor directly. Enum fields decode to `pd.Categorical`, and `decode_enums=False` keeps raw codes.
 
 ## From an already-parsed payload
 

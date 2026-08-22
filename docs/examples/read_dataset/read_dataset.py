@@ -34,9 +34,10 @@ print(df.head())
 frames = {name: reader.read(name) for name in reader.contents}
 print(list(frames))
 
-# Pass an epoch to turn the "Time" index into an absolute `DatetimeIndex` instead
-# of float seconds. `REFERENCE_EPOCH` is time zero of the Harp clock in UTC.
-absolute = reader.read(44, epoch=data.REFERENCE_EPOCH)
+# Opening with an epoch turns the "Time" index into an absolute `DatetimeIndex`
+# instead of float seconds, for every register of the dataset. `REFERENCE_EPOCH` is
+# time zero of the Harp clock in UTC.
+absolute = data.open_dataset("session.harp", epoch=data.REFERENCE_EPOCH).read(44)
 print(absolute.index[:3])
 
 # --- Working from a device module already in hand ----------------------------
