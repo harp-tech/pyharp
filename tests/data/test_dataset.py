@@ -141,11 +141,11 @@ def test_time_index_is_float_seconds_without_epoch(dataset):
     assert list(df.index) == [0.0, 1.0, 2.0, 3.0, 4.0]  # arange(5) seconds from the fixture
 
 
-def test_epoch_gives_absolute_datetime_index(dataset):
+def test_dataset_epoch_gives_absolute_datetime_index(dataset):
     mod, _name, root, specs = dataset
-    reader = DatasetReader(mod, root)
+    reader = DatasetReader(mod, root, epoch=REFERENCE_EPOCH)
     address = next(iter(specs))
-    df = reader.read(address, time_index=REFERENCE_EPOCH)
+    df = reader.read(address)
     assert isinstance(df.index, pd.DatetimeIndex)
     assert df.index.name == "Time"
     # Harp seconds are measured from the reference epoch (timestamps were arange(5)).
@@ -153,14 +153,22 @@ def test_epoch_gives_absolute_datetime_index(dataset):
     assert df.index[2] == pd.Timestamp(REFERENCE_EPOCH) + pd.Timedelta(seconds=2)
 
 
-def test_time_index_raises_type_error_for_other_types(dataset):
-    # Only a bool or a datetime selects the index, so a value that merely happens to be
-    # truthy cannot pass for a request to index by time.
+def test_dataset_epoch_applies_to_every_register(dataset):
+    # The anchor is set once for the dataset, so no read can index on a different clock
+    # from its siblings and frames from several registers share one index type.
     mod, _name, root, specs = dataset
-    reader = DatasetReader(mod, root)
-    address = next(iter(specs))
-    with pytest.raises(TypeError, match="time_index"):
-        reader.read(address, time_index="Time")  # type: ignore[arg-type]
+    reader = DatasetReader(mod, root, epoch=REFERENCE_EPOCH)
+    for address in specs:
+        assert isinstance(reader.read(address).index, pd.DatetimeIndex)
+
+
+def test_parse_takes_epoch_without_dataset(dataset):
+    # parse_to_dataframe has no dataset to take the anchor from, so it accepts one.
+    _mod, _name, _root, specs = dataset
+    cls, buf = specs[next(iter(specs))]
+    df = parse_to_dataframe(cls, buf, epoch=REFERENCE_EPOCH)
+    assert isinstance(df.index, pd.DatetimeIndex)
+    assert df.index[0] == pd.Timestamp(REFERENCE_EPOCH)
 
 
 def test_suffix_chunks_are_concatenated(emitted_module, tmp_path):

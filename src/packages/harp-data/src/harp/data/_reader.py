@@ -2,14 +2,14 @@
 
 from datetime import datetime
 from pathlib import Path
-from typing import Any, BinaryIO, Union
+from typing import Any, BinaryIO
 
 import numpy as np
 import pandas as pd
 from harp.protocol import RegisterBase
 from numpy.typing import NDArray
 
-Source = Union[str, Path, bytes, bytearray, memoryview, BinaryIO]
+Source = str | Path | bytes | bytearray | memoryview | BinaryIO
 
 _MSG_NAMES = np.array(["_NONE", "Read", "Write", "Event"])
 
@@ -25,22 +25,6 @@ def _time_index(seconds: NDArray[np.float64], epoch: datetime | None) -> pd.Inde
         return pd.Index(seconds, name=_TIME_INDEX_NAME)
     return pd.DatetimeIndex(
         pd.Timestamp(epoch) + pd.to_timedelta(seconds, unit="s"), name=_TIME_INDEX_NAME
-    )
-
-
-def _resolve_epoch(time_index: object) -> Union[datetime, None]:
-    """The epoch a ``time_index`` argument selects, rejecting anything else.
-
-    Only ``bool`` and ``datetime`` are accepted, so a value that happens to be truthy
-    cannot pass for a request to index by time.
-    """
-    if isinstance(time_index, bool):
-        return None
-    if isinstance(time_index, datetime):
-        return time_index
-    raise TypeError(
-        f"time_index must be a bool or a datetime such as REFERENCE_EPOCH, "
-        f"not {type(time_index).__name__}."
     )
 
 
@@ -84,7 +68,8 @@ def parse_to_dataframe(
     register: type[RegisterBase[Any]],
     source: Source,
     *,
-    time_index: Union[bool, datetime] = True,
+    time_index: bool = True,
+    epoch: datetime | None = None,
     keep_type: bool = False,
     decode_enums: bool = True,
     demux_bit_masks: bool = False,
@@ -92,19 +77,17 @@ def parse_to_dataframe(
     """Parse all frames of ``register`` from ``source`` into a DataFrame.
 
     ``source`` may be a file path, raw bytes, or an open binary file object.
-    ``time_index`` makes the Harp time the DataFrame index, named ``"Time"``: ``True``
-    for float seconds, a ``datetime`` such as :data:`REFERENCE_EPOCH` for an absolute
-    ``DatetimeIndex``, and ``False`` for a ``RangeIndex``. ``keep_type`` inserts a
-    leading column; ``decode_enums`` controls whether enum fields become
+    ``time_index`` makes the Harp time the DataFrame index, named ``"Time"``, and
+    ``False`` leaves a ``RangeIndex``. ``epoch`` anchors that index to absolute time,
+    giving a ``DatetimeIndex`` measured from it, where the default of ``None`` gives
+    float seconds; the Harp clock starts at :data:`REFERENCE_EPOCH`. ``keep_type``
+    inserts a leading column; ``decode_enums`` controls whether enum fields become
     ``pd.Categorical`` (True) or raw codes; ``demux_bit_masks`` expands each flag
     (``BitMask``) field into one boolean column per flag member (True) or keeps it
     as a single raw-integer column.
     """
-    epoch = _resolve_epoch(time_index)
     raw = _read_bytes(source)
-    _data, timestamps, msg_view, payload = register.parse_bulk(
-        raw, parse_timestamp=time_index is not False
-    )
+    _data, timestamps, msg_view, payload = register.parse_bulk(raw, parse_timestamp=time_index)
     df = payload_to_dataframe(payload, decode_enums=decode_enums, demux_bit_masks=demux_bit_masks)
 
     if keep_type and msg_view is not None:
@@ -113,7 +96,7 @@ def parse_to_dataframe(
             "message_type",
             pd.Categorical(_MSG_NAMES[msg_view & 0x03], categories=_MSG_NAMES[1:]),
         )
-    if time_index is not False:
+    if time_index:
         if timestamps is None:
             if len(df) > 0:
                 raise ValueError(
